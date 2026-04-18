@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameTranslator v1.0.1-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.1-alpha/GameChatTranslator_v1.0.1-alpha.zip)
+[**👉 GameTranslator v1.0.1-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.1-alpha/GameChatTranslator_v1.0.1.zip)
 
 ---
 
