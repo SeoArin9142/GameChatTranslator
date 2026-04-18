@@ -6,7 +6,7 @@
 
 ---
 
-![실행 화면](./assets/screenshot.jpg)
+![실행 화면](./GameChatTranslator/assets/screenshot.jpg)
 
 ## 📥 다운로드 (Download)
 
