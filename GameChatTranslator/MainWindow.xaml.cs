@@ -476,6 +476,11 @@ namespace GameTranslator
             // 배경(검은색)과 글씨(흰색)를 구분하는 이진화 기준값 (스트리노바 황금비율: 80)
             int threshold = int.TryParse(ini.Read("Threshold"), out int t) ? t : 80;
 
+            // 🌟 [추가] 배율 설정 읽기 (기본값 3, 1~4배율 사이로 안전하게 제한)
+            int scaleFactor = int.TryParse(ini.Read("ScaleFactor"), out int s) ? s : 3;
+            if (scaleFactor < 1) scaleFactor = 1;
+            if (scaleFactor > 4) scaleFactor = 4;
+
             try
             {
                 // 1. 화면 지정 영역 캡처
@@ -485,9 +490,9 @@ namespace GameTranslator
                     g.CopyFromScreen(gameChatArea.Location, System.Drawing.Point.Empty, gameChatArea.Size);
                 }
 
-                // 2. OCR 인식률 향상을 위해 해상도 3배(Bicubic 보간) 뻥튀기
-                int newWidth = rawBitmap.Width * 3;
-                int newHeight = rawBitmap.Height * 3;
+                // 2. OCR 인식률 향상을 위해 해상도 뻥튀기 (사용자가 설정한 scaleFactor 적용)
+                int newWidth = rawBitmap.Width * scaleFactor;
+                int newHeight = rawBitmap.Height * scaleFactor;
                 using Bitmap resizedBitmap = new Bitmap(newWidth, newHeight);
                 using (Graphics g = Graphics.FromImage(resizedBitmap))
                 {
@@ -667,7 +672,7 @@ namespace GameTranslator
                         }
                     }
 
-                    // 🌟 [호출 추가] 로그 파일에 기록 (닉네임+원문, 번역문)
+                    // 🌟 로그 파일에 기록 (닉네임+원문, 번역문)
                     AppendLog(characterNameGold + bestMessage, translated);
 
                     // 13. UI 출력 (닉네임은 금색, 번역된 채팅은 흰색)

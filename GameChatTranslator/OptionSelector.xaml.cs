@@ -72,6 +72,18 @@ namespace GameTranslator
             {
                 TxtAreaInfo.Text = "저장된 영역: 없음 (좌측 하단 기본값)";
             }
+
+            // [배율 세팅 불러오기]
+            string scale = _ini.Read("ScaleFactor") ?? "3";
+            // 콤보박스 아이템 중 Tag가 scale값과 일치하는 것을 선택
+            foreach (ComboBoxItem item in ComboScale.Items)
+            {
+                if (item.Tag.ToString() == scale)
+                {
+                    ComboScale.SelectedItem = item;
+                    break;
+                }
+            }
         }
 
         // ==========================================
@@ -168,6 +180,12 @@ namespace GameTranslator
             _ini.Write("Key_AreaSelect", TxtKeyArea.Text);
             _ini.Write("Key_Translate", TxtKeyTrans.Text);
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
+
+            // [배율 설정 저장]
+            if (ComboScale.SelectedItem is ComboBoxItem scaleItem)
+            {
+                _ini.Write("ScaleFactor", scaleItem.Tag.ToString());
+            }
 
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
             this.DialogResult = true;

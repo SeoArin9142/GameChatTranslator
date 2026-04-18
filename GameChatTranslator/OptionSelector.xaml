@@ -14,7 +14,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="⚙️ 초기 환경 설정" FontSize="20" FontWeight="Bold" Foreground="LimeGreen" Margin="0,0,0,15" HorizontalAlignment="Center"/>
+        <TextBlock Text="⚙️ 초기 환경 설정" FontSize="20" FontWeight="Bold" Foreground="LimeGreen" Margin="247,5,0,10" HorizontalAlignment="Left"/>
 
         <GroupBox Header="언어 설정 (Language)" Foreground="White" Grid.Row="1" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">
@@ -78,6 +78,16 @@
                 <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" Padding="5" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
             </StackPanel>
         </GroupBox>
+
+        <StackPanel Orientation="Horizontal" Margin="0,5">
+            <TextBlock Text="OCR 인식 배율:" Width="100" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ComboScale" Width="100">
+                <ComboBoxItem Content="1배 (빠름)" Tag="1"/>
+                <ComboBoxItem Content="2배" Tag="2"/>
+                <ComboBoxItem Content="3배 (권장)" Tag="3"/>
+                <ComboBoxItem Content="4배 (정밀)" Tag="4"/>
+            </ComboBox>
+        </StackPanel>
 
         <Button x:Name="BtnSaveAndStart" Content="💾 저장 및 게임 시작" Grid.Row="6" Height="40" Background="LimeGreen" Foreground="Black" FontWeight="Bold" FontSize="16" Click="BtnSaveAndStart_Click" Cursor="Hand"/>
     </Grid>
