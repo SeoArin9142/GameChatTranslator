@@ -441,6 +441,29 @@ namespace GameTranslator
             return lang; // ko, ja, ru는 그대로 사용 가능
         }
 
+        // 🌟 [추가] 번역 내역을 텍스트 파일로 기록하는 함수
+        private void AppendLog(string original, string translated)
+        {
+            try
+            {
+                // 1. 실행 폴더 내 'logs' 폴더 경로 설정 및 생성
+                string logDirPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (!System.IO.Directory.Exists(logDirPath))
+                    System.IO.Directory.CreateDirectory(logDirPath);
+
+                // 2. 파일명은 날짜별로 생성 (예: log_20260419.txt)
+                string fileName = $"log_{DateTime.Now:yyyyMMdd}.txt";
+                string filePath = System.IO.Path.Combine(logDirPath, fileName);
+
+                // 3. 기록할 포맷 설정: [20:30:05] 원문 -> 번역문
+                string logEntry = $"[{DateTime.Now:HH:mm:ss}] {original.Trim()} -> {translated.Trim()}{Environment.NewLine}";
+
+                // 4. 파일 끝에 내용 이어쓰기 (파일이 없으면 생성함)
+                System.IO.File.AppendAllText(filePath, logEntry, System.Text.Encoding.UTF8);
+            }
+            catch { /* 로그 기록 실패 시 게임 방해 방지를 위해 무시 */ }
+        }
+
         // ==========================================
         // 📌 8. 메인 번역 로직 (OCR -> 병합 -> 필터링 -> 번역 -> 출력)
         // ==========================================
@@ -643,6 +666,9 @@ namespace GameTranslator
                             }
                         }
                     }
+
+                    // 🌟 [호출 추가] 로그 파일에 기록 (닉네임+원문, 번역문)
+                    AppendLog(characterNameGold + bestMessage, translated);
 
                     // 13. UI 출력 (닉네임은 금색, 번역된 채팅은 흰색)
                     TxtResult.Inlines.Add(new Run(characterNameGold) { Foreground = Brushes.Gold, FontWeight = FontWeights.Bold });
