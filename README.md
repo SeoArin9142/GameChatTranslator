@@ -6,7 +6,7 @@
 
 ---
 
-![실행 화면](./images/screenshot.png)
+![실행 화면](./images/screenshot.jpg)
 
 ## 📥 다운로드 (Download)
 
