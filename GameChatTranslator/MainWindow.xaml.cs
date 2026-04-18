@@ -495,7 +495,7 @@ namespace GameTranslator
                     string debugPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug");
                     if (!Directory.Exists(debugPath)) Directory.CreateDirectory(debugPath);
                     string fileName = DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_debug.png";
-                    resizedBitmap.Save(System.IO.Path.Combine(debugPath, fileName), ImageFormat.Png);
+                    //resizedBitmap.Save(System.IO.Path.Combine(debugPath, fileName), ImageFormat.Png);
                 }
                 catch { /* 권한 문제 등으로 실패 시 무시 */ }
 
