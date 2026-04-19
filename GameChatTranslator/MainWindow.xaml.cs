@@ -56,6 +56,7 @@ namespace GameTranslator
         private const int ID_HOTKEY_TRANSLATE = 9003;
         private const int ID_HOTKEY_AUTO = 9004;
         private const int ID_HOTKEY_TOGGLE_ENGINE = 9005;
+        private const string DefaultGeminiModel = "gemini-2.5-flash";
 
         // ==========================================
         // 📌 2. 전역 변수 (UI, 캡처, OCR, API 관련)
@@ -82,6 +83,7 @@ namespace GameTranslator
 
         private bool isAutoTranslating = false;
         private string lastRawTextCombined = "";
+        private string hotkeyWarningMessage = "";
 
         private HttpClient httpClient = new HttpClient();
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
@@ -131,10 +133,7 @@ namespace GameTranslator
             string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
             ini = new IniFile(iniPath);
 
-            if (ini.Read("GeminiKey") == null)
-            {
-                ini.Write("GeminiKey", "");
-            }
+            EnsureDefaultSettings();
 
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";
@@ -156,6 +155,45 @@ namespace GameTranslator
             topmostTimer.Interval = TimeSpan.FromSeconds(2);
             topmostTimer.Tick += (s, e) => ForceTopmost();
             topmostTimer.Start();
+        }
+
+        private void EnsureDefaultSettings()
+        {
+            if (string.IsNullOrWhiteSpace(ini.Read("GeminiKey")) && string.IsNullOrWhiteSpace(ini.Read("GeminiKey", "GeminiKey")))
+            {
+                ini.Write("GeminiKey", "");
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("GeminiModel")))
+            {
+                ini.Write("GeminiModel", DefaultGeminiModel);
+            }
+        }
+
+        private string ReadGeminiKey()
+        {
+            string settingsKey = ini.Read("GeminiKey");
+            if (!string.IsNullOrWhiteSpace(settingsKey))
+            {
+                return settingsKey.Trim();
+            }
+
+            string legacySectionKey = ini.Read("GeminiKey", "GeminiKey");
+            if (!string.IsNullOrWhiteSpace(legacySectionKey))
+            {
+                string trimmedKey = legacySectionKey.Trim();
+                ini.Write("GeminiKey", trimmedKey);
+                AppendLog("기존 [GeminiKey] 섹션의 API 키를 [Settings] 섹션으로 이전했습니다.");
+                return trimmedKey;
+            }
+
+            return "";
+        }
+
+        private string ReadGeminiModel()
+        {
+            string modelName = ini.Read("GeminiModel");
+            return string.IsNullOrWhiteSpace(modelName) ? DefaultGeminiModel : modelName.Trim();
         }
 
         // ==========================================
@@ -209,7 +247,7 @@ namespace GameTranslator
             HwndSource.FromHwnd(_windowHandle).AddHook(HwndHook);
             RegisterAllHotkeys();
 
-            string geminiKey = ini.Read("GeminiKey") ?? "";
+            string geminiKey = ReadGeminiKey();
 
             useGeminiEngine = !string.IsNullOrEmpty(geminiKey);
 
@@ -224,7 +262,7 @@ namespace GameTranslator
             string log_threshold = ini.Read("Threshold") ?? "120";
             string log_scale = ini.Read("ScaleFactor") ?? "3";
             string log_opacity = ini.Read("Opacity") ?? "100";
-            string log_model = ini.Read("GeminiModel") ?? "3-flash";
+            string log_model = ReadGeminiModel();
 
             AppendLog($"[현재 세팅]");
             AppendLog($"\t[게임 언어\t\t\t: {log_gLang}\t]");
@@ -282,6 +320,7 @@ namespace GameTranslator
             }
 
             UpdateCaptureBorder(!isLocked);
+            ShowHotkeyWarningIfAny();
         }
 
         // ==========================================
@@ -295,17 +334,58 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AUTO);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
 
-            ParseHotkey(ini.Read("Key_MoveLock") ?? "Ctrl+7", out modMove, out keyMove);
-            ParseHotkey(ini.Read("Key_AreaSelect") ?? "Ctrl+8", out modArea, out keyArea);
-            ParseHotkey(ini.Read("Key_Translate") ?? "Ctrl+9", out modTrans, out keyTrans);
-            ParseHotkey(ini.Read("Key_AutoTranslate") ?? "Ctrl+0", out modAuto, out keyAuto);
-            ParseHotkey(ini.Read("Key_ToggleEngine") ?? "Ctrl+-", out modToggle, out keyToggle);
+            hotkeyWarningMessage = "";
+            var failedHotkeys = new List<string>();
 
-            RegisterHotKey(_windowHandle, ID_HOTKEY_MOVE_LOCK, modMove, keyMove);
-            RegisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT, modArea, keyArea);
-            RegisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE, modTrans, keyTrans);
-            RegisterHotKey(_windowHandle, ID_HOTKEY_AUTO, modAuto, keyAuto);
-            RegisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE, modToggle, keyToggle);
+            string moveHotkey = ini.Read("Key_MoveLock") ?? "Ctrl+7";
+            string areaHotkey = ini.Read("Key_AreaSelect") ?? "Ctrl+8";
+            string translateHotkey = ini.Read("Key_Translate") ?? "Ctrl+9";
+            string autoHotkey = ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
+            string toggleHotkey = ini.Read("Key_ToggleEngine") ?? "Ctrl+-";
+
+            ParseHotkey(moveHotkey, out modMove, out keyMove);
+            ParseHotkey(areaHotkey, out modArea, out keyArea);
+            ParseHotkey(translateHotkey, out modTrans, out keyTrans);
+            ParseHotkey(autoHotkey, out modAuto, out keyAuto);
+            ParseHotkey(toggleHotkey, out modToggle, out keyToggle);
+
+            RegisterHotKeyOrWarn(ID_HOTKEY_MOVE_LOCK, modMove, keyMove, "이동/잠금", moveHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_AREA_SELECT, modArea, keyArea, "영역 설정", areaHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_TRANSLATE, modTrans, keyTrans, "수동 번역", translateHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_AUTO, modAuto, keyAuto, "자동 번역", autoHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_TOGGLE_ENGINE, modToggle, keyToggle, "엔진 전환", toggleHotkey, failedHotkeys);
+
+            if (failedHotkeys.Count > 0)
+            {
+                hotkeyWarningMessage = "⚠️ 등록 실패 단축키: " + string.Join(", ", failedHotkeys);
+                AppendLog(hotkeyWarningMessage);
+            }
+        }
+
+        private void RegisterHotKeyOrWarn(int id, uint modifier, uint key, string label, string configuredHotkey, List<string> failedHotkeys)
+        {
+            if (key == 0)
+            {
+                failedHotkeys.Add($"{label}({configuredHotkey}: 키 해석 실패)");
+                return;
+            }
+
+            if (!RegisterHotKey(_windowHandle, id, modifier, key))
+            {
+                failedHotkeys.Add($"{label}({configuredHotkey})");
+            }
+        }
+
+        private void ShowHotkeyWarningIfAny()
+        {
+            if (string.IsNullOrWhiteSpace(hotkeyWarningMessage)) return;
+
+            TxtResult.Inlines.Add(new LineBreak());
+            TxtResult.Inlines.Add(new Run(hotkeyWarningMessage)
+            {
+                Foreground = Brushes.OrangeRed,
+                FontWeight = FontWeights.Bold
+            });
         }
 
         private void UpdateYellowHotkeyGuideText()
@@ -493,7 +573,7 @@ namespace GameTranslator
         }
         private void ToggleEngine()
         {
-            string geminiKey = ini.Read("GeminiKey") ?? "";
+            string geminiKey = ReadGeminiKey();
             if (string.IsNullOrWhiteSpace(geminiKey) || geminiKey.Length < 30)
             {
                 TxtResult.Text = "⚠️ Gemini API 키가 올바르게 등록되지 않아 전환할 수 없습니다.";
@@ -818,8 +898,10 @@ namespace GameTranslator
                     }
 
                     string finalContent = bestMessage.Trim();
+                    string geminiKey = ReadGeminiKey();
+                    bool willUseGemini = useGeminiEngine && !string.IsNullOrWhiteSpace(geminiKey);
 
-                    if (usedEngine.Contains("Google"))
+                    if (!willUseGemini)
                     {
                         if (Regex.IsMatch(finalContent, @"[\u4e00-\u9fa5]") && Regex.IsMatch(finalContent, @"[ぁ-んァ-ヶ]"))
                             finalContent = Regex.Replace(finalContent, @"[ぁ-んァ-ヶ]", "");
@@ -838,7 +920,7 @@ namespace GameTranslator
                     }
                     else if (finalContent.Length < 2) continue;
 
-                    string modelName = ini.Read("GeminiModel") ?? "3-flash";
+                    string modelName = ReadGeminiModel();
                     usedEngine = "Google";
                     string translated = finalContent;
 
@@ -851,10 +933,8 @@ namespace GameTranslator
                         }
                         else
                         {
-                            string geminiKey = ini.Read("GeminiKey") ?? "";
-
                             // 🌟 이제 제미나이 키가 있어도, 상태(useGeminiEngine)가 켜져 있을 때만 사용!
-                            if (useGeminiEngine && !string.IsNullOrEmpty(geminiKey))
+                            if (willUseGemini)
                             {
                                 translated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
                                 usedEngine = $"Gemini {modelName}";
@@ -962,7 +1042,7 @@ namespace GameTranslator
 
         private async Task<string> CallGeminiAPI(string text, string tLang, string apiKey)
         {
-            string modelName = ini.Read("GeminiModel") ?? "gemini-2.5-flash";
+            string modelName = ReadGeminiModel();
             string url = $"https://generativelanguage.googleapis.com/v1/models/{modelName}:generateContent?key={apiKey}";
             string targetLanguage = tLang == "ko" ? "Korean" : (tLang == "en-US" ? "English" : tLang);
 
@@ -975,14 +1055,14 @@ namespace GameTranslator
 
             var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
             string jsonPayload = System.Text.Json.JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 
             int retryCount = 2;
             while (retryCount > 0)
             {
                 try
                 {
-                    var response = await httpClient.PostAsync(url, content);
+                    using var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+                    using var response = await httpClient.PostAsync(url, content);
                     if (!response.IsSuccessStatusCode)
                     {
                         string errorDetail = await response.Content.ReadAsStringAsync();

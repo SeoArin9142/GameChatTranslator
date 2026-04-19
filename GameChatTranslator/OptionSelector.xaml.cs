@@ -179,7 +179,7 @@ namespace GameTranslator
             }
             else
             {
-                _ini.Write("Threshold", "80"); // 숫자가 아니면 기본값 80 강제 지정
+                _ini.Write("Threshold", "120"); // 숫자가 아니면 기본값 120 강제 지정
             }
 
             // [추가] 자동 번역 주기(Interval) 저장 (안전하게 숫자인지 검사 후 저장)

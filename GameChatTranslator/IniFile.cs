@@ -41,11 +41,11 @@ namespace GameTranslator
             // Windows API가 읽어온 글자를 담아둘 255자 크기의 넉넉한 바구니(메모리 공간)를 준비합니다.
             var RetVal = new StringBuilder(255);
 
-            // API를 호출하여 값을 찾습니다. 만약 값이 없다면 빈 문자열("")을 돌려줍니다.
-            GetPrivateProfileString(Section, Key, "", RetVal, 255, Path);
+            // API를 호출하여 값을 찾습니다. 값이 없다면 null을 돌려 기본값 처리가 가능하게 합니다.
+            int length = GetPrivateProfileString(Section, Key, "", RetVal, 255, Path);
 
             // 바구니에 담긴 텍스트를 C#에서 쓸 수 있는 String 형태로 바꿔서 반환합니다.
-            return RetVal.ToString();
+            return length == 0 ? null : RetVal.ToString();
         }
 
         // ==========================================
