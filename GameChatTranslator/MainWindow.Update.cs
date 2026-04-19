@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -11,9 +12,26 @@ namespace GameTranslator
 {
     public partial class MainWindow
     {
-        private const string CurrentAppVersion = "v.1.0.3-alpha";
         private const string ReleaseListApiUrl = "https://api.github.com/repos/SeoArin9142/GameChatTranslator/releases?per_page=10";
         private const string ReleasePageUrl = "https://github.com/SeoArin9142/GameChatTranslator/releases";
+        private static string CurrentAppVersion
+        {
+            get
+            {
+                string version = Assembly
+                    .GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion;
+
+                if (string.IsNullOrWhiteSpace(version))
+                {
+                    version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
+                }
+
+                version = version.Split('+')[0].Trim();
+                return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v.{version}";
+            }
+        }
 
         private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
         {
