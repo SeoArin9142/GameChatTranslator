@@ -386,5 +386,15 @@ namespace GameTranslator
         {
             RefreshOcrLanguageStatus();
         }
+
+        /// <summary>
+        /// [OCR 진단 화면 열기] 버튼 클릭 시 현재 캡처 영역의 원본/전처리/OCR 결과를 별도 창으로 표시합니다.
+        /// <paramref name="sender"/>는 OCR 진단 화면 열기 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
+        private void BtnOpenOcrDiagnostic_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow?.ShowOcrDiagnosticWindow();
+        }
     }
 }

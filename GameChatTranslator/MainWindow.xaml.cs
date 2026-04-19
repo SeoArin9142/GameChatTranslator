@@ -63,6 +63,7 @@ namespace GameTranslator
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
         private LogViewerWindow logViewerWindow;
+        private OcrDiagnosticWindow ocrDiagnosticWindow;
 
         private HashSet<string> characterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
