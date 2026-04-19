@@ -1,0 +1,174 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - "v.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build, for example v.1.0.8-alpha"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+
+    env:
+      DOTNET_NOLOGO: true
+      SOLUTION_PATH: GameChatTranslator.sln
+      PROJECT_PATH: GameChatTranslator/GameChatTranslator.csproj
+      PUBLISH_DIR: ${{ github.workspace }}\artifacts\publish
+      DIST_DIR: ${{ github.workspace }}\artifacts\dist
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag }}".Trim()
+          } else {
+            $tag = "${{ github.ref_name }}".Trim()
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Release tag is empty."
+          }
+
+          if ($tag -notmatch '^v\.\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$') {
+            throw "Release tag must look like v.1.0.8 or v.1.0.8-alpha. Actual: $tag"
+          }
+
+          [xml]$project = Get-Content $env:PROJECT_PATH
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          $expectedTag = "v.$version"
+
+          if ($tag -ne $expectedTag) {
+            throw "Tag and project version do not match. Tag: $tag, expected from .csproj: $expectedTag"
+          }
+
+          $assetVersion = $tag -replace '^v\.', 'v'
+          $zipName = "GameChatTranslator_$assetVersion.zip"
+
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_TITLE=GameChatTranslator $tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "ASSET_VERSION=$assetVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore $env:SOLUTION_PATH
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build $env:SOLUTION_PATH -c Release -p:EnableWindowsTargeting=true --no-restore
+
+      - name: Publish win-x64 self-contained package
+        shell: pwsh
+        run: |
+          if (Test-Path $env:PUBLISH_DIR) {
+            Remove-Item $env:PUBLISH_DIR -Recurse -Force
+          }
+
+          dotnet publish $env:PROJECT_PATH `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:EnableWindowsTargeting=true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o $env:PUBLISH_DIR
+
+      - name: Compress release files and calculate checksum
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:DIST_DIR | Out-Null
+
+          $zipPath = Join-Path $env:DIST_DIR $env:ZIP_NAME
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+
+          Compress-Archive -Path (Join-Path $env:PUBLISH_DIR '*') -DestinationPath $zipPath -Force
+
+          $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = Join-Path $env:DIST_DIR "sha256.txt"
+          "$hash  $env:ZIP_NAME" | Set-Content -Path $checksumPath -Encoding utf8
+
+          "ZIP_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CHECKSUM_PATH=$checksumPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          $targetCommit = git rev-parse HEAD
+          $body = @"
+          $env:RELEASE_TITLE 자동 릴리즈 빌드입니다.
+
+          변경 내역은 README.md의 최신 업데이트 내역을 확인해 주세요.
+
+          Build:
+          - Runtime: win-x64
+          - Publish: self-contained single-file
+          - Commit: $targetCommit
+
+          SHA256:
+          $env:SHA256  $env:ZIP_NAME
+          "@
+
+          $payload = @{
+            tag_name = $env:RELEASE_TAG
+            target_commitish = $targetCommit
+            name = $env:RELEASE_TITLE
+            body = $body
+            draft = $false
+            prerelease = $false
+            make_latest = "true"
+          }
+
+          $payloadPath = Join-Path $env:RUNNER_TEMP "release-payload.json"
+          $payload | ConvertTo-Json -Depth 4 | Set-Content -Path $payloadPath -Encoding utf8
+
+          $release = $null
+          try {
+            $release = gh api "repos/$repo/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          } catch {
+            $release = $null
+          }
+
+          if ($null -eq $release) {
+            gh api -X POST "repos/$repo/releases" --input $payloadPath | Out-Null
+          } else {
+            gh api -X PATCH "repos/$repo/releases/$($release.id)" --input $payloadPath | Out-Null
+          }
+
+          gh release upload $env:RELEASE_TAG $env:ZIP_PATH $env:CHECKSUM_PATH --repo $repo --clobber
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: |
+            artifacts/dist/*.zip
+            artifacts/dist/sha256.txt
+          if-no-files-found: error
