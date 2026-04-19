@@ -94,6 +94,26 @@
             </StackPanel>
         </GroupBox>
 
+        <!-- OCR 테스트/진단: 현재 캡처 영역의 원본/전처리 이미지와 OCR 결과를 별도 창에서 확인합니다. -->
+        <GroupBox Header="OCR 테스트 / 진단" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <TextBlock Text="현재 저장된 캡처 영역을 분석해 원본, 전처리 후보, OCR 결과, 후보 점수를 별도 창에서 비교합니다."
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8"
+                           Foreground="#CCC"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnOpenOcrDiagnostic"
+                            Content="OCR 진단 화면 열기"
+                            Padding="8,2"
+                            Background="#444"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Click="BtnOpenOcrDiagnostic_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <!-- 고급 설정: 오버레이 투명도, OCR 확대 배율, 이진화 기준값, 자동 번역 주기, 디버그 이미지 저장 여부를 조정합니다. -->
         <GroupBox Header="상세 설정 (Advanced Options)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">

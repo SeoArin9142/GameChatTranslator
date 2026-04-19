@@ -1,0 +1,43 @@
+﻿<Window x:Class="GameTranslator.OcrDiagnosticWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GameChatTranslator OCR 테스트 / 진단"
+        Width="1100"
+        Height="780"
+        MinWidth="760"
+        MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E"
+        Foreground="White"
+        ResizeMode="CanResize"
+        Topmost="True">
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button x:Name="BtnRunDiagnostic"
+                    Content="현재 캡처 영역 진단"
+                    Padding="10,4"
+                    Margin="0,0,10,0"
+                    Background="#444"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Click="BtnRunDiagnostic_Click"/>
+            <TextBlock x:Name="TxtStatus"
+                       VerticalAlignment="Center"
+                       Foreground="#8FE388"
+                       FontWeight="Bold"
+                       Text="진단 준비 완료"/>
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Top"
+                   Text="현재 저장된 채팅 캡처 영역을 실제 번역과 같은 기준으로 분석합니다. 원본, 전처리, 크롭 이미지와 OCR 결과/점수를 비교해 인식 실패 원인을 확인하세요."
+                   TextWrapping="Wrap"
+                   Foreground="#CCC"
+                   Margin="0,0,0,8"/>
+
+        <TabControl x:Name="TabDiagnostics"
+                    Background="#222"
+                    BorderBrush="#555"
+                    Foreground="Black"/>
+    </DockPanel>
+</Window>

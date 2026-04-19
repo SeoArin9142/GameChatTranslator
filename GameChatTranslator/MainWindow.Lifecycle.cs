@@ -188,6 +188,7 @@ namespace GameTranslator
         {
             captureBorderWindow?.Close();
             logViewerWindow?.CloseForShutdown();
+            ocrDiagnosticWindow?.Close();
             UnregisterHotKey(_windowHandle, ID_HOTKEY_MOVE_LOCK);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);
