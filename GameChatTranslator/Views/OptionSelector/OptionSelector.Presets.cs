@@ -224,9 +224,9 @@ namespace GameTranslator
             _ini.Write("GameLanguage", GetSelectedTag(ComboGameLang, "ko"), section);
             _ini.Write("TargetLanguage", GetSelectedTag(ComboTargetLang, "ko"), section);
             _ini.Write("Opacity", ((int)SliderOpacity.Value).ToString(), section);
-            _ini.Write("ScaleFactor", GetSelectedTag(ComboScale, "3"), section);
-            _ini.Write("Threshold", string.IsNullOrWhiteSpace(TxtThreshold?.Text) ? "120" : TxtThreshold.Text.Trim(), section);
-            _ini.Write("AutoTranslateInterval", string.IsNullOrWhiteSpace(TxtInterval?.Text) ? "5" : TxtInterval.Text.Trim(), section);
+            _ini.Write("ScaleFactor", SettingsValueNormalizer.NormalizeScaleFactor(GetSelectedTag(ComboScale, SettingsValueNormalizer.DefaultScaleFactor.ToString())).ToString(), section);
+            _ini.Write("Threshold", SettingsValueNormalizer.NormalizeThreshold(TxtThreshold?.Text).ToString(), section);
+            _ini.Write("AutoTranslateInterval", SettingsValueNormalizer.NormalizeAutoTranslateInterval(TxtInterval?.Text).ToString(), section);
             _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode), section);
             _ini.Write("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text).ToString(), section);
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false", section);
@@ -255,15 +255,15 @@ namespace GameTranslator
 
             SetComboByTag(ComboGameLang, ReadPresetValue(section, "GameLanguage", "ko"));
             SetComboByTag(ComboTargetLang, ReadPresetValue(section, "TargetLanguage", "ko"));
-            SetComboByTag(ComboScale, ReadPresetValue(section, "ScaleFactor", "3"));
+            SetComboByTag(ComboScale, SettingsValueNormalizer.NormalizeScaleFactor(ReadPresetValue(section, "ScaleFactor", "3")).ToString());
 
             if (int.TryParse(ReadPresetValue(section, "Opacity", "70"), out int opacity))
             {
                 SliderOpacity.Value = Math.Max((int)SliderOpacity.Minimum, Math.Min((int)SliderOpacity.Maximum, opacity));
             }
 
-            TxtThreshold.Text = ReadPresetValue(section, "Threshold", "120");
-            TxtInterval.Text = ReadPresetValue(section, "AutoTranslateInterval", "5");
+            TxtThreshold.Text = SettingsValueNormalizer.NormalizeThreshold(ReadPresetValue(section, "Threshold", "120")).ToString();
+            TxtInterval.Text = SettingsValueNormalizer.NormalizeAutoTranslateInterval(ReadPresetValue(section, "AutoTranslateInterval", "5")).ToString();
             SetComboByTag(ComboResultDisplayMode, ReadPresetValue(section, "ResultDisplayMode", SettingsService.DefaultResultDisplayMode));
             TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(ReadPresetValue(section, "ResultHistoryLimit", "5")).ToString();
             CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(ReadPresetValue(section, "SaveDebugImages", "false"));

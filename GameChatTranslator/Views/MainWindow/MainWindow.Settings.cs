@@ -82,6 +82,21 @@ namespace GameTranslator
                 ini.Write("CheckUpdatesOnStartup", "true");
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("Threshold")))
+            {
+                ini.Write("Threshold", SettingsValueNormalizer.DefaultThreshold.ToString());
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("AutoTranslateInterval")))
+            {
+                ini.Write("AutoTranslateInterval", SettingsValueNormalizer.DefaultAutoTranslateInterval.ToString());
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("ScaleFactor")))
+            {
+                ini.Write("ScaleFactor", SettingsValueNormalizer.DefaultScaleFactor.ToString());
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("Key_CopyResult")))
             {
                 ini.Write("Key_CopyResult", SettingsService.DefaultKeyCopyResult);

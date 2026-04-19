@@ -151,8 +151,8 @@
                 <Slider x:Name="SliderOpacity" Minimum="10" Maximum="100" Value="70" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="SliderOpacity_ValueChanged" Margin="0,0,0,15"/>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="OCR 인식 배율:" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
-                    <ComboBox x:Name="ComboScale" Width="120" Height="24" Background="#333" Foreground="Black">
+                    <TextBlock Text="OCR 인식 배율 (1~4):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
+                    <ComboBox x:Name="ComboScale" Width="120" Height="24" Background="#333" Foreground="Black" ToolTip="기본값 3, 허용 범위 1~4">
                         <ComboBoxItem Content="1배 (빠름)" Tag="1"/>
                         <ComboBoxItem Content="2배" Tag="2"/>
                         <ComboBoxItem Content="3배 (권장)" Tag="3"/>
@@ -161,13 +161,13 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="OCR 이진화 기준 (기본 120):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
-                    <TextBox x:Name="TxtThreshold" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555"/>
+                    <TextBlock Text="OCR 이진화 기준 (1~255):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
+                    <TextBox x:Name="TxtThreshold" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="기본값 120, 권장 110~130"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="자동 번역 주기 (초):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
-                    <TextBox x:Name="TxtInterval" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555"/>
+                    <TextBlock Text="자동 번역 주기 (1~60초):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
+                    <TextBox x:Name="TxtInterval" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="기본값 5초, 허용 범위 1~60초"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
@@ -179,8 +179,8 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="누적 표시 최대 줄 수:" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
-                    <TextBox x:Name="TxtResultHistoryLimit" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555"/>
+                    <TextBlock Text="누적 표시 최대 줄 수 (1~10):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
+                    <TextBox x:Name="TxtResultHistoryLimit" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="기본값 5, 허용 범위 1~10"/>
                 </StackPanel>
 
                 <CheckBox x:Name="CheckSaveDebugImages" Content="디버그 캡처 이미지 저장" Foreground="#CCC"/>

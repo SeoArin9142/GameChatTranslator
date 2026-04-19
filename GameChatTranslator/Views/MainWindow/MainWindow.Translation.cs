@@ -262,10 +262,8 @@ namespace GameTranslator
                 ProcessingMode = processingMode
             };
 
-            int threshold = int.TryParse(ini.Read("Threshold"), out int t) ? t : 120;
-            int scaleFactor = int.TryParse(ini.Read("ScaleFactor"), out int s) ? s : 3;
-            if (scaleFactor < 1) scaleFactor = 1;
-            if (scaleFactor > 4) scaleFactor = 4;
+            int threshold = SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold"));
+            int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor"));
 
             try
             {

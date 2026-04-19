@@ -93,14 +93,13 @@ namespace GameTranslator
                 TxtAreaInfo.Text = "저장된 영역: 없음 (좌측 하단 기본값)";
             }
 
-            // 🌟 [수정] 배율 세팅 불러오기 (빈칸 및 위치 날아감 버그 완벽 해결)
-            string scale = _ini.Read("ScaleFactor") ?? "3";
-            SetComboByTag(ComboScale, scale); // 기존의 꼬이던 foreach 문을 지우고 안전한 함수로 교체
+            // [배율 세팅] config.ini에 잘못된 값이 들어 있어도 UI에는 1~4 범위의 정상값만 표시합니다.
+            int scale = SettingsValueNormalizer.NormalizeScaleFactor(_ini.Read("ScaleFactor"));
+            SetComboByTag(ComboScale, scale.ToString());
 
-            // [추가] 임계값(Threshold) 및 자동 번역 주기 불러오기
-            // UI에 TxtThreshold, TxtInterval 텍스트박스가 있다고 가정합니다.
-            if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "120";
-            if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
+            // [OCR/자동 번역 세팅] 상세 설정 UI에서 바로 수정할 수 있도록 보정된 현재값을 표시합니다.
+            if (TxtThreshold != null) TxtThreshold.Text = SettingsValueNormalizer.NormalizeThreshold(_ini.Read("Threshold")).ToString();
+            if (TxtInterval != null) TxtInterval.Text = SettingsValueNormalizer.NormalizeAutoTranslateInterval(_ini.Read("AutoTranslateInterval")).ToString();
             if (ComboResultDisplayMode != null) SetComboByTag(ComboResultDisplayMode, _ini.Read("ResultDisplayMode") ?? SettingsService.DefaultResultDisplayMode);
             if (TxtResultHistoryLimit != null)
             {
@@ -302,31 +301,17 @@ namespace GameTranslator
             _ini.Write("Key_CopyResult", TxtKeyCopy.Text);
             _ini.Write("Key_LogViewer", TxtKeyLog.Text);
 
-            // [배율 설정 저장]
-            if (ComboScale.SelectedItem is ComboBoxItem scaleItem)
-            {
-                _ini.Write("ScaleFactor", scaleItem.Tag.ToString());
-            }
+            int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(GetSelectedTag(ComboScale, SettingsValueNormalizer.DefaultScaleFactor.ToString()));
+            _ini.Write("ScaleFactor", scaleFactor.ToString());
+            SetComboByTag(ComboScale, scaleFactor.ToString());
 
-            // [추가] 임계값(Threshold) 저장 (안전하게 숫자인지 검사 후 저장)
-            if (TxtThreshold != null && int.TryParse(TxtThreshold.Text, out int threshold))
-            {
-                _ini.Write("Threshold", threshold.ToString());
-            }
-            else
-            {
-                _ini.Write("Threshold", "120"); // 숫자가 아니면 기본값 120 강제 지정
-            }
+            int threshold = SettingsValueNormalizer.NormalizeThreshold(TxtThreshold?.Text);
+            _ini.Write("Threshold", threshold.ToString());
+            if (TxtThreshold != null) TxtThreshold.Text = threshold.ToString();
 
-            // [추가] 자동 번역 주기(Interval) 저장 (안전하게 숫자인지 검사 후 저장)
-            if (TxtInterval != null && int.TryParse(TxtInterval.Text, out int interval))
-            {
-                _ini.Write("AutoTranslateInterval", interval.ToString());
-            }
-            else
-            {
-                _ini.Write("AutoTranslateInterval", "5"); // 숫자가 아니면 기본값 5 강제 지정
-            }
+            int interval = SettingsValueNormalizer.NormalizeAutoTranslateInterval(TxtInterval?.Text);
+            _ini.Write("AutoTranslateInterval", interval.ToString());
+            if (TxtInterval != null) TxtInterval.Text = interval.ToString();
 
             _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode));
             int historyLimit = SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text);

@@ -180,8 +180,7 @@ namespace GameTranslator
         {
             try
             {
-                int interval = int.TryParse(ini.Read("AutoTranslateInterval"), out int i) ? i : 5;
-                if (interval < 1) interval = 1;
+                int interval = SettingsValueNormalizer.NormalizeAutoTranslateInterval(ini.Read("AutoTranslateInterval"));
 
                 // 30분(1800초) 분량의 세트 수를 계산 (한 번에 3장 저장)
                 int maxFileCount = (1800 / interval) * 3;
