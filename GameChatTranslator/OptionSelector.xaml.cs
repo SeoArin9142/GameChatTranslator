@@ -26,6 +26,7 @@ namespace GameTranslator
             _ini = ini;
 
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
+            LoadPresetList();
         }
 
         // ==========================================

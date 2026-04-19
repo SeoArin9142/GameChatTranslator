@@ -8,6 +8,19 @@
         <StackPanel Margin="20">
         <TextBlock Text="⚙️ 초기 환경 설정" FontSize="20" FontWeight="Bold" Foreground="LimeGreen" HorizontalAlignment="Center" Margin="0,0,0,15"/>
 
+        <GroupBox Header="설정 프리셋 (Preset)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <TextBlock Text="현재 설정을 이름별로 저장하고 다시 불러올 수 있습니다. API 키는 프리셋에 저장하지 않습니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
+                <ComboBox x:Name="ComboPreset" Height="24" Margin="0,0,0,8" Background="#333" Foreground="Black" SelectionChanged="ComboPreset_SelectionChanged"/>
+                <TextBox x:Name="TxtPresetName" Height="26" Margin="0,0,0,8" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="저장할 프리셋 이름"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnSavePreset" Content="프리셋 저장" Padding="8,2" Margin="0,0,8,0" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnSavePreset_Click"/>
+                    <Button x:Name="BtnLoadPreset" Content="불러오기" Padding="8,2" Margin="0,0,8,0" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnLoadPreset_Click"/>
+                    <Button x:Name="BtnDeletePreset" Content="삭제" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnDeletePreset_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <GroupBox Header="언어 설정 (Language)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">
                 <TextBlock Text="게임 언어 (채팅 인식 기준):" Margin="0,0,0,5" Foreground="#CCC"/>
