@@ -45,6 +45,7 @@
 - [Ctrl + 8] : 번역 영역 선택 (채팅창 범위를 마우스로 드래그하세요)
 - [Ctrl + 9] : 1회 수동 번역
 - [Ctrl + 0] : 자동 번역 시작/중지 (설정된 간격마다 실행)
+- [Ctrl + P] : 번역 일시정지/재개
 - 환경 설정 창의 [미리보기] 버튼 : 저장된 캡처 영역을 바로 확인
 
 ------------------------------------------
@@ -55,6 +56,7 @@
 - Opacity: 번역창의 불투명도 조절 (0~100)
 - AutoTranslateInterval: 자동 번역 간격(초)
 - Key_... : 사용자 편의에 맞는 단축키 변경
+- Key_PauseTranslate: 번역 일시정지/재개 단축키 (기본 Ctrl+P)
 - GeminiKey: Gemini API 키
 - GeminiModel: Gemini 호출 모델 (기본 gemini-2.5-flash)
 - SaveDebugImages: 디버그 캡처 이미지 저장 여부 (true/false, 기본 false)

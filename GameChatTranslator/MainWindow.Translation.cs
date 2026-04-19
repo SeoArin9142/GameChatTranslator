@@ -32,12 +32,47 @@ namespace GameTranslator
             isAutoTranslating = !isAutoTranslating;
             UpdateYellowHotkeyGuideText();
 
-            if (isAutoTranslating)
+            if (isAutoTranslating && !isTranslationPaused)
             {
                 runTranslation();
                 autoTranslateTimer.Start();
             }
             else autoTranslateTimer.Stop();
+
+            if (isAutoTranslating && isTranslationPaused)
+            {
+                ShowTranslationPausedNotice("자동 번역은 재개 후 다시 실행됩니다.");
+            }
+        }
+        private void ToggleTranslationPause()
+        {
+            isTranslationPaused = !isTranslationPaused;
+
+            if (isTranslationPaused)
+            {
+                autoTranslateTimer.Stop();
+                ShowTranslationPausedNotice("번역이 일시정지되었습니다.");
+                AppendLog("번역 일시정지");
+            }
+            else
+            {
+                TxtResult.Inlines.Clear();
+                TxtResult.Inlines.Add(new Run("▶ 번역이 재개되었습니다.") { Foreground = Brushes.Lime, FontWeight = FontWeights.Bold });
+                AppendLog("번역 재개");
+
+                if (isAutoTranslating)
+                {
+                    runTranslation();
+                    autoTranslateTimer.Start();
+                }
+            }
+
+            UpdateYellowHotkeyGuideText();
+        }
+        private void ShowTranslationPausedNotice(string message = "번역 일시정지 중입니다.")
+        {
+            TxtResult.Inlines.Clear();
+            TxtResult.Inlines.Add(new Run($"⏸ {message}") { Foreground = Brushes.Orange, FontWeight = FontWeights.Bold });
         }
         private void ToggleEngine()
         {
@@ -89,6 +124,12 @@ namespace GameTranslator
         }
         private async void runTranslation()
         {
+            if (isTranslationPaused)
+            {
+                ShowTranslationPausedNotice();
+                return;
+            }
+
             if (isTranslating || gameChatArea == Rectangle.Empty) return;
             isTranslating = true;
 
