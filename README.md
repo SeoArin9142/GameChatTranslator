@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.12-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.12-alpha/GameChatTranslator_v1.0.12-alpha.zip)
+[**👉 GameChatTranslator v1.0.13-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.13-alpha/GameChatTranslator_v1.0.13-alpha.zip)
 
 ---
 
@@ -114,6 +114,31 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.13-alpha)
+
+   이번 버전에서는 환경설정창에서 조정하는 런타임 옵션의 허용 범위를 명확히 표시하고, 잘못된 값이 들어와도 안전한 범위로 자동 보정되도록 정리했습니다.
+
+   ⚙️ 상세 설정 UI 개선
+
+      OCR 인식 배율, OCR 이진화 기준, 자동 번역 주기, 누적 표시 최대 줄 수 항목에 허용 범위와 기본값 안내를 추가했습니다.
+
+      사용자가 config.ini를 직접 열지 않고도 주요 OCR/자동 번역 설정을 환경설정창에서 확인하고 변경할 수 있습니다.
+
+   🛡️ 설정값 자동 보정 강화
+
+      Threshold는 1~255, AutoTranslateInterval은 1~60초, ScaleFactor는 1~4 범위로 자동 보정합니다.
+
+      실행, 번역, OCR 진단, 로그, 프리셋 저장/불러오기 경로가 모두 같은 보정 기준을 사용하도록 통일했습니다.
+
+   🧪 설정값 테스트 확대
+
+      SettingsValueNormalizer 테스트를 확장해 범위 밖 값, 빈 값, 숫자가 아닌 값까지 검증합니다.
+
+      전체 단위 테스트 수가 152개로 늘어났습니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.12-alpha)
 
    이번 버전에서는 번역 엔진 선택과 fallback 판단 로직을 테스트 가능한 서비스로 분리해 번역 흐름의 안정성을 높였습니다.
@@ -133,9 +158,6 @@
    🧱 다음 HTTP/async 리팩터링 준비
 
       TranslationPromptBuilder, TranslationResultParser, TranslationService까지 분리해 이후 API 호출부 정리를 더 작은 단위로 진행할 수 있게 했습니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.11-alpha)
 
