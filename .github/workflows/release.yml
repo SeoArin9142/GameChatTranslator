@@ -82,6 +82,10 @@ jobs:
         shell: pwsh
         run: dotnet build $env:SOLUTION_PATH -c Release -p:EnableWindowsTargeting=true --no-restore
 
+      - name: Test
+        shell: pwsh
+        run: dotnet test $env:SOLUTION_PATH -c Release -p:EnableWindowsTargeting=true --no-build --no-restore
+
       - name: Publish win-x64 self-contained package
         shell: pwsh
         run: |

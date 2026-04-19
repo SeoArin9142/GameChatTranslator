@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.37111.16 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameChatTranslator", "GameChatTranslator\GameChatTranslator.csproj", "{4E4915E7-63EF-47B8-86F9-E9ADC6657CFE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameChatTranslator.Tests", "GameChatTranslator.Tests\GameChatTranslator.Tests.csproj", "{1976CBCF-3FE0-4091-9689-8FFF2216D823}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{4E4915E7-63EF-47B8-86F9-E9ADC6657CFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E4915E7-63EF-47B8-86F9-E9ADC6657CFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E4915E7-63EF-47B8-86F9-E9ADC6657CFE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1976CBCF-3FE0-4091-9689-8FFF2216D823}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1976CBCF-3FE0-4091-9689-8FFF2216D823}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1976CBCF-3FE0-4091-9689-8FFF2216D823}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1976CBCF-3FE0-4091-9689-8FFF2216D823}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
