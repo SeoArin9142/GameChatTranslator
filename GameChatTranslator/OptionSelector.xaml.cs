@@ -15,6 +15,13 @@ namespace GameTranslator
         // 환경설정 파일(config.ini)을 읽고 쓰기 위한 객체
         private IniFile _ini;
 
+        private const string DefaultKeyMoveLock = "Ctrl+7";
+        private const string DefaultKeyAreaSelect = "Ctrl+8";
+        private const string DefaultKeyTranslate = "Ctrl+9";
+        private const string DefaultKeyAutoTranslate = "Ctrl+0";
+        private const string DefaultKeyToggleEngine = "Ctrl+-";
+        private const string DefaultKeyCopyResult = "Ctrl+6";
+
         /// <summary>
         /// 환경설정 창을 생성하고 현재 설정값과 프리셋 목록을 UI에 반영합니다.
         /// <paramref name="mainWindow"/>는 투명도 미리보기와 업데이트 확인을 호출할 메인 창 인스턴스이고,
@@ -54,12 +61,12 @@ namespace GameTranslator
 
             // [단축키 세팅]
             // 각 텍스트박스에 기존에 저장된 단축키 문자열을 넣어줍니다. (없으면 기본값 적용)
-            TxtKeyMove.Text = _ini.Read("Key_MoveLock") ?? "Ctrl+7";
-            TxtKeyArea.Text = _ini.Read("Key_AreaSelect") ?? "Ctrl+8";
-            TxtKeyTrans.Text = _ini.Read("Key_Translate") ?? "Ctrl+9";
-            TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
-            TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? "Ctrl+-"; // 🌟 추가
-            TxtKeyCopy.Text = _ini.Read("Key_CopyResult") ?? "Ctrl+6";
+            TxtKeyMove.Text = _ini.Read("Key_MoveLock") ?? DefaultKeyMoveLock;
+            TxtKeyArea.Text = _ini.Read("Key_AreaSelect") ?? DefaultKeyAreaSelect;
+            TxtKeyTrans.Text = _ini.Read("Key_Translate") ?? DefaultKeyTranslate;
+            TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? DefaultKeyAutoTranslate;
+            TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? DefaultKeyToggleEngine;
+            TxtKeyCopy.Text = _ini.Read("Key_CopyResult") ?? DefaultKeyCopyResult;
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -167,6 +174,36 @@ namespace GameTranslator
 
             System.Windows.Controls.TextBox tb = sender as System.Windows.Controls.TextBox;
             tb.Text = modifierStr + key.ToString();
+        }
+
+        /// <summary>
+        /// 단축키 입력칸을 최초 기본 단축키 값으로 되돌립니다.
+        /// 이 함수는 UI TextBox 값만 바꾸며 config.ini에는 쓰지 않습니다.
+        /// 실제 저장은 사용자가 [저장 및 게임 시작] 버튼을 눌렀을 때 BtnSaveAndStart_Click에서 처리됩니다.
+        /// </summary>
+        private void ApplyDefaultHotkeyValues()
+        {
+            TxtKeyMove.Text = DefaultKeyMoveLock;
+            TxtKeyArea.Text = DefaultKeyAreaSelect;
+            TxtKeyTrans.Text = DefaultKeyTranslate;
+            TxtKeyAuto.Text = DefaultKeyAutoTranslate;
+            TxtKeyToggle.Text = DefaultKeyToggleEngine;
+            TxtKeyCopy.Text = DefaultKeyCopyResult;
+        }
+
+        /// <summary>
+        /// [단축키 초기화] 버튼 클릭 시 모든 단축키 입력칸을 기본값으로 되돌립니다.
+        /// <paramref name="sender"/>는 단축키 초기화 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
+        private void BtnResetHotkeys_Click(object sender, RoutedEventArgs e)
+        {
+            ApplyDefaultHotkeyValues();
+            System.Windows.MessageBox.Show(
+                "단축키 입력칸을 기본값으로 되돌렸습니다.\n저장하려면 [저장 및 게임 시작] 버튼을 눌러주세요.",
+                "단축키 초기화",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         /// <summary>
