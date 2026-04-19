@@ -2,10 +2,10 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:GameChatTranslator"
-             StartupUri="MainWindow.xaml">
+             StartupUri="Views/MainWindow/MainWindow.xaml">
     <!--
         App.xaml은 WPF 애플리케이션의 최상위 설정 파일입니다.
-        StartupUri="MainWindow.xaml" 때문에 프로그램 실행 시 MainWindow가 가장 먼저 생성됩니다.
+        StartupUri="Views/MainWindow/MainWindow.xaml" 때문에 프로그램 실행 시 MainWindow가 가장 먼저 생성됩니다.
         전역 스타일이나 리소스가 필요해지면 Application.Resources 안에 추가합니다.
     -->
     <Application.Resources>
