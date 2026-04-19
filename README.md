@@ -68,6 +68,8 @@
 - `AutoTranslateInterval`: 자동 번역 모드 시 캡처 주기를 설정합니다. (초 단위)
 - `Threshold`: 폰트 인식 임계값입니다. 투명 배경 방어 로직 적용 후 110~130 사이를 권장합니다.
 - `ScaleFactor`: 캡처 이미지 확대 배율입니다. 3 배 이상일 때 한자 및 일본어 인식률이 가장 좋습니다.
+- `GeminiKey`: Gemini API 키입니다. `[Settings]` 섹션에 저장합니다.
+- `GeminiModel`: Gemini 호출 모델입니다. 기본값은 `gemini-2.5-flash`입니다.
 ---
 
 ## 👨‍💻 기여 및 문의
