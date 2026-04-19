@@ -256,18 +256,6 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// 내부 언어 코드를 Google Translate API가 요구하는 언어 코드로 변환합니다.
-        /// <paramref name="lang"/>은 앱 내부에서 쓰는 언어 코드입니다.
-        /// 반환값은 Google API의 tl 파라미터에 넣을 코드입니다.
-        /// </summary>
-        private string GetGoogleTransLangCode(string lang)
-        {
-            if (lang == "zh-Hans-CN") return "zh-CN";
-            if (lang == "en-US") return "en";
-            return lang;
-        }
-
-        /// <summary>
         /// 수동 번역 단축키에서 호출하는 기본 번역 실행 함수입니다.
         /// 수동 번역은 속도보다 인식률을 우선하므로 정확 모드로 실행합니다.
         /// </summary>
@@ -1081,21 +1069,10 @@ namespace GameTranslator
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
 
-            string cleaned = Regex.Replace(text, @"\d{1,2}:\d{2}", "");
-            cleaned = Regex.Replace(cleaned, @"[\[\]\(\)\{\}\<\>]", " ");
-            cleaned = Regex.Replace(cleaned, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]", "");
-            cleaned = Regex.Replace(cleaned, @"([\-\=\.\/_])\1+", "$1");
-            cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
-
-            if (cleaned.Length < 2 || !Regex.IsMatch(cleaned, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]"))
-            {
-                // 여기에도 1글자 예외 처리 허용
-                if (cleaned.Length == 1 && Regex.IsMatch(cleaned, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$")) { /* 통과 */ }
-                else return "";
-            }
+            string cleaned = translationPromptBuilder.CleanGoogleTranslateInput(text);
+            if (!translationPromptBuilder.HasTranslatableContent(cleaned)) return "";
 
             int retryCount = 3;
-            string targetApiLang = GetGoogleTransLangCode(tLang);
             string result = "";
 
             httpClient.DefaultRequestHeaders.Clear();
@@ -1105,14 +1082,10 @@ namespace GameTranslator
             {
                 try
                 {
-                    string url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={targetApiLang}&dt=t&q={Uri.EscapeDataString(cleaned)}";
+                    string url = translationPromptBuilder.BuildGoogleTranslateUrl(cleaned, tLang);
                     var res = await httpClient.GetStringAsync(url);
-                    using var doc = System.Text.Json.JsonDocument.Parse(res);
-
-                    foreach (var item in doc.RootElement[0].EnumerateArray())
-                    {
-                        result += item[0].GetString();
-                    }
+                    result = translationResultParser.ParseGoogleTranslateResponse(res);
+                    if (string.IsNullOrEmpty(result)) throw new Exception("Google 번역 응답 파싱 실패");
                     break;
                 }
                 catch
@@ -1164,14 +1137,7 @@ namespace GameTranslator
         {
             string modelName = ReadGeminiModel();
             string url = $"https://generativelanguage.googleapis.com/v1/models/{modelName}:generateContent?key={apiKey}";
-            string targetLanguage = tLang == "ko" ? "Korean" : (tLang == "en-US" ? "English" : tLang);
-
-            string prompt = "You are an expert game translator. " +
-                            "The input text is from OCR and has many typos (e.g., '伽' instead of '你', 'カ' instead of '为'). " +
-                            "Your job: 1. Guess the original intended sentence by ignoring OCR noise. " +
-                            "2. Translate it naturally into " + targetLanguage + ". " +
-                            "3. If the text is just a name or nonsense, return an empty string. " +
-                            "Output ONLY the translation: \n\n" + text;
+            string prompt = translationPromptBuilder.BuildGeminiPrompt(text, tLang);
 
             var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
             string jsonPayload = System.Text.Json.JsonSerializer.Serialize(requestBody);
@@ -1191,8 +1157,9 @@ namespace GameTranslator
                     }
 
                     string resJson = await response.Content.ReadAsStringAsync();
-                    using var doc = System.Text.Json.JsonDocument.Parse(resJson);
-                    return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString().Trim();
+                    string parsedText = translationResultParser.ParseGeminiTranslateResponse(resJson);
+                    if (string.IsNullOrWhiteSpace(parsedText)) throw new Exception("Gemini 응답 파싱 실패");
+                    return parsedText;
                 }
                 catch
                 {
