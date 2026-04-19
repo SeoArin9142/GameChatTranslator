@@ -60,6 +60,7 @@ namespace GameTranslator
         private string hotkeyWarningMessage = "";
 
         private HttpClient httpClient = new HttpClient();
+        private readonly OcrService ocrService = new OcrService();
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
         private LogViewerWindow logViewerWindow;

@@ -126,7 +126,7 @@ namespace GameTranslator
                     OcrResult masterResult = SelectMasterOcrResult(ocrResults);
                     if (masterResult != null)
                     {
-                        List<MergedLine> mergedLines = MergeOcrLines(masterResult);
+                        List<OcrLine> mergedLines = MergeOcrLines(masterResult);
                         diagnosticCandidate.MergedLines.AddRange(mergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
                         diagnosticCandidate.Score = ScoreOcrCandidate(mergedLines);
                     }

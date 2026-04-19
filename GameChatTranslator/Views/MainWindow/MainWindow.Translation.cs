@@ -21,6 +21,7 @@ using Windows.Media.Ocr;
 using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
 using ColorConverter = System.Windows.Media.ColorConverter;
+using OcrResultCandidate = GameTranslator.OcrCandidate<System.Collections.Generic.Dictionary<string, Windows.Media.Ocr.OcrResult>>;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
@@ -41,28 +42,6 @@ namespace GameTranslator
             Fast,
             Auto,
             Accurate
-        }
-
-        /// <summary>
-        /// 실제 OCR 후보 실행 범위를 결정하는 내부 처리 모드입니다.
-        /// 수동 번역은 항상 Accurate를 사용하고, 자동 번역은 AutoTranslateMode에서 변환됩니다.
-        /// </summary>
-        private enum OcrProcessingMode
-        {
-            Fast,
-            Auto,
-            Accurate
-        }
-
-        /// <summary>
-        /// 캡처 이미지를 OCR에 넣기 전 적용할 전처리 후보 종류입니다.
-        /// Color는 기본 색상 필터, ColorThick은 글자 굵기 보정, Adaptive는 로컬 밝기 기반 이진화입니다.
-        /// </summary>
-        private enum OcrPreprocessKind
-        {
-            Color,
-            ColorThick,
-            Adaptive
         }
 
         /// <summary>
@@ -188,17 +167,6 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// OCR 결과의 한 줄을 병합한 내부 모델입니다.
-        /// Top/Bottom은 화면상 세로 위치이고, Text는 병합된 OCR 문자열입니다.
-        /// </summary>
-        private class MergedLine
-        {
-            public double Top;
-            public double Bottom;
-            public string Text;
-        }
-
-        /// <summary>
         /// 전처리된 OCR 입력 이미지를 이름과 함께 관리하는 disposable 모델입니다.
         /// Bitmap은 unmanaged 리소스를 포함하므로 사용 후 Dispose로 해제합니다.
         /// </summary>
@@ -214,18 +182,6 @@ namespace GameTranslator
             {
                 Bitmap?.Dispose();
             }
-        }
-
-        /// <summary>
-        /// 하나의 전처리 후보에 대해 OCR 결과, 병합 라인, 품질 점수를 묶어 보관합니다.
-        /// 후보 간 Score를 비교해 최종 번역에 사용할 OCR 결과를 선택합니다.
-        /// </summary>
-        private class OcrCandidate
-        {
-            public string PreprocessName;
-            public Dictionary<string, OcrResult> Results;
-            public List<MergedLine> Lines;
-            public int Score;
         }
 
         /// <summary>
@@ -380,7 +336,7 @@ namespace GameTranslator
                 }
 
                 // 3. 모드별 후보 전략으로 OCR을 수행하고 가장 점수가 높은 후보를 선택합니다.
-                OcrCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, performanceStats);
+                OcrResultCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, performanceStats);
 
                 if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0)
                 {
@@ -592,53 +548,28 @@ namespace GameTranslator
         /// <paramref name="processingMode"/>는 빠름/자동/정확 중 이번 실행 전략입니다.
         /// <paramref name="performanceStats"/>는 후보 선택 과정의 단계별 시간을 누적하는 진단 객체입니다.
         /// </summary>
-        private async Task<OcrCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode, OcrPerformanceStats performanceStats)
+        private async Task<OcrResultCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode, OcrPerformanceStats performanceStats)
         {
-            if (processingMode == OcrProcessingMode.Fast)
+            foreach (OcrEvaluationStep step in ocrService.CreateEvaluationPlan(processingMode))
             {
-                OcrCandidate fastCandidate = await EvaluateOcrCandidatesAsync(
+                OcrResultCandidate candidate = await EvaluateOcrCandidatesAsync(
                     resizedBitmap,
                     threshold,
                     performanceStats,
-                    false,
-                    OcrPreprocessKind.Color);
+                    step.RecognizeAllLanguages,
+                    step.PreprocessKinds.ToArray());
 
-                return IsFastPathSuccess(fastCandidate) ? fastCandidate : null;
-            }
-
-            if (processingMode == OcrProcessingMode.Auto)
-            {
-                OcrCandidate fastCandidate = await EvaluateOcrCandidatesAsync(
-                    resizedBitmap,
-                    threshold,
-                    performanceStats,
-                    false,
-                    OcrPreprocessKind.Color);
-
-                if (IsFastPathSuccess(fastCandidate))
+                if (step.IsFastPathStep)
                 {
-                    return fastCandidate;
+                    if (ocrService.IsFastPathSuccess(candidate, characterNames)) return candidate;
+                    if (processingMode == OcrProcessingMode.Fast) return null;
+                    continue;
                 }
 
-                OcrCandidate fallbackCandidate = await EvaluateOcrCandidatesAsync(
-                    resizedBitmap,
-                    threshold,
-                    performanceStats,
-                    true,
-                    OcrPreprocessKind.ColorThick,
-                    OcrPreprocessKind.Adaptive);
-
-                return fallbackCandidate;
+                return candidate;
             }
 
-            return await EvaluateOcrCandidatesAsync(
-                resizedBitmap,
-                threshold,
-                performanceStats,
-                true,
-                OcrPreprocessKind.Color,
-                OcrPreprocessKind.ColorThick,
-                OcrPreprocessKind.Adaptive);
+            return null;
         }
 
         /// <summary>
@@ -649,9 +580,9 @@ namespace GameTranslator
         /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 OCR 언어를 실행하고 false이면 게임 언어만 실행합니다.
         /// <paramref name="preprocessKinds"/>는 평가할 전처리 후보 목록입니다.
         /// </summary>
-        private async Task<OcrCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, OcrPerformanceStats performanceStats, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
+        private async Task<OcrResultCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, OcrPerformanceStats performanceStats, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
         {
-            OcrCandidate bestCandidate = null;
+            OcrResultCandidate bestCandidate = null;
             Stopwatch preprocessStopwatch = Stopwatch.StartNew();
             List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds);
             preprocessStopwatch.Stop();
@@ -690,21 +621,18 @@ namespace GameTranslator
                         continue;
                     }
 
-                    List<MergedLine> candidateLines = MergeOcrLines(candidateMasterResult);
+                    List<OcrLine> candidateLines = MergeOcrLines(candidateMasterResult);
                     int candidateScore = ScoreOcrCandidate(candidateLines);
                     scoringStopwatch.Stop();
                     performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
 
-                    if (bestCandidate == null || candidateScore > bestCandidate.Score)
+                    bestCandidate = ocrService.SelectHigherScore(bestCandidate, new OcrResultCandidate
                     {
-                        bestCandidate = new OcrCandidate
-                        {
-                            PreprocessName = preprocessedImage.Name,
-                            Results = candidateResults,
-                            Lines = candidateLines,
-                            Score = candidateScore
-                        };
-                    }
+                        PreprocessName = preprocessedImage.Name,
+                        Results = candidateResults,
+                        Lines = candidateLines,
+                        Score = candidateScore
+                    });
                 }
             }
             finally
@@ -716,19 +644,6 @@ namespace GameTranslator
             }
 
             return bestCandidate;
-        }
-
-        /// <summary>
-        /// 빠른 경로 결과가 바로 번역해도 될 정도로 신뢰 가능한지 판단합니다.
-        /// <paramref name="candidate"/>는 Color 전처리 + 게임 언어 OCR만 수행한 후보입니다.
-        /// 반환값은 캐릭터명과 채팅 포맷이 모두 확인된 경우에만 true입니다.
-        /// </summary>
-        private bool IsFastPathSuccess(OcrCandidate candidate)
-        {
-            if (candidate == null || candidate.Score <= 0 || candidate.Lines == null) return false;
-
-            return candidate.Lines.Any(line =>
-                ChatTextAnalyzer.TryParseKnownCharacterChatLine(line.Text, characterNames, out _));
         }
 
         /// <summary>
@@ -1120,11 +1035,11 @@ namespace GameTranslator
         /// <summary>
         /// Windows OCR이 여러 조각으로 나눈 라인을 세로 위치 기준으로 다시 합칩니다.
         /// <paramref name="masterResult"/>는 기준 언어 OCR 결과입니다.
-        /// 반환값은 채팅 한 줄 단위에 가깝게 병합된 MergedLine 목록입니다.
+        /// 반환값은 채팅 한 줄 단위에 가깝게 병합된 OcrLine 목록입니다.
         /// </summary>
-        private List<MergedLine> MergeOcrLines(OcrResult masterResult)
+        private List<OcrLine> MergeOcrLines(OcrResult masterResult)
         {
-            var mergedLines = new List<MergedLine>();
+            var mergedLines = new List<OcrLine>();
 
             foreach (var mLine in masterResult.Lines)
             {
@@ -1140,7 +1055,7 @@ namespace GameTranslator
                     existing.Top = Math.Min(existing.Top, top);
                     existing.Bottom = Math.Max(existing.Bottom, bot);
                 }
-                else mergedLines.Add(new MergedLine { Top = top, Bottom = bot, Text = text });
+                else mergedLines.Add(new OcrLine { Top = top, Bottom = bot, Text = text });
             }
 
             return mergedLines;
@@ -1151,9 +1066,9 @@ namespace GameTranslator
         /// <paramref name="lines"/>는 후보 전처리에서 얻은 병합 라인 목록입니다.
         /// 채팅 포맷, 캐릭터명 일치, 본문 길이, 언어별 문자 포함 여부는 가산하고 노이즈 문자는 감산합니다.
         /// </summary>
-        private int ScoreOcrCandidate(List<MergedLine> lines)
+        private int ScoreOcrCandidate(List<OcrLine> lines)
         {
-            return ChatTextAnalyzer.ScoreOcrCandidate(lines?.Select(line => line.Text), characterNames);
+            return ocrService.ScoreLines(lines, characterNames);
         }
 
         /// <summary>
