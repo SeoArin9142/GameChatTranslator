@@ -68,6 +68,32 @@
             </StackPanel>
         </GroupBox>
 
+        <!-- OCR 언어팩 상태: Windows OCR 엔진 생성 가능 여부를 보여줍니다. -->
+        <GroupBox Header="OCR 언어팩 설치 상태" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <TextBlock Text="Windows OCR 엔진이 감지한 언어팩 상태입니다. 미설치 언어는 LangInstall.bat를 관리자 권한으로 실행한 뒤 재부팅하세요."
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8"
+                           Foreground="#CCC"/>
+                <TextBlock x:Name="TxtOcrLanguageStatus"
+                           Text="OCR 언어팩 상태 확인 중..."
+                           TextWrapping="Wrap"
+                           FontFamily="Consolas"
+                           Foreground="#E6E6E6"
+                           Margin="0,0,0,8"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnRefreshOcrLanguages"
+                            Content="상태 새로고침"
+                            Padding="8,2"
+                            Background="#444"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Click="BtnRefreshOcrLanguages_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <!-- 고급 설정: 오버레이 투명도, OCR 확대 배율, 이진화 기준값, 자동 번역 주기, 디버그 이미지 저장 여부를 조정합니다. -->
         <GroupBox Header="상세 설정 (Advanced Options)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">
