@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -8,15 +9,16 @@ namespace GameTranslator
 {
     /// <summary>
     /// 현재 세션 로그 파일을 별도 창에서 실시간으로 보여주는 창입니다.
-    /// 타이머로 로그 파일 끝부분을 주기적으로 읽으며, 창을 닫으면 종료하지 않고 숨김 처리합니다.
+    /// 기존 로그는 파일에서 한 번 읽고, 새 로그는 MainWindow.AppendLog에서 직접 전달받습니다.
     /// </summary>
     public partial class LogViewerWindow : Window
     {
-        private readonly DispatcherTimer refreshTimer;
+        private readonly DispatcherTimer resourceTimer;
         private readonly string logFilePath;
-        private long lastReadPosition;
         private bool waitingMessageShown;
         private bool allowClose;
+        private TimeSpan lastCpuTime;
+        private DateTime lastCpuSampleAt;
 
         /// <summary>
         /// 로그 뷰어 창을 생성합니다.
@@ -27,21 +29,31 @@ namespace GameTranslator
             InitializeComponent();
 
             this.logFilePath = logFilePath;
-            refreshTimer = new DispatcherTimer
+            resourceTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(500)
+                Interval = TimeSpan.FromSeconds(1)
             };
-            refreshTimer.Tick += (s, e) => ReadNewLogContent();
+            resourceTimer.Tick += (s, e) => UpdateResourceUsage();
 
             Loaded += (s, e) =>
             {
                 ReloadFromStart();
-                refreshTimer.Start();
+                ResetResourceUsageBaseline();
+                UpdateResourceUsage();
+                resourceTimer.Start();
             };
             IsVisibleChanged += (s, e) =>
             {
-                if (IsVisible) refreshTimer.Start();
-                else refreshTimer.Stop();
+                if (IsVisible)
+                {
+                    ResetResourceUsageBaseline();
+                    UpdateResourceUsage();
+                    resourceTimer.Start();
+                }
+                else
+                {
+                    resourceTimer.Stop();
+                }
             };
         }
 
@@ -53,7 +65,7 @@ namespace GameTranslator
         {
             if (allowClose)
             {
-                refreshTimer.Stop();
+                resourceTimer.Stop();
                 base.OnClosing(e);
                 return;
             }
@@ -79,72 +91,49 @@ namespace GameTranslator
         private void ReloadFromStart()
         {
             TxtLog.Clear();
-            lastReadPosition = 0;
             waitingMessageShown = false;
-            ReadNewLogContent();
-        }
+            TxtStatus.Text = logFilePath;
 
-        /// <summary>
-        /// 마지막으로 읽은 위치 이후에 추가된 로그만 읽어 TextBox에 붙입니다.
-        /// 로그 파일이 아직 없거나 외부에서 잘렸다면 안전하게 처음부터 다시 읽습니다.
-        /// </summary>
-        private void ReadNewLogContent()
-        {
+            if (!File.Exists(logFilePath))
+            {
+                TxtLog.Text = "로그 파일 생성 대기 중...";
+                waitingMessageShown = true;
+                return;
+            }
+
             try
             {
-                TxtStatus.Text = logFilePath;
-
-                if (!File.Exists(logFilePath))
-                {
-                    if (!waitingMessageShown)
-                    {
-                        TxtLog.Text = "로그 파일 생성 대기 중...";
-                        waitingMessageShown = true;
-                    }
-                    return;
-                }
-
-                FileInfo fileInfo = new FileInfo(logFilePath);
-                if (fileInfo.Length < lastReadPosition)
-                {
-                    TxtLog.Clear();
-                    lastReadPosition = 0;
-                }
-
-                if (fileInfo.Length == lastReadPosition) return;
-
-                using FileStream stream = new FileStream(logFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                stream.Seek(lastReadPosition, SeekOrigin.Begin);
-
-                long unreadLength = stream.Length - lastReadPosition;
-                if (unreadLength > int.MaxValue)
-                {
-                    unreadLength = int.MaxValue;
-                }
-
-                byte[] buffer = new byte[(int)unreadLength];
-                int readBytes = stream.Read(buffer, 0, buffer.Length);
-                lastReadPosition = stream.Position;
-
-                if (readBytes <= 0) return;
-
-                string appendedText = Encoding.UTF8.GetString(buffer, 0, readBytes);
-                if (waitingMessageShown)
-                {
-                    TxtLog.Clear();
-                    waitingMessageShown = false;
-                }
-
-                TxtLog.AppendText(appendedText);
-                if (CheckAutoScroll.IsChecked == true)
-                {
-                    TxtLog.ScrollToEnd();
-                }
+                TxtLog.Text = File.ReadAllText(logFilePath, Encoding.UTF8);
+                waitingMessageShown = false;
+                ScrollToEndIfNeeded();
             }
             catch (Exception ex)
             {
                 TxtStatus.Text = $"로그 읽기 실패: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// MainWindow.AppendLog에서 새 로그 한 줄을 직접 전달받아 화면에 즉시 붙입니다.
+        /// <paramref name="logEntry"/>는 파일에 저장한 것과 동일한 완성된 로그 문자열입니다.
+        /// </summary>
+        public void AppendLogEntry(string logEntry)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => AppendLogEntry(logEntry)));
+                return;
+            }
+
+            if (waitingMessageShown)
+            {
+                TxtLog.Clear();
+                waitingMessageShown = false;
+            }
+
+            TxtStatus.Text = logFilePath;
+            TxtLog.AppendText(logEntry);
+            ScrollToEndIfNeeded();
         }
 
         /// <summary>
@@ -163,10 +152,59 @@ namespace GameTranslator
         {
             TxtLog.Clear();
             waitingMessageShown = false;
+        }
 
-            if (File.Exists(logFilePath))
+        /// <summary>
+        /// 자동 스크롤이 켜져 있으면 로그 끝으로 이동합니다.
+        /// </summary>
+        private void ScrollToEndIfNeeded()
+        {
+            if (CheckAutoScroll.IsChecked == true)
             {
-                lastReadPosition = new FileInfo(logFilePath).Length;
+                TxtLog.ScrollToEnd();
+            }
+        }
+
+        /// <summary>
+        /// CPU 사용률 계산을 위한 기준 시각과 누적 CPU 시간을 갱신합니다.
+        /// </summary>
+        private void ResetResourceUsageBaseline()
+        {
+            using Process process = Process.GetCurrentProcess();
+            process.Refresh();
+            lastCpuTime = process.TotalProcessorTime;
+            lastCpuSampleAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// 현재 GameChatTranslator 프로세스의 CPU 사용률과 메모리 사용량을 상단에 표시합니다.
+        /// CPU는 전체 논리 프로세서 기준 백분율, 메모리는 Working Set 기준 MB입니다.
+        /// </summary>
+        private void UpdateResourceUsage()
+        {
+            try
+            {
+                using Process process = Process.GetCurrentProcess();
+                process.Refresh();
+
+                DateTime now = DateTime.UtcNow;
+                double elapsedMs = (now - lastCpuSampleAt).TotalMilliseconds;
+                double cpuMs = (process.TotalProcessorTime - lastCpuTime).TotalMilliseconds;
+                double cpuPercent = 0;
+                if (elapsedMs > 0)
+                {
+                    cpuPercent = cpuMs / elapsedMs / Environment.ProcessorCount * 100.0;
+                }
+
+                double memoryMb = process.WorkingSet64 / 1024.0 / 1024.0;
+                TxtResourceUsage.Text = $"CPU {cpuPercent:0.0}% / MEM {memoryMb:0} MB";
+
+                lastCpuTime = process.TotalProcessorTime;
+                lastCpuSampleAt = now;
+            }
+            catch (Exception ex)
+            {
+                TxtResourceUsage.Text = $"리소스 확인 실패: {ex.Message}";
             }
         }
     }

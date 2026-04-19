@@ -12,7 +12,7 @@ namespace GameTranslator
     {
         /// <summary>
         /// 현재 실행 세션의 로그 파일 전체 경로를 반환합니다.
-        /// <see cref="sessionLogFileName"/>은 MainWindow 생성 시 고정되므로 로그창은 같은 파일을 계속 tail 합니다.
+        /// <see cref="sessionLogFileName"/>은 MainWindow 생성 시 고정되므로 로그창은 같은 파일을 읽습니다.
         /// </summary>
         private string GetCurrentSessionLogFilePath()
         {
@@ -71,6 +71,15 @@ namespace GameTranslator
             }
 
             ShowLogViewerWindow();
+        }
+
+        /// <summary>
+        /// AppendLog에서 생성한 새 로그 문자열을 열려 있는 로그창에 전달합니다.
+        /// 로그창이 아직 생성되지 않았다면 파일에만 저장하고, 나중에 열 때 파일 전체를 읽어 표시합니다.
+        /// </summary>
+        private void PushLogEntryToLogViewer(string logEntry)
+        {
+            logViewerWindow?.AppendLogEntry(logEntry);
         }
     }
 }

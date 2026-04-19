@@ -40,6 +40,12 @@
                       VerticalAlignment="Center"
                       Foreground="#CCC"
                       Margin="0,0,12,0"/>
+            <TextBlock x:Name="TxtResourceUsage"
+                       VerticalAlignment="Center"
+                       Foreground="#8FE388"
+                       FontWeight="Bold"
+                       FontSize="12"
+                       Margin="0,0,12,0"/>
             <TextBlock x:Name="TxtStatus"
                        VerticalAlignment="Center"
                        Foreground="#AAA"
