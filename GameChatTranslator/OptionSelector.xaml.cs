@@ -21,6 +21,7 @@ namespace GameTranslator
         private const string DefaultKeyAutoTranslate = "Ctrl+0";
         private const string DefaultKeyToggleEngine = "Ctrl+-";
         private const string DefaultKeyCopyResult = "Ctrl+6";
+        private const string DefaultKeyLogViewer = "Ctrl+=";
 
         /// <summary>
         /// 환경설정 창을 생성하고 현재 설정값과 프리셋 목록을 UI에 반영합니다.
@@ -67,6 +68,7 @@ namespace GameTranslator
             TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? DefaultKeyAutoTranslate;
             TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? DefaultKeyToggleEngine;
             TxtKeyCopy.Text = _ini.Read("Key_CopyResult") ?? DefaultKeyCopyResult;
+            TxtKeyLog.Text = _ini.Read("Key_LogViewer") ?? DefaultKeyLogViewer;
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -173,7 +175,21 @@ namespace GameTranslator
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) modifierStr += "Shift+";
 
             System.Windows.Controls.TextBox tb = sender as System.Windows.Controls.TextBox;
-            tb.Text = modifierStr + key.ToString();
+            tb.Text = modifierStr + GetHotkeyDisplayKey(key);
+        }
+
+        /// <summary>
+        /// WPF Key 값을 config.ini에 저장할 사람이 읽기 쉬운 키 이름으로 변환합니다.
+        /// <paramref name="key"/>는 사용자가 누른 실제 키입니다.
+        /// </summary>
+        private string GetHotkeyDisplayKey(Key key)
+        {
+            return key switch
+            {
+                Key.OemPlus => "=",
+                Key.OemMinus => "-",
+                _ => key.ToString()
+            };
         }
 
         /// <summary>
@@ -189,6 +205,7 @@ namespace GameTranslator
             TxtKeyAuto.Text = DefaultKeyAutoTranslate;
             TxtKeyToggle.Text = DefaultKeyToggleEngine;
             TxtKeyCopy.Text = DefaultKeyCopyResult;
+            TxtKeyLog.Text = DefaultKeyLogViewer;
         }
 
         /// <summary>
@@ -243,6 +260,7 @@ namespace GameTranslator
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
             _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
             _ini.Write("Key_CopyResult", TxtKeyCopy.Text);
+            _ini.Write("Key_LogViewer", TxtKeyLog.Text);
 
             // [배율 설정 저장]
             if (ComboScale.SelectedItem is ComboBoxItem scaleItem)
@@ -300,6 +318,16 @@ namespace GameTranslator
             {
                 BtnCheckUpdate.IsEnabled = true;
             }
+        }
+
+        /// <summary>
+        /// 환경설정창에서 로그창을 즉시 열어 현재 세션 로그를 확인합니다.
+        /// <paramref name="sender"/>는 로그창 열기 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
+        private void BtnOpenLogViewer_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow?.ShowLogViewerWindow();
         }
     }
 }

@@ -86,6 +86,11 @@ namespace GameTranslator
             {
                 ini.Write("Key_CopyResult", "Ctrl+6");
             }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_LogViewer")))
+            {
+                ini.Write("Key_LogViewer", "Ctrl+=");
+            }
         }
 
         /// <summary>

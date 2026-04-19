@@ -1,0 +1,63 @@
+﻿<Window x:Class="GameTranslator.LogViewerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GameChatTranslator 로그"
+        Width="900"
+        Height="600"
+        MinWidth="520"
+        MinHeight="320"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E"
+        Foreground="White"
+        ResizeMode="CanResize">
+    <!--
+        별도 로그 확인 창입니다.
+        일반 타이틀바와 크기 조절을 유지해 보조 모니터로 옮겨 놓고 사용할 수 있게 합니다.
+    -->
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button x:Name="BtnReload"
+                    Content="새로고침"
+                    Padding="10,4"
+                    Margin="0,0,8,0"
+                    Background="#444"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Click="BtnReload_Click"/>
+            <Button x:Name="BtnClearView"
+                    Content="화면 지우기"
+                    Padding="10,4"
+                    Margin="0,0,12,0"
+                    Background="#444"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Click="BtnClearView_Click"/>
+            <CheckBox x:Name="CheckAutoScroll"
+                      Content="자동 스크롤"
+                      IsChecked="True"
+                      VerticalAlignment="Center"
+                      Foreground="#CCC"
+                      Margin="0,0,12,0"/>
+            <TextBlock x:Name="TxtStatus"
+                       VerticalAlignment="Center"
+                       Foreground="#AAA"
+                       FontSize="12"
+                       TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+
+        <TextBox x:Name="TxtLog"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 Background="#111"
+                 Foreground="#E6E6E6"
+                 BorderBrush="#555"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 Padding="8"/>
+    </DockPanel>
+</Window>
