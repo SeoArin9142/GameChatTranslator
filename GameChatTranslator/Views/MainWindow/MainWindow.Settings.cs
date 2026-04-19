@@ -99,7 +99,7 @@ namespace GameTranslator
 
             if (string.IsNullOrWhiteSpace(ini.Read("ResultHistoryLimit")))
             {
-                ini.Write("ResultHistoryLimit", "5");
+                ini.Write("ResultHistoryLimit", SettingsValueNormalizer.DefaultResultHistoryLimit.ToString());
             }
         }
 

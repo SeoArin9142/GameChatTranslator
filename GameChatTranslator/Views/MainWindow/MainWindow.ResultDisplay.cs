@@ -12,7 +12,6 @@ namespace GameTranslator
     public partial class MainWindow
     {
         private const string ResultDisplayModeHistory = "History";
-        private const int DefaultResultHistoryLimit = 5;
         private readonly List<TranslationDisplayLine> translationDisplayHistory = new List<TranslationDisplayLine>();
 
         /// <summary>
@@ -127,10 +126,7 @@ namespace GameTranslator
         /// </summary>
         private int ReadResultHistoryLimit()
         {
-            int limit = int.TryParse(ini.Read("ResultHistoryLimit"), out int parsed) ? parsed : DefaultResultHistoryLimit;
-            if (limit < 1) limit = 1;
-            if (limit > 10) limit = 10;
-            return limit;
+            return SettingsValueNormalizer.NormalizeResultHistoryLimit(ini.Read("ResultHistoryLimit"));
         }
     }
 }

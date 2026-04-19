@@ -414,22 +414,21 @@ namespace GameTranslator
 
                     AppendLog("DEBUG", $"OCR 원본: {krRawText}", "System");
 
-                    if (!Regex.IsMatch(krRawText, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]"))
+                    if (!ChatTextAnalyzer.ContainsReadableLetter(krRawText))
                     {
                         AppendLog("DEBUG", "글자 없음으로 스킵", "System");
                         performanceStats.SkippedLineCount++;
                         continue;
                     }
 
-                    var strictMatch = Regex.Match(krRawText, @"^(.*[\[\(]([^\]\)]+)[\]\)]\s*[:;：!])\s*(.*)$");
-                    if (!strictMatch.Success)
+                    if (!ChatTextAnalyzer.TryParseChatLine(krRawText, out ChatTextAnalyzer.ChatLine parsedChatLine))
                     {
                         AppendLog("DEBUG", "정규식(strictMatch) 불일치로 스킵됨", "System");
                         performanceStats.SkippedLineCount++;
                         continue;
                     }
 
-                    string characterNameOnly = strictMatch.Groups[2].Value.Trim();
+                    string characterNameOnly = parsedChatLine.CharacterName;
 
                     if (!characterNames.Contains(characterNameOnly))
                     {
@@ -438,8 +437,8 @@ namespace GameTranslator
                         continue;
                     }
 
-                    string characterNameGold = $"[{characterNameOnly}]: ";
-                    string bestMessage = strictMatch.Groups[3].Value.Trim();
+                    string characterNameGold = parsedChatLine.CharacterLabel;
+                    string bestMessage = parsedChatLine.Message;
                     int bestScore = -1;
 
                     double mTop = chatLine.Top - 5;
@@ -729,31 +728,7 @@ namespace GameTranslator
             if (candidate == null || candidate.Score <= 0 || candidate.Lines == null) return false;
 
             return candidate.Lines.Any(line =>
-                TryExtractKnownCharacterChatLine(line.Text, out _, out string message) &&
-                !string.IsNullOrWhiteSpace(message));
-        }
-
-        /// <summary>
-        /// OCR 문자열이 "[캐릭터명]: 내용" 형식이고 캐릭터 목록에 있는 이름인지 검사합니다.
-        /// <paramref name="rawText"/>는 OCR에서 얻은 한 줄 원문,
-        /// <paramref name="characterNameOnly"/>는 성공 시 추출된 캐릭터명,
-        /// <paramref name="message"/>는 성공 시 추출된 채팅 본문입니다.
-        /// </summary>
-        private bool TryExtractKnownCharacterChatLine(string rawText, out string characterNameOnly, out string message)
-        {
-            characterNameOnly = "";
-            message = "";
-
-            string text = rawText?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(text)) return false;
-
-            Match strictMatch = Regex.Match(text, @"^(.*[\[\(]([^\]\)]+)[\]\)]\s*[:;：!])\s*(.*)$");
-            if (!strictMatch.Success) return false;
-
-            characterNameOnly = strictMatch.Groups[2].Value.Trim();
-            message = strictMatch.Groups[3].Value.Trim();
-
-            return characterNames.Contains(characterNameOnly) && !string.IsNullOrWhiteSpace(message);
+                ChatTextAnalyzer.TryParseKnownCharacterChatLine(line.Text, characterNames, out _));
         }
 
         /// <summary>
@@ -1178,45 +1153,7 @@ namespace GameTranslator
         /// </summary>
         private int ScoreOcrCandidate(List<MergedLine> lines)
         {
-            int score = 0;
-
-            foreach (MergedLine line in lines)
-            {
-                string text = line.Text?.Trim() ?? "";
-                if (string.IsNullOrWhiteSpace(text)) continue;
-
-                int letterCount = Regex.Matches(text, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]").Count;
-                int noiseCount = Regex.Matches(text, @"[^a-zA-Z0-9가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\[\]\(\):;：!\.,\?\-]").Count;
-                score += letterCount * 2;
-                score -= noiseCount * 18;
-
-                Match strictMatch = Regex.Match(text, @"^(.*[\[\(]([^\]\)]+)[\]\)]\s*[:;：!])\s*(.*)$");
-                if (!strictMatch.Success)
-                {
-                    score -= 80;
-                    continue;
-                }
-
-                string characterNameOnly = strictMatch.Groups[2].Value.Trim();
-                string message = strictMatch.Groups[3].Value.Trim();
-
-                if (characterNames.Contains(characterNameOnly))
-                {
-                    score += 10000;
-                    score += Math.Min(message.Length, 80) * 40;
-                }
-                else
-                {
-                    score -= 200;
-                }
-
-                if (Regex.IsMatch(message, @"[\u4e00-\u9fa5]")) score += 400;
-                if (Regex.IsMatch(message, @"[a-zA-Z]{2,}")) score += 300;
-                if (Regex.IsMatch(message, @"[ぁ-んァ-ヶ]")) score += 200;
-                if (Regex.IsMatch(message, @"[а-яА-ЯёЁ]")) score += 100;
-            }
-
-            return score;
+            return ChatTextAnalyzer.ScoreOcrCandidate(lines?.Select(line => line.Text), characterNames);
         }
 
         /// <summary>
