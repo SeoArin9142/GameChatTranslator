@@ -263,12 +263,12 @@ namespace GameTranslator
             TxtInterval.Text = ReadPresetValue(section, "AutoTranslateInterval", "5");
             CheckSaveDebugImages.IsChecked = IsTruthy(ReadPresetValue(section, "SaveDebugImages", "false"));
             TxtGeminiModel.Text = ReadPresetValue(section, "GeminiModel", MainWindow.DefaultGeminiModel);
-            TxtKeyMove.Text = ReadPresetValue(section, "Key_MoveLock", "Ctrl+7");
-            TxtKeyArea.Text = ReadPresetValue(section, "Key_AreaSelect", "Ctrl+8");
-            TxtKeyTrans.Text = ReadPresetValue(section, "Key_Translate", "Ctrl+9");
-            TxtKeyAuto.Text = ReadPresetValue(section, "Key_AutoTranslate", "Ctrl+0");
-            TxtKeyToggle.Text = ReadPresetValue(section, "Key_ToggleEngine", "Ctrl+-");
-            TxtKeyCopy.Text = ReadPresetValue(section, "Key_CopyResult", "Ctrl+6");
+            TxtKeyMove.Text = ReadPresetValue(section, "Key_MoveLock", DefaultKeyMoveLock);
+            TxtKeyArea.Text = ReadPresetValue(section, "Key_AreaSelect", DefaultKeyAreaSelect);
+            TxtKeyTrans.Text = ReadPresetValue(section, "Key_Translate", DefaultKeyTranslate);
+            TxtKeyAuto.Text = ReadPresetValue(section, "Key_AutoTranslate", DefaultKeyAutoTranslate);
+            TxtKeyToggle.Text = ReadPresetValue(section, "Key_ToggleEngine", DefaultKeyToggleEngine);
+            TxtKeyCopy.Text = ReadPresetValue(section, "Key_CopyResult", DefaultKeyCopyResult);
 
             foreach (string key in PresetSettingKeys)
             {
