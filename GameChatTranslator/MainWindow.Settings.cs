@@ -91,6 +91,16 @@ namespace GameTranslator
             {
                 ini.Write("Key_LogViewer", "Ctrl+=");
             }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("ResultDisplayMode")))
+            {
+                ini.Write("ResultDisplayMode", "Latest");
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("ResultHistoryLimit")))
+            {
+                ini.Write("ResultHistoryLimit", "30");
+            }
         }
 
         /// <summary>
