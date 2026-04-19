@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Windows.Globalization;
+using Windows.Media.Ocr;
 
 namespace GameTranslator
 {
@@ -22,6 +24,14 @@ namespace GameTranslator
         private const string DefaultKeyToggleEngine = "Ctrl+-";
         private const string DefaultKeyCopyResult = "Ctrl+6";
         private const string DefaultKeyLogViewer = "Ctrl+=";
+        private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
+        {
+            ("한국어", "ko"),
+            ("영어", "en-US"),
+            ("중국어 간체", "zh-Hans-CN"),
+            ("일본어", "ja"),
+            ("러시아어", "ru")
+        };
 
         /// <summary>
         /// 환경설정 창을 생성하고 현재 설정값과 프리셋 목록을 UI에 반영합니다.
@@ -36,6 +46,7 @@ namespace GameTranslator
 
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
+            RefreshOcrLanguageStatus();
         }
 
         /// <summary>
@@ -139,6 +150,42 @@ namespace GameTranslator
                 }
             }
             if (combo.SelectedItem == null && combo.Items.Count > 0) combo.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// Windows OCR 엔진을 언어별로 생성해 설치 상태를 UI에 표시합니다.
+        /// 설치된 언어는 OcrEngine.TryCreateFromLanguage가 null이 아닌 값을 반환합니다.
+        /// </summary>
+        private void RefreshOcrLanguageStatus()
+        {
+            if (TxtOcrLanguageStatus == null) return;
+
+            var lines = new System.Collections.Generic.List<string>();
+            foreach ((string label, string tag) in OcrLanguageStatusTargets)
+            {
+                bool installed = IsOcrLanguageInstalled(tag);
+                string marker = installed ? "OK" : "NO";
+                string status = installed ? "설치됨" : "미설치";
+                lines.Add($"{marker}  {label,-8} ({tag}) : {status}");
+            }
+
+            TxtOcrLanguageStatus.Text = string.Join(System.Environment.NewLine, lines);
+        }
+
+        /// <summary>
+        /// 지정한 Windows OCR 언어팩이 현재 OS에서 사용 가능한지 확인합니다.
+        /// <paramref name="languageTag"/>는 ko, en-US, zh-Hans-CN, ja, ru 같은 Windows 언어 태그입니다.
+        /// </summary>
+        private bool IsOcrLanguageInstalled(string languageTag)
+        {
+            try
+            {
+                return OcrEngine.TryCreateFromLanguage(new Language(languageTag)) != null;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -328,6 +375,16 @@ namespace GameTranslator
         private void BtnOpenLogViewer_Click(object sender, RoutedEventArgs e)
         {
             _mainWindow?.ShowLogViewerWindow();
+        }
+
+        /// <summary>
+        /// [상태 새로고침] 버튼 클릭 시 Windows OCR 언어팩 설치 상태를 다시 확인합니다.
+        /// <paramref name="sender"/>는 새로고침 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
+        private void BtnRefreshOcrLanguages_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshOcrLanguageStatus();
         }
     }
 }
