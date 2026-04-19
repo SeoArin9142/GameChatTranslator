@@ -26,6 +26,11 @@ namespace GameTranslator
 {
     public partial class MainWindow
     {
+        /// <summary>
+        /// 시스템 상태 메시지를 세션 로그 파일에 기록합니다.
+        /// <paramref name="systemMessage"/>는 프로그램 시작, 설정 변경, 오류 같은 사용자/개발자 확인용 메시지입니다.
+        /// 로그 저장 실패가 번역 동작을 막지 않도록 예외는 내부에서 흡수합니다.
+        /// </summary>
         private void AppendLog(string systemMessage)
         {
             try
@@ -41,6 +46,13 @@ namespace GameTranslator
             }
             catch { }
         }
+
+        /// <summary>
+        /// 번역 처리 결과를 원문, 번역문, 사용 엔진과 함께 세션 로그 파일에 기록합니다.
+        /// <paramref name="original"/>은 OCR에서 추출한 원문,
+        /// <paramref name="translated"/>는 최종 출력 번역문,
+        /// <paramref name="engineName"/>은 Google/Gemini/Skip 등 처리 경로 이름입니다.
+        /// </summary>
         private void AppendLog(string original, string translated, string engineName)
         {
             try

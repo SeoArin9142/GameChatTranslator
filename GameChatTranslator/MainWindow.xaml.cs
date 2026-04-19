@@ -24,6 +24,10 @@ using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
 {
+    /// <summary>
+    /// 번역 오버레이 메인 창의 공유 상태와 생성자 초기화를 담는 partial 클래스입니다.
+    /// 실제 기능은 Capture/Hotkeys/Lifecycle/Settings/Translation 등 역할별 partial 파일로 분리되어 있습니다.
+    /// </summary>
     public partial class MainWindow : Window
     {
         // ==========================================
@@ -67,6 +71,10 @@ namespace GameTranslator
         // ==========================================
         // 📌 3. 초기화 (생성자)
         // ==========================================
+        /// <summary>
+        /// 메인 번역창을 생성하고 실행에 필요한 공통 리소스를 초기화합니다.
+        /// INI 파일, OCR 엔진, HTTP 클라이언트, 자동 번역 타이머, 최상단 유지 타이머를 준비합니다.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
@@ -95,6 +103,8 @@ namespace GameTranslator
             string[] tags = { "ko", "en-US", "zh-Hans-CN", "ja", "ru" };
             foreach (var tag in tags)
             {
+                // Windows OCR 언어팩이 설치된 언어만 엔진 생성에 성공합니다.
+                // 실패한 언어는 실행 후 안내 메시지나 README의 LangInstall.bat 설명으로 보완합니다.
                 var engine = OcrEngine.TryCreateFromLanguage(new Windows.Globalization.Language(tag));
                 if (engine != null) ocrEngines.Add(tag, engine);
             }

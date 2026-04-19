@@ -1,27 +1,38 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<!-- WinExe: 콘솔 창 없이 WPF 창만 표시하는 Windows GUI 애플리케이션으로 빌드합니다. -->
 		<OutputType>WinExe</OutputType>
+		<!-- Windows OCR/WinRT API 사용을 위해 Windows 10 19041 대상 프레임워크를 사용합니다. -->
 		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+		<!-- 릴리즈/업데이트 확인에서 사용하는 제품 버전입니다. alpha 접미사는 InformationalVersion에 반영됩니다. -->
 		<Version>1.0.6-alpha</Version>
+		<!-- Windows 파일 속성과 어셈블리 바인딩에 쓰이는 숫자형 버전입니다. 접미사를 넣을 수 없어 1.0.6.0 형식을 사용합니다. -->
 		<AssemblyVersion>1.0.6.0</AssemblyVersion>
 		<FileVersion>1.0.6.0</FileVersion>
 		<Nullable>disable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<!-- WPF UI와 Windows Forms Screen/SystemInformation 계열 기능을 함께 사용합니다. -->
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
+		<!-- 관리자 권한 실행 요청과 긴 경로 설정은 app.manifest에서 관리합니다. -->
 		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<!-- app.manifest 대신 프로젝트 속성으로 DPI 모드를 관리해 WFAC010 경고를 피합니다. -->
 		<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+		<!-- self-contained single-file publish 시 네이티브 라이브러리를 실행 시점에 자체 추출할 수 있게 합니다. -->
 		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <!-- OCR 캐릭터명 검증 파일입니다. 실행 폴더에 반드시 복사되어야 합니다. -->
 	  <None Update="characters.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
+	  <!-- Windows OCR 언어팩 설치 보조 스크립트입니다. 배포 zip에 포함합니다. -->
 	  <None Update="LangInstall.bat">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
+	  <!-- 배포 zip에 들어가는 사용자용 간단 설명서입니다. 실제 파일명은 readme.txt입니다. -->
 	  <None Update="README.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>

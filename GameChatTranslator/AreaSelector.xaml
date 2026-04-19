@@ -3,7 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AreaSelector" WindowStyle="None" AllowsTransparency="True" Background="#55000000" Topmost="True"
         WindowState="Maximized" MouseDown="Window_MouseDown" MouseMove="Window_MouseMove" MouseUp="Window_MouseUp">
+    <!--
+        영역 선택 전용 투명 오버레이입니다.
+        전체 화면을 덮고, 사용자가 드래그하는 동안 SelectionBorder를 움직여 선택 영역을 시각적으로 보여줍니다.
+    -->
     <Canvas>
+        <!-- 사용자가 드래그한 캡처 후보 영역입니다. MouseDown 전에는 보이지 않다가 드래그 중 표시됩니다. -->
         <Border x:Name="SelectionBorder" BorderBrush="Red" BorderThickness="2" Background="#22FF0000" CornerRadius="3" Visibility="Collapsed"/>
     </Canvas>
 </Window>

@@ -15,10 +15,11 @@ namespace GameTranslator
         // 환경설정 파일(config.ini)을 읽고 쓰기 위한 객체
         private IniFile _ini;
 
-        // ==========================================
-        // 📌 1. 생성자 (초기화)
-        // 메인 창에서 이 설정창을 띄울 때 MainWindow 자기 자신과 ini 객체를 넘겨줍니다.
-        // ==========================================
+        /// <summary>
+        /// 환경설정 창을 생성하고 현재 설정값과 프리셋 목록을 UI에 반영합니다.
+        /// <paramref name="mainWindow"/>는 투명도 미리보기와 업데이트 확인을 호출할 메인 창 인스턴스이고,
+        /// <paramref name="ini"/>는 config.ini 읽기/쓰기를 담당하는 설정 파일 객체입니다.
+        /// </summary>
         public OptionSelector(MainWindow mainWindow, IniFile ini)
         {
             InitializeComponent(); // XAML 디자인 UI 요소들을 메모리에 로드
@@ -29,9 +30,10 @@ namespace GameTranslator
             LoadPresetList();
         }
 
-        // ==========================================
-        // 📌 2. 기존 설정 불러오기 (UI 초기 세팅)
-        // ==========================================
+        /// <summary>
+        /// config.ini에 저장된 값을 읽어 환경설정창의 모든 입력 컨트롤에 채웁니다.
+        /// 언어, 투명도, 단축키, 캡처 영역, OCR 옵션, 업데이트 확인, Gemini 설정을 한 번에 초기화합니다.
+        /// </summary>
         private void LoadCurrentSettings()
         {
             // [언어 콤보박스 세팅]
@@ -111,9 +113,12 @@ namespace GameTranslator
             }
         }
 
-        // ==========================================
-        // 📌 3. 콤보박스 아이템 자동 선택 도우미 함수
-        // ==========================================
+        /// <summary>
+        /// ComboBoxItem.Tag 값과 일치하는 항목을 선택합니다.
+        /// <paramref name="combo"/>는 선택을 적용할 콤보박스이고,
+        /// <paramref name="tag"/>는 찾을 언어 코드 또는 설정값입니다.
+        /// 값이 없으면 첫 번째 항목을 선택해 UI가 빈 상태로 남지 않게 합니다.
+        /// </summary>
         private void SetComboByTag(System.Windows.Controls.ComboBox combo, string tag)
         {
             foreach (ComboBoxItem item in combo.Items)
@@ -127,9 +132,11 @@ namespace GameTranslator
             if (combo.SelectedItem == null && combo.Items.Count > 0) combo.SelectedIndex = 0;
         }
 
-        // ==========================================
-        // 📌 4. 투명도 슬라이더 변경 이벤트 (실시간 적용)
-        // ==========================================
+        /// <summary>
+        /// 번역창 불투명도 슬라이더 값이 바뀔 때 메인 창에 즉시 반영합니다.
+        /// <paramref name="sender"/>는 Slider 컨트롤이고,
+        /// <paramref name="e"/>는 이전/새 Slider 값이 들어 있는 변경 이벤트 정보입니다.
+        /// </summary>
         private void SliderOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (TxtOpacityInfo != null)
@@ -139,9 +146,11 @@ namespace GameTranslator
             }
         }
 
-        // ==========================================
-        // 📌 5. 단축키 자동 입력기 (스마트 키보드 캡처)
-        // ==========================================
+        /// <summary>
+        /// 단축키 입력용 TextBox가 포커스를 가진 상태에서 누른 키 조합을 "Ctrl+9" 같은 문자열로 변환합니다.
+        /// <paramref name="sender"/>는 단축키를 입력받는 TextBox이고,
+        /// <paramref name="e"/>는 사용자가 누른 키와 modifier 상태를 담은 키보드 이벤트입니다.
+        /// </summary>
         private void Hotkey_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             e.Handled = true;
@@ -160,9 +169,11 @@ namespace GameTranslator
             tb.Text = modifierStr + key.ToString();
         }
 
-        // ==========================================
-        // 📌 6. 캡처 영역 초기화 버튼 이벤트
-        // ==========================================
+        /// <summary>
+        /// 저장된 캡처 영역 좌표를 config.ini에서 제거해 다음 실행 시 기본 위치를 사용하게 합니다.
+        /// <paramref name="sender"/>는 영역 초기화 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
         private void BtnResetArea_Click(object sender, RoutedEventArgs e)
         {
             _ini.Write("CaptureX", "");
@@ -174,9 +185,11 @@ namespace GameTranslator
             System.Windows.MessageBox.Show("영역 좌표가 초기화되었습니다.\n게임 실행 시 기본 위치(좌측 하단)로 배치됩니다.", "초기화 완료", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        // ==========================================
-        // 📌 7. [저장 및 게임 시작] 버튼 이벤트
-        // ==========================================
+        /// <summary>
+        /// 환경설정창의 현재 입력값을 config.ini에 저장하고 메인 번역창 실행을 허용합니다.
+        /// <paramref name="sender"/>는 저장 및 게임 시작 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
         private void BtnSaveAndStart_Click(object sender, RoutedEventArgs e)
         {
             // 콤보박스에서 선택된 항목의 Tag 값(언어 코드)을 저장
@@ -232,6 +245,11 @@ namespace GameTranslator
             this.Close();
         }
 
+        /// <summary>
+        /// 환경설정창의 업데이트 확인 버튼을 눌렀을 때 GitHub 릴리즈 최신 버전을 수동 확인합니다.
+        /// <paramref name="sender"/>는 업데이트 확인 버튼이고,
+        /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
+        /// </summary>
         private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
         {
             BtnCheckUpdate.IsEnabled = false;

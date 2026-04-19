@@ -24,8 +24,16 @@ using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
 {
+    /// <summary>
+    /// MainWindow의 로드/종료/이동 잠금 등 창 수명 주기와 사용자 조작 상태를 관리합니다.
+    /// 번역창은 게임 위에 떠 있어야 하므로 최상단 유지와 클릭 관통 상태 전환을 여기서 처리합니다.
+    /// </summary>
     public partial class MainWindow
     {
+        /// <summary>
+        /// 메인 번역창과 캡처 영역 테두리 창을 주기적으로 최상단에 고정합니다.
+        /// 전체화면 또는 게임 창 포커스 전환 중에도 번역 오버레이가 뒤로 밀리지 않게 보정합니다.
+        /// </summary>
         private void ForceTopmost()
         {
             // 1. 메인 번역창 최상단 강제 적용
@@ -44,6 +52,12 @@ namespace GameTranslator
                 }
             }
         }
+
+        /// <summary>
+        /// 메인 창 로드 완료 후 업데이트 확인, 환경설정창 표시, 단축키 등록, 초기 캡처 영역 배치를 순서대로 수행합니다.
+        /// <paramref name="sender"/>는 로드된 MainWindow이고,
+        /// <paramref name="e"/>는 WPF Loaded 이벤트 정보입니다.
+        /// </summary>
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             await Task.Delay(500);
@@ -164,6 +178,12 @@ namespace GameTranslator
             UpdateCaptureBorder(!isLocked);
             ShowHotkeyWarningIfAny();
         }
+
+        /// <summary>
+        /// 프로그램 종료 시 보조 창과 전역 단축키를 정리하고 종료 로그를 남깁니다.
+        /// <paramref name="e"/>는 WPF 종료 이벤트 정보입니다.
+        /// 전역 단축키를 해제하지 않으면 다음 실행 또는 다른 프로그램 단축키에 영향을 줄 수 있습니다.
+        /// </summary>
         protected override void OnClosed(EventArgs e)
         {
             captureBorderWindow?.Close();
@@ -178,7 +198,18 @@ namespace GameTranslator
             Application.Current.Shutdown();
             base.OnClosed(e);
         }
+
+        /// <summary>
+        /// 이동/잠금 해제 상태에서 번역창을 마우스로 드래그할 수 있게 합니다.
+        /// <paramref name="sender"/>는 클릭된 MainWindow,
+        /// <paramref name="e"/>는 마우스 왼쪽 버튼 이벤트 정보입니다.
+        /// </summary>
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (!isLocked) this.DragMove(); }
+
+        /// <summary>
+        /// Ctrl+7 단축키로 번역창 이동 가능 상태와 클릭 관통 잠금 상태를 전환합니다.
+        /// 잠금 상태에서는 마우스 클릭이 게임으로 통과하고, 이동 상태에서는 창 테두리를 녹색으로 바꿔 드래그 가능함을 표시합니다.
+        /// </summary>
         private void ToggleMoveLock()
         {
             isLocked = !isLocked;

@@ -10,6 +10,10 @@ using WpfOrientation = System.Windows.Controls.Orientation;
 
 namespace GameTranslator
 {
+    /// <summary>
+    /// 업데이트 확인 팝업에서 사용자가 선택한 결과입니다.
+    /// Later는 나중에, OpenReleasePage는 릴리즈 페이지 이동, DisableStartupCheck는 자동 확인 비활성화를 뜻합니다.
+    /// </summary>
     public enum UpdatePromptResult
     {
         Later,
@@ -17,10 +21,20 @@ namespace GameTranslator
         DisableStartupCheck
     }
 
+    /// <summary>
+    /// 새 버전이 발견됐을 때 표시하는 간단한 업데이트 안내 창입니다.
+    /// XAML 파일 없이 코드로 UI를 구성해 업데이트 확인 모듈 안에서 독립적으로 사용할 수 있게 했습니다.
+    /// </summary>
     public sealed class UpdatePromptWindow : Window
     {
         public UpdatePromptResult Result { get; private set; } = UpdatePromptResult.Later;
 
+        /// <summary>
+        /// 업데이트 안내 창을 생성합니다.
+        /// <paramref name="currentVersion"/>은 현재 실행 중인 앱 버전,
+        /// <paramref name="latestVersion"/>은 GitHub 릴리즈에서 확인한 최신 버전,
+        /// <paramref name="allowDisableStartupCheck"/>는 시작 시 자동 확인 비활성화 버튼을 보여줄지 여부입니다.
+        /// </summary>
         public UpdatePromptWindow(string currentVersion, string latestVersion, bool allowDisableStartupCheck)
         {
             Title = "업데이트 확인";
@@ -85,6 +99,12 @@ namespace GameTranslator
             Content = root;
         }
 
+        /// <summary>
+        /// 업데이트 팝업 하단의 버튼을 생성합니다.
+        /// <paramref name="text"/>는 버튼에 표시할 문구,
+        /// <paramref name="onClick"/>은 클릭 시 실행할 동작입니다.
+        /// 반환값은 공통 스타일이 적용된 WPF Button입니다.
+        /// </summary>
         private WpfButton CreateButton(string text, Action onClick)
         {
             var button = new WpfButton
