@@ -56,6 +56,7 @@ namespace GameTranslator
         private const int ID_HOTKEY_TRANSLATE = 9003;
         private const int ID_HOTKEY_AUTO = 9004;
         private const int ID_HOTKEY_TOGGLE_ENGINE = 9005;
+        private const int ID_HOTKEY_COPY_RESULT = 9006;
         internal const string DefaultGeminiModel = "gemini-2.5-flash";
     }
 }

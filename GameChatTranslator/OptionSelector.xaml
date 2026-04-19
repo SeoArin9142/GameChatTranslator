@@ -21,6 +21,17 @@
             </StackPanel>
         </GroupBox>
 
+        <GroupBox Header="업데이트 확인 (Update)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <CheckBox x:Name="CheckUpdatesOnStartup" Content="실행 시 업데이트 자동 확인" Foreground="#CCC" Margin="0,0,0,8"/>
+                <TextBlock Text="새 버전이 있으면 릴리즈 페이지 이동 여부를 묻고, 이동 시 프로그램을 종료합니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock x:Name="TxtUpdateStatus" Foreground="#CCC" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Button x:Name="BtnCheckUpdate" Content="업데이트 확인" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnCheckUpdate_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <GroupBox Header="언어 설정 (Language)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">
                 <TextBlock Text="게임 언어 (채팅 인식 기준):" Margin="0,0,0,5" Foreground="#CCC"/>
@@ -74,19 +85,6 @@
             </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Gemini AI 번역 설정" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
-            <StackPanel Margin="10">
-                <TextBlock Text="API 키를 입력하면 Gemini AI 번역을 사용할 수 있습니다. 비워두면 Google 무료 번역으로 실행됩니다." TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#CCC"/>
-
-                <TextBlock Text="Gemini API Key:" Margin="0,0,0,5" Foreground="#CCC"/>
-                <PasswordBox x:Name="PasswordGeminiKey" Height="26" Margin="0,0,0,10" Background="#333" Foreground="White" BorderBrush="#555"/>
-
-                <TextBlock Text="Gemini Model:" Margin="0,0,0,5" Foreground="#CCC"/>
-                <TextBox x:Name="TxtGeminiModel" Height="26" Margin="0,0,0,5" Background="#333" Foreground="White" BorderBrush="#555"/>
-                <TextBlock Text="기본값: gemini-2.5-flash" FontSize="11" Foreground="#888"/>
-            </StackPanel>
-        </GroupBox>
-
         <GroupBox Header="단축키 설정 (클릭 후 키보드 입력)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <Grid Margin="10">
                 <Grid.ColumnDefinitions>
@@ -94,6 +92,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -115,6 +114,9 @@
 
                 <TextBlock Text="엔진 전환 단축키 :" Grid.Row="4" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                 <TextBox x:Name="TxtKeyToggle" Grid.Row="4" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+
+                <TextBlock Text="번역 복사 :" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                <TextBox x:Name="TxtKeyCopy" Grid.Row="5" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
             </Grid>
         </GroupBox>
 
@@ -122,6 +124,19 @@
             <StackPanel Margin="10" Orientation="Horizontal">
                 <TextBlock x:Name="TxtAreaInfo" Text="저장된 영역: 없음 (좌측 하단 기본값)" VerticalAlignment="Center" Foreground="#CCC" Width="280"/>
                 <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" Padding="5,0" Height="25" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Gemini AI 번역 설정" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <TextBlock Text="API 키를 입력하면 Gemini AI 번역을 사용할 수 있습니다. 비워두면 Google 무료 번역으로 실행됩니다." TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#CCC"/>
+
+                <TextBlock Text="Gemini API Key:" Margin="0,0,0,5" Foreground="#CCC"/>
+                <PasswordBox x:Name="PasswordGeminiKey" Height="26" Margin="0,0,0,10" Background="#333" Foreground="White" BorderBrush="#555"/>
+
+                <TextBlock Text="Gemini Model:" Margin="0,0,0,5" Foreground="#CCC"/>
+                <TextBox x:Name="TxtGeminiModel" Height="26" Margin="0,0,0,5" Background="#333" Foreground="White" BorderBrush="#555"/>
+                <TextBlock Text="기본값: gemini-2.5-flash" FontSize="11" Foreground="#888"/>
             </StackPanel>
         </GroupBox>
 

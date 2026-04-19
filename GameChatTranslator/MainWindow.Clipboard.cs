@@ -48,28 +48,21 @@ namespace GameTranslator
             }
         }
 
-        private void BtnCopyResult_Click(object sender, RoutedEventArgs e)
-        {
-            CopyLastTranslationToClipboard();
-        }
-
         private void CopyLastTranslationToClipboard()
         {
             if (string.IsNullOrWhiteSpace(lastClipboardTranslationText))
             {
-                TxtCopyStatus.Text = "복사할 번역 결과 없음";
+                AppendLog("복사할 번역 결과가 없습니다.");
                 return;
             }
 
             try
             {
                 System.Windows.Clipboard.SetText(lastClipboardTranslationText.Trim());
-                TxtCopyStatus.Text = "복사 완료";
                 AppendLog("번역 결과를 클립보드에 복사했습니다.");
             }
             catch (Exception ex)
             {
-                TxtCopyStatus.Text = "복사 실패";
                 AppendLog($"클립보드 복사 실패: {ex.Message}");
             }
         }

@@ -57,6 +57,7 @@ namespace GameTranslator
             TxtKeyTrans.Text = _ini.Read("Key_Translate") ?? "Ctrl+9";
             TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
             TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? "Ctrl+-"; // 🌟 추가
+            TxtKeyCopy.Text = _ini.Read("Key_CopyResult") ?? "Ctrl+6";
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -99,6 +100,14 @@ namespace GameTranslator
                 CheckSaveDebugImages.IsChecked =
                     saveDebugImages.Equals("true", System.StringComparison.OrdinalIgnoreCase) ||
                     saveDebugImages == "1";
+            }
+
+            string checkUpdatesOnStartup = _ini.Read("CheckUpdatesOnStartup") ?? "true";
+            if (CheckUpdatesOnStartup != null)
+            {
+                CheckUpdatesOnStartup.IsChecked =
+                    !checkUpdatesOnStartup.Equals("false", System.StringComparison.OrdinalIgnoreCase) &&
+                    checkUpdatesOnStartup != "0";
             }
         }
 
@@ -183,6 +192,7 @@ namespace GameTranslator
             _ini.Write("Key_Translate", TxtKeyTrans.Text);
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
             _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
+            _ini.Write("Key_CopyResult", TxtKeyCopy.Text);
 
             // [배율 설정 저장]
             if (ComboScale.SelectedItem is ComboBoxItem scaleItem)
@@ -211,6 +221,7 @@ namespace GameTranslator
             }
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
+            _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
 
             string geminiModel = TxtGeminiModel?.Text?.Trim();
@@ -219,6 +230,21 @@ namespace GameTranslator
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
             this.DialogResult = true;
             this.Close();
+        }
+
+        private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            BtnCheckUpdate.IsEnabled = false;
+            TxtUpdateStatus.Text = "확인 중...";
+
+            try
+            {
+                await _mainWindow.RunManualUpdateCheckAsync(this, status => TxtUpdateStatus.Text = status);
+            }
+            finally
+            {
+                BtnCheckUpdate.IsEnabled = true;
+            }
         }
     }
 }
