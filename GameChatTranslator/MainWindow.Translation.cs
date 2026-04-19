@@ -50,6 +50,7 @@ namespace GameTranslator
 
             // 엔진 상태 반전 (true <-> false)
             useGeminiEngine = !useGeminiEngine;
+            ResetTranslationCache("번역 엔진 변경");
             string currentEngine = useGeminiEngine ? "Gemini AI" : "Google 무료";
 
             AppendLog($"번역 엔진이 '{currentEngine}'(으)로 실시간 변경되었습니다.");
@@ -59,6 +60,11 @@ namespace GameTranslator
             TxtResult.Inlines.Add(new Run($"🔄 번역 엔진 변경됨: [ {currentEngine} ]") { Foreground = Brushes.Cyan, FontWeight = FontWeights.Bold });
 
             UpdateYellowHotkeyGuideText(); // 노란색 안내문구도 업데이트
+        }
+        private void ResetTranslationCache(string reason)
+        {
+            lastRawTextCombined = "";
+            AppendLog($"재번역 캐시 초기화: {reason}");
         }
         private class MergedLine
         {
@@ -93,12 +99,13 @@ namespace GameTranslator
 
             try
             {
-                using Bitmap rawBitmap = new Bitmap(gameChatArea.Width, gameChatArea.Height);
+                Rectangle captureArea = GetCapturePixelArea();
+                using Bitmap rawBitmap = new Bitmap(captureArea.Width, captureArea.Height);
                 using (Graphics g = Graphics.FromImage(rawBitmap))
                 {
                     IntPtr hdcSrc = GetWindowDC(IntPtr.Zero);
                     IntPtr hdcDest = g.GetHdc();
-                    BitBlt(hdcDest, 0, 0, gameChatArea.Width, gameChatArea.Height, hdcSrc, gameChatArea.X, gameChatArea.Y, 0x00CC0020);
+                    BitBlt(hdcDest, 0, 0, captureArea.Width, captureArea.Height, hdcSrc, captureArea.X, captureArea.Y, 0x00CC0020);
                     g.ReleaseHdc(hdcDest);
                     ReleaseDC(IntPtr.Zero, hdcSrc);
                 }
@@ -141,14 +148,17 @@ namespace GameTranslator
                 Marshal.Copy(rgbValues, 0, bmpData.Scan0, bytes);
                 resizedBitmap.UnlockBits(bmpData);
 
-                // 🌟 [프레임 방어 최적화] 메인 스레드 대기 방지를 위해 복사본을 만들어 백그라운드 저장
-                Bitmap rawClone = new Bitmap(rawBitmap);
-                Bitmap resizeClone = new Bitmap(resizedBitmap);
-                _ = Task.Run(() =>
+                if (ShouldSaveDebugImages())
                 {
-                    using (rawClone) SaveDebugImage(rawClone, "[Origin]");
-                    using (resizeClone) SaveDebugImage(resizeClone, "[Resize]");
-                });
+                    // 🌟 [프레임 방어 최적화] 메인 스레드 대기 방지를 위해 복사본을 만들어 백그라운드 저장
+                    Bitmap rawClone = new Bitmap(rawBitmap);
+                    Bitmap resizeClone = new Bitmap(resizedBitmap);
+                    _ = Task.Run(() =>
+                    {
+                        using (rawClone) SaveDebugImage(rawClone, "[Origin]");
+                        using (resizeClone) SaveDebugImage(resizeClone, "[Resize]");
+                    });
+                }
 
                 int cropTop = 0;
                 int cropBottom = (int)(resizedBitmap.Height * 0.05);
@@ -163,9 +173,12 @@ namespace GameTranslator
                                 new Rectangle(0, cropTop, resizedBitmap.Width, newH), GraphicsUnit.Pixel);
                 }
 
-                // 🌟 [프레임 방어 최적화] 백그라운드 저장
-                Bitmap cropClone = new Bitmap(croppedBitmap);
-                _ = Task.Run(() => { using (cropClone) SaveDebugImage(cropClone, "[Cropped]"); });
+                if (ShouldSaveDebugImages())
+                {
+                    // 🌟 [프레임 방어 최적화] 백그라운드 저장
+                    Bitmap cropClone = new Bitmap(croppedBitmap);
+                    _ = Task.Run(() => { using (cropClone) SaveDebugImage(cropClone, "[Cropped]"); });
+                }
 
                 using MemoryStream ms = new MemoryStream();
                 croppedBitmap.Save(ms, ImageFormat.Png);

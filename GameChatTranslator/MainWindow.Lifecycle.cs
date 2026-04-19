@@ -108,12 +108,25 @@ namespace GameTranslator
             string cy = ini.Read("CaptureY");
             string cw = ini.Read("CaptureW");
             string ch = ini.Read("CaptureH");
+            string cpx = ini.Read("CapturePixelX");
+            string cpy = ini.Read("CapturePixelY");
+            string cpw = ini.Read("CapturePixelW");
+            string cph = ini.Read("CapturePixelH");
             double screenH = SystemParameters.PrimaryScreenHeight;
 
             if (int.TryParse(cx, out int x) && int.TryParse(cy, out int y) &&
                 int.TryParse(cw, out int w) && int.TryParse(ch, out int h) && w > 0 && h > 0)
             {
                 gameChatArea = new Rectangle(x, y, w, h);
+                if (int.TryParse(cpx, out int px) && int.TryParse(cpy, out int py) &&
+                    int.TryParse(cpw, out int pw) && int.TryParse(cph, out int ph) && pw > 0 && ph > 0)
+                {
+                    gameChatCaptureArea = new Rectangle(px, py, pw, ph);
+                }
+                else
+                {
+                    gameChatCaptureArea = ConvertDisplayAreaToPixels(gameChatArea);
+                }
                 this.SizeToContent = SizeToContent.Manual;
                 this.Width = w;
                 this.MinWidth = w;
@@ -130,6 +143,7 @@ namespace GameTranslator
                 this.Left = 20;
                 this.Top = screenH - this.Height - 10;
                 gameChatArea = new Rectangle((int)this.Left, (int)(this.Top - 250 - 10), 500, 250);
+                gameChatCaptureArea = ConvertDisplayAreaToPixels(gameChatArea);
 
                 string missingLangs = "";
                 if (!ocrEngines.ContainsKey("ru")) missingLangs += "러시아어 ";
