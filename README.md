@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.11-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.11-alpha/GameChatTranslator_v1.0.11-alpha.zip)
+[**👉 GameChatTranslator v1.0.12-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.12-alpha/GameChatTranslator_v1.0.12-alpha.zip)
 
 ---
 
@@ -114,6 +114,29 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.12-alpha)
+
+   이번 버전에서는 번역 엔진 선택과 fallback 판단 로직을 테스트 가능한 서비스로 분리해 번역 흐름의 안정성을 높였습니다.
+
+   🔁 번역 의사결정 로직 분리
+
+      동일 언어 감지, Gemini 우선 사용 여부, Gemini 실패 시 Google fallback 판단을 TranslationService로 분리했습니다.
+
+      Google/Gemini API 호출 자체는 기존 흐름을 유지하고, 어떤 결과를 최종 표시할지만 순수 로직으로 결정하도록 정리했습니다.
+
+   🧪 번역 경로 테스트 추가
+
+      동일 언어 Skip, Gemini 성공, Gemini 실패 후 Google fallback, Gemini OFF 시 Google 사용, 빈 Google 결과 처리 테스트를 추가했습니다.
+
+      전체 단위 테스트 수가 107개로 늘어났습니다.
+
+   🧱 다음 HTTP/async 리팩터링 준비
+
+      TranslationPromptBuilder, TranslationResultParser, TranslationService까지 분리해 이후 API 호출부 정리를 더 작은 단위로 진행할 수 있게 했습니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.11-alpha)
 
    이번 버전에서는 테스트 기반과 내부 서비스 구조를 강화해 이후 OCR/번역 로직 개선을 더 안전하게 진행할 수 있도록 정리했습니다.
@@ -143,9 +166,6 @@
       Google/Gemini 응답 JSON에서 최종 번역문을 추출하는 로직을 TranslationResultParser로 분리했습니다.
 
       HTTP 호출과 UI 흐름은 유지하면서 문자열 조립/파싱 부분만 테스트 가능한 순수 로직으로 옮겼습니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.10-alpha)
 
