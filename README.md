@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.7-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.7-alpha/GameChatTranslator_v1.0.7-alpha.zip)
+[**👉 GameChatTranslator v1.0.8-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.8-alpha/GameChatTranslator_v1.0.8-alpha.zip)
 
 ---
 
@@ -106,6 +106,45 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.8-alpha)
+
+   이번 버전에서는 자동 번역 병목 분석, 실시간 로그 확인, OCR 언어팩 설치 상태 확인, 릴리즈 자동화를 중심으로 운영 편의 기능을 강화했습니다.
+
+   📊 OCR 성능 진단 로그
+
+      자동/수동 번역 실행 시 `[OCR PERF]` 로그를 남기도록 추가했습니다.
+
+      Capture, Resize, Preprocess, Crop, OCR, Scoring, Translate, Total 시간을 단계별로 기록해 병목 위치를 확인할 수 있습니다.
+
+      선택된 전처리 후보, OCR 호출 수, 번역/스킵 라인 수도 함께 기록합니다.
+
+   🪟 실시간 로그창
+
+      `Ctrl + =` 단축키로 별도 로그창을 열고 숨길 수 있습니다.
+
+      로그창은 일반 타이틀바와 크기 조절을 지원해 보조 모니터로 이동해 사용할 수 있습니다.
+
+      `AppendLog()`에서 새 로그를 즉시 전달하므로 실시간으로 로그 변화를 확인할 수 있습니다.
+
+      로그창 상단에 현재 GameChatTranslator 프로세스의 CPU와 메모리 사용량을 표시합니다.
+
+   🌐 OCR 언어팩 상태 확인
+
+      환경설정창에서 한국어, 영어, 중국어 간체, 일본어, 러시아어 OCR 언어팩 설치 상태를 확인할 수 있습니다.
+
+      Windows OCR 엔진 생성 가능 여부를 기준으로 OK/NO 상태를 표시합니다.
+
+      상태 새로고침 버튼을 통해 언어팩 설치 후 재확인할 수 있습니다.
+
+   🚀 릴리즈 자동화
+
+      GitHub Actions 기반 자동 릴리즈 빌드 workflow를 추가했습니다.
+
+      태그 push 시 Release 빌드, win-x64 self-contained publish, zip 압축, SHA256 생성, 릴리즈 asset 업로드, Latest 지정까지 자동으로 진행됩니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.7-alpha)
 
    이번 버전에서는 코드 이해도를 높이기 위한 상세 주석 보강, OCR 언어팩 선택 설치, 단축키 초기화 편의 기능을 추가했습니다.
@@ -133,9 +172,6 @@
       버튼을 누르면 UI 입력칸만 기본 단축키로 돌아가며, [저장 및 게임 시작]을 눌러야 config.ini에 실제 저장됩니다.
 
       프리셋 불러오기 시 누락된 단축키 값도 동일한 기본값을 사용하도록 정리했습니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.6-alpha)
 
