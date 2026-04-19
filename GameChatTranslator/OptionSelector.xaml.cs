@@ -1,6 +1,11 @@
-﻿using System.Windows;
+﻿using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace GameTranslator
 {
@@ -159,9 +164,157 @@ namespace GameTranslator
             _ini.Write("CaptureY", "");
             _ini.Write("CaptureW", "");
             _ini.Write("CaptureH", "");
+            _ini.Write("CapturePixelX", "");
+            _ini.Write("CapturePixelY", "");
+            _ini.Write("CapturePixelW", "");
+            _ini.Write("CapturePixelH", "");
 
             TxtAreaInfo.Text = "저장된 영역: 없음 (좌측 하단 기본값)";
             System.Windows.MessageBox.Show("영역 좌표가 초기화되었습니다.\n게임 실행 시 기본 위치(좌측 하단)로 배치됩니다.", "초기화 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async void BtnPreviewArea_Click(object sender, RoutedEventArgs e)
+        {
+            if (!TryReadCapturePreviewArea(out Rectangle area, out string message))
+            {
+                System.Windows.MessageBox.Show(message, "미리보기 불가", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                this.Visibility = Visibility.Hidden;
+                await System.Threading.Tasks.Task.Delay(150);
+
+                using Bitmap previewBitmap = CaptureScreenArea(area);
+                BitmapImage previewSource = ConvertBitmapToImageSource(previewBitmap);
+
+                this.Visibility = Visibility.Visible;
+                this.Activate();
+
+                ShowCapturePreviewWindow(previewSource, area);
+            }
+            catch (Exception ex)
+            {
+                this.Visibility = Visibility.Visible;
+                this.Activate();
+                System.Windows.MessageBox.Show($"캡처 미리보기를 생성하지 못했습니다.\n{ex.Message}", "미리보기 오류", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private bool TryReadCapturePreviewArea(out Rectangle area, out string message)
+        {
+            if (TryReadRectangle("CapturePixelX", "CapturePixelY", "CapturePixelW", "CapturePixelH", out area))
+            {
+                message = "";
+                return true;
+            }
+
+            if (TryReadRectangle("CaptureX", "CaptureY", "CaptureW", "CaptureH", out area))
+            {
+                message = "";
+                return true;
+            }
+
+            message = "저장된 캡처 영역이 없습니다.\n먼저 Ctrl+8 또는 영역 설정 단축키로 채팅 영역을 지정해 주세요.";
+            return false;
+        }
+
+        private bool TryReadRectangle(string xKey, string yKey, string wKey, string hKey, out Rectangle area)
+        {
+            area = Rectangle.Empty;
+
+            if (!int.TryParse(_ini.Read(xKey), out int x) ||
+                !int.TryParse(_ini.Read(yKey), out int y) ||
+                !int.TryParse(_ini.Read(wKey), out int width) ||
+                !int.TryParse(_ini.Read(hKey), out int height) ||
+                width <= 0 ||
+                height <= 0)
+            {
+                return false;
+            }
+
+            area = new Rectangle(x, y, width, height);
+            return true;
+        }
+
+        private Bitmap CaptureScreenArea(Rectangle area)
+        {
+            Bitmap bitmap = new Bitmap(area.Width, area.Height, PixelFormat.Format32bppArgb);
+
+            try
+            {
+                using Graphics graphics = Graphics.FromImage(bitmap);
+                IntPtr hdcSrc = MainWindow.GetWindowDC(IntPtr.Zero);
+                IntPtr hdcDest = graphics.GetHdc();
+
+                try
+                {
+                    if (!MainWindow.BitBlt(hdcDest, 0, 0, area.Width, area.Height, hdcSrc, area.X, area.Y, 0x00CC0020))
+                    {
+                        throw new InvalidOperationException("BitBlt 화면 캡처 호출이 실패했습니다.");
+                    }
+                }
+                finally
+                {
+                    graphics.ReleaseHdc(hdcDest);
+                    MainWindow.ReleaseDC(IntPtr.Zero, hdcSrc);
+                }
+
+                return bitmap;
+            }
+            catch
+            {
+                bitmap.Dispose();
+                throw;
+            }
+        }
+
+        private BitmapImage ConvertBitmapToImageSource(Bitmap bitmap)
+        {
+            using MemoryStream stream = new MemoryStream();
+            bitmap.Save(stream, ImageFormat.Png);
+            stream.Position = 0;
+
+            BitmapImage image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+
+            return image;
+        }
+
+        private void ShowCapturePreviewWindow(BitmapImage previewSource, Rectangle area)
+        {
+            System.Windows.Controls.Image previewImage = new System.Windows.Controls.Image
+            {
+                Source = previewSource,
+                Stretch = System.Windows.Media.Stretch.Uniform,
+                Margin = new Thickness(10)
+            };
+
+            ScrollViewer scrollViewer = new ScrollViewer
+            {
+                Content = previewImage,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            Window previewWindow = new Window
+            {
+                Title = $"캡처 영역 미리보기 ({area.Width}x{area.Height})",
+                Width = Math.Min(900, Math.Max(360, area.Width + 40)),
+                Height = Math.Min(650, Math.Max(240, area.Height + 80)),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Topmost = true,
+                Background = System.Windows.Media.Brushes.Black,
+                Content = scrollViewer
+            };
+
+            previewWindow.ShowDialog();
         }
 
         // ==========================================
