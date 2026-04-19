@@ -83,6 +83,15 @@ namespace GameTranslator
             if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "120";
             if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
 
+            string geminiKey = _ini.Read("GeminiKey") ?? "";
+            if (string.IsNullOrWhiteSpace(geminiKey))
+            {
+                geminiKey = _ini.Read("GeminiKey", "GeminiKey") ?? "";
+            }
+
+            if (PasswordGeminiKey != null) PasswordGeminiKey.Password = geminiKey.Trim();
+            if (TxtGeminiModel != null) TxtGeminiModel.Text = _ini.Read("GeminiModel") ?? MainWindow.DefaultGeminiModel;
+
             string saveDebugImages = _ini.Read("SaveDebugImages") ?? "false";
             if (CheckSaveDebugImages != null)
             {
@@ -201,6 +210,10 @@ namespace GameTranslator
             }
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
+            _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
+
+            string geminiModel = TxtGeminiModel?.Text?.Trim();
+            _ini.Write("GeminiModel", string.IsNullOrWhiteSpace(geminiModel) ? MainWindow.DefaultGeminiModel : geminiModel);
 
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
             this.DialogResult = true;
