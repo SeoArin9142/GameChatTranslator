@@ -279,6 +279,8 @@ namespace GameTranslator
                 $"Translated={stats.TranslatedLineCount}, " +
                 $"Skipped={stats.SkippedLineCount}, " +
                 $"Outcome={stats.Outcome}");
+
+            TrackOcrPerformanceSummary(stats, totalElapsedMs);
         }
 
         /// <summary>
@@ -402,8 +404,7 @@ namespace GameTranslator
                 }
                 lastRawTextCombined = currentRawTextCombined;
 
-                TxtResult.Inlines.Clear();
-                ResetClipboardTranslationText();
+                BeginTranslationResultUpdate();
 
                 // 4. OCR에서 검증된 채팅 줄만 번역하고 UI/클립보드/로그에 반영합니다.
                 foreach (var chatLine in mergedLines)
@@ -566,10 +567,7 @@ namespace GameTranslator
 
                     AppendLog(characterNameGold + finalContent, translated, usedEngine);
 
-                    TxtResult.Inlines.Add(new Run(characterNameGold) { Foreground = Brushes.Gold, FontWeight = FontWeights.Bold });
-                    TxtResult.Inlines.Add(new Run(translated) { Foreground = Brushes.White });
-                    TxtResult.Inlines.Add(new LineBreak());
-                    AddClipboardTranslationLine(characterNameGold, translated);
+                    AddTranslationResultToDisplay(characterNameGold, translated);
                     performanceStats.TranslatedLineCount++;
                 }
 

@@ -53,6 +53,15 @@
                        TextTrimming="CharacterEllipsis"/>
         </StackPanel>
 
+        <TextBlock x:Name="TxtOcrPerformanceSummary"
+                   DockPanel.Dock="Top"
+                   Text="OCR 평균: 아직 번역 성능 기록 없음"
+                   TextWrapping="Wrap"
+                   Foreground="#FFD27A"
+                   FontFamily="Consolas"
+                   FontSize="12"
+                   Margin="0,0,0,8"/>
+
         <TextBox x:Name="TxtLog"
                  IsReadOnly="True"
                  AcceptsReturn="True"
