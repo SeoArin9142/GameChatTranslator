@@ -25,19 +25,22 @@
 
 	<ItemGroup>
 	  <!-- OCR 캐릭터명 검증 파일입니다. 실행 폴더에 반드시 복사되어야 합니다. -->
-	  <None Update="characters.txt">
+	  <None Update="Distribution/characters.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>characters.txt</TargetPath>
 	  </None>
 	  <!-- Windows OCR 언어팩 설치 보조 스크립트입니다. 배포 zip에 포함합니다. -->
-	  <None Update="LangInstall.bat">
+	  <None Update="Distribution/LangInstall.bat">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>LangInstall.bat</TargetPath>
 	  </None>
 	  <!-- 배포 zip에 들어가는 사용자용 간단 설명서입니다. 실제 파일명은 readme.txt입니다. -->
-	  <None Update="readme.txt">
+	  <None Update="Distribution/readme.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>readme.txt</TargetPath>
 	  </None>
 	</ItemGroup>
 
