@@ -20,6 +20,11 @@
                     번역 결과가 여기에 표시됩니다.
                 </TextBlock>
             </Border>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <TextBlock x:Name="TxtCopyStatus" Foreground="#CCC" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <Button x:Name="BtnCopyResult" Content="📋 복사" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnCopyResult_Click"/>
+            </StackPanel>
         </StackPanel>
     </Border>
 </Window>
