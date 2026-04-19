@@ -82,6 +82,14 @@ namespace GameTranslator
             // UI에 TxtThreshold, TxtInterval 텍스트박스가 있다고 가정합니다.
             if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "120";
             if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
+
+            string saveDebugImages = _ini.Read("SaveDebugImages") ?? "false";
+            if (CheckSaveDebugImages != null)
+            {
+                CheckSaveDebugImages.IsChecked =
+                    saveDebugImages.Equals("true", System.StringComparison.OrdinalIgnoreCase) ||
+                    saveDebugImages == "1";
+            }
         }
 
         // ==========================================
@@ -191,6 +199,8 @@ namespace GameTranslator
             {
                 _ini.Write("AutoTranslateInterval", "5"); // 숫자가 아니면 기본값 5 강제 지정
             }
+
+            _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
 
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
             this.DialogResult = true;

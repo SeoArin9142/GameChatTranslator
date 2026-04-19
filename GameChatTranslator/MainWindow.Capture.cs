@@ -35,7 +35,12 @@ namespace GameTranslator
         }
         public void SetCaptureArea(Rectangle area)
         {
+            SetCaptureArea(area, ConvertDisplayAreaToPixels(area));
+        }
+        public void SetCaptureArea(Rectangle area, Rectangle pixelArea)
+        {
             gameChatArea = area;
+            gameChatCaptureArea = pixelArea;
             this.Top = area.Y + area.Height + 50;
             this.Left = area.X - 5;
             this.SizeToContent = SizeToContent.Manual;
@@ -50,10 +55,40 @@ namespace GameTranslator
             ini.Write("CaptureY", area.Y.ToString());
             ini.Write("CaptureW", area.Width.ToString());
             ini.Write("CaptureH", area.Height.ToString());
+            ini.Write("CapturePixelX", pixelArea.X.ToString());
+            ini.Write("CapturePixelY", pixelArea.Y.ToString());
+            ini.Write("CapturePixelW", pixelArea.Width.ToString());
+            ini.Write("CapturePixelH", pixelArea.Height.ToString());
             ini.Write("WindowW", this.ActualWidth.ToString());
             ini.Write("WindowH", this.ActualHeight.ToString());
 
+            ResetTranslationCache("캡처 영역 변경");
             UpdateCaptureBorder(!isLocked);
+        }
+        private Rectangle ConvertDisplayAreaToPixels(Rectangle area)
+        {
+            PresentationSource source = PresentationSource.FromVisual(this);
+            Matrix transform = source?.CompositionTarget?.TransformToDevice ?? Matrix.Identity;
+
+            System.Windows.Point topLeft = transform.Transform(new System.Windows.Point(area.X, area.Y));
+            System.Windows.Point bottomRight = transform.Transform(new System.Windows.Point(area.Right, area.Bottom));
+
+            return new Rectangle(
+                (int)Math.Round(Math.Min(topLeft.X, bottomRight.X)),
+                (int)Math.Round(Math.Min(topLeft.Y, bottomRight.Y)),
+                Math.Max(1, (int)Math.Round(Math.Abs(bottomRight.X - topLeft.X))),
+                Math.Max(1, (int)Math.Round(Math.Abs(bottomRight.Y - topLeft.Y))));
+        }
+        private Rectangle GetCapturePixelArea()
+        {
+            if (gameChatCaptureArea != Rectangle.Empty &&
+                gameChatCaptureArea.Width > 0 &&
+                gameChatCaptureArea.Height > 0)
+            {
+                return gameChatCaptureArea;
+            }
+
+            return ConvertDisplayAreaToPixels(gameChatArea);
         }
         private void UpdateCaptureBorder(bool show)
         {

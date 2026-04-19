@@ -56,6 +56,7 @@
 - Opacity: 번역창의 불투명도 조절 (0~100)
 - AutoTranslateInterval: 자동 번역 간격(초)
 - Key_... : 사용자 편의에 맞는 단축키 변경
+- SaveDebugImages: 디버그 캡처 이미지 저장 여부 (true/false, 기본 false)
 
 ------------------------------------------
 6. 주의 사항

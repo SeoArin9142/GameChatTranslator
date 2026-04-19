@@ -23,6 +23,17 @@ namespace GameTranslator
         public AreaSelector()
         {
             InitializeComponent();
+            ConfigureVirtualScreenBounds();
+        }
+
+        private void ConfigureVirtualScreenBounds()
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            WindowState = WindowState.Normal;
+            Left = SystemParameters.VirtualScreenLeft;
+            Top = SystemParameters.VirtualScreenTop;
+            Width = SystemParameters.VirtualScreenWidth;
+            Height = SystemParameters.VirtualScreenHeight;
         }
 
         // ==========================================
@@ -87,7 +98,21 @@ namespace GameTranslator
                 MainWindow mainWindow = Owner as MainWindow;
 
                 // 메인 창의 SetCaptureArea 함수를 실행하여 방금 그린 캡처 영역 데이터를 전달
-                mainWindow.SetCaptureArea(selectionArea);
+                Rectangle screenArea = new Rectangle(
+                    (int)(Left + selectionArea.X),
+                    (int)(Top + selectionArea.Y),
+                    selectionArea.Width,
+                    selectionArea.Height);
+
+                System.Windows.Point topLeft = PointToScreen(new System.Windows.Point(selectionArea.X, selectionArea.Y));
+                System.Windows.Point bottomRight = PointToScreen(new System.Windows.Point(selectionArea.Right, selectionArea.Bottom));
+                Rectangle pixelArea = new Rectangle(
+                    (int)Math.Round(Math.Min(topLeft.X, bottomRight.X)),
+                    (int)Math.Round(Math.Min(topLeft.Y, bottomRight.Y)),
+                    Math.Max(1, (int)Math.Round(Math.Abs(bottomRight.X - topLeft.X))),
+                    Math.Max(1, (int)Math.Round(Math.Abs(bottomRight.Y - topLeft.Y))));
+
+                mainWindow.SetCaptureArea(screenArea, pixelArea);
 
                 // 영역 지정이 끝났으므로 반투명 캡처 창은 닫음
                 this.Close();

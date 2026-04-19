@@ -58,6 +58,11 @@ namespace GameTranslator
             {
                 ini.Write("GeminiModel", DefaultGeminiModel);
             }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
+            {
+                ini.Write("SaveDebugImages", "false");
+            }
         }
         private string ReadGeminiKey()
         {
@@ -82,6 +87,15 @@ namespace GameTranslator
         {
             string modelName = ini.Read("GeminiModel");
             return string.IsNullOrWhiteSpace(modelName) ? DefaultGeminiModel : modelName.Trim();
+        }
+
+        private bool ShouldSaveDebugImages()
+        {
+            string value = ini.Read("SaveDebugImages") ?? "false";
+            return value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("y", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

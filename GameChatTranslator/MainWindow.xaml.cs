@@ -31,6 +31,7 @@ namespace GameTranslator
         // ==========================================
         private AreaSelector areaSelector;
         private Rectangle gameChatArea;
+        private Rectangle gameChatCaptureArea;
         private Window captureBorderWindow;
 
         private bool isTranslating = false;
