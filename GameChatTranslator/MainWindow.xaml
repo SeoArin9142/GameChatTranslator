@@ -10,6 +10,11 @@
             <TextBlock Text="[Ctrl+1] 이동/잠금  [Ctrl+2] 영역설정  [Ctrl+3] 번역" 
                        TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10" Height="35"/>
 
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+                <TextBlock x:Name="TxtUpdateStatus" Foreground="#CCC" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <Button x:Name="BtnCheckUpdate" Content="업데이트 확인" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnCheckUpdate_Click"/>
+            </StackPanel>
+
             <Border Background="#22FFFFFF" CornerRadius="5" Padding="10" MinHeight="100">
                 <TextBlock x:Name="TxtResult" TextWrapping="Wrap" Foreground="White" FontSize="15" LineHeight="22">
                     번역 결과가 여기에 표시됩니다.
