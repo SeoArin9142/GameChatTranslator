@@ -1,56 +1,121 @@
 @echo off
-title 게임 번역기용 OCR 언어팩 설치 및 입력기 정리
-setlocal enabledelayedexpansion
+title GameChatTranslator OCR Language Pack Installer
+setlocal EnableExtensions EnableDelayedExpansion
 
 echo ===================================================
-echo   게임 번역기용 윈도우 OCR 언어팩 자동 설치기
+echo   GameChatTranslator OCR Language Pack Installer
 echo ===================================================
 echo.
-echo [설치 예정 목록]
-echo 1. 일본어 (ja-JP)
-echo 2. 중국어-간체 (zh-CN)
-echo 3. 러시아어 (ru-RU)
+echo This script installs optional Windows OCR language packs.
+echo Select only the languages you need for in-game chat translation.
 echo.
-echo * 설치 중 인터넷 연결이 필요하며, 시스템 사양에 따라 시간이 걸립니다.
+echo Available languages:
+echo   1. English             en-US
+echo   2. Japanese            ja-JP
+echo   3. Chinese Simplified  zh-CN
+echo   4. Russian             ru-RU
 echo.
-set /p "choice=위 언어팩들을 설치하시겠습니까? (Y/N): "
-if /i not "%choice%"=="Y" (
-    echo 설치를 취소합니다.
-    pause
-    exit
-)
+echo NOTE:
+echo - Run this file as Administrator.
+echo - Internet connection is required.
+echo - Installation can take several minutes.
+echo - Reboot Windows after installation.
+echo.
 
-echo.
-echo [1/3] 일본어 설치 중...
-powershell -Command "Install-Language -Language ja-JP -Confirm:$false"
-echo [2/3] 중국어(간체) 설치 중...
-powershell -Command "Install-Language -Language zh-CN -Confirm:$false"
-echo [3/3] 러시아어 설치 중...
-powershell -Command "Install-Language -Language ru-RU -Confirm:$false"
-
-echo.
-echo ===================================================
-echo   언어팩 설치가 완료되었습니다.
-echo ===================================================
-echo.
-echo 현재 설치된 언어팩 때문에 키보드 입력기가 늘어난 상태입니다.
-echo 한국어(KO)와 영어(EN)를 제외한 나머지 '입력기'만 목록에서 지우시겠습니까?
-echo (OCR 인식 기능은 그대로 유지됩니다)
-echo.
-set /p "clean_choice=입력기 목록을 정리하시겠습니까? (Y/N): "
-
-if /i "%clean_choice%"=="Y" (
+net session >nul 2>&1
+if not "%errorlevel%"=="0" (
+    echo [WARN] Administrator permission was not detected.
+    echo        If installation fails, close this window and run as Administrator.
     echo.
-    echo 입력기 목록을 정리 중입니다...
-    :: PowerShell을 사용하여 ko-KR과 en-US만 입력 목록에 남기고 나머지는 입력기 목록에서만 제외
-    powershell -Command "$list = Get-WinUserLanguageList; $list = $list | Where-Object { $_.LanguageTag -match 'ko-KR|en-US' }; Set-WinUserLanguageList -LanguageList $list -Force"
-    echo [완료] 키보드 입력기 목록이 한국어와 영어로 정리되었습니다.
-) else (
-    echo [알림] 입력기 정리를 건너뜁니다. 키보드 목록이 유지됩니다.
+)
+
+call :AskLanguage INSTALL_EN "English" "en-US"
+call :AskLanguage INSTALL_JA "Japanese" "ja-JP"
+call :AskLanguage INSTALL_ZH "Chinese Simplified" "zh-CN"
+call :AskLanguage INSTALL_RU "Russian" "ru-RU"
+
+set "SELECTED="
+if /i "!INSTALL_EN!"=="Y" set "SELECTED=!SELECTED! en-US"
+if /i "!INSTALL_JA!"=="Y" set "SELECTED=!SELECTED! ja-JP"
+if /i "!INSTALL_ZH!"=="Y" set "SELECTED=!SELECTED! zh-CN"
+if /i "!INSTALL_RU!"=="Y" set "SELECTED=!SELECTED! ru-RU"
+
+if not defined SELECTED (
+    echo.
+    echo No language was selected. Nothing to install.
+    pause
+    exit /b 0
 )
 
 echo.
-echo 모든 과정이 완료되었습니다. 
-echo 변경 사항(특히 OCR 인식 활성화)을 적용하려면 반드시 재부팅이 필요합니다!
+echo Selected language packs:!SELECTED!
+set "CONFIRM="
+set /p "CONFIRM=Install selected language packs? (Y/N): "
+if /i not "!CONFIRM!"=="Y" (
+    echo Installation canceled.
+    pause
+    exit /b 0
+)
+
+set "FAILED=N"
+
+if /i "!INSTALL_EN!"=="Y" call :InstallLanguage "English" "en-US"
+if /i "!INSTALL_JA!"=="Y" call :InstallLanguage "Japanese" "ja-JP"
+if /i "!INSTALL_ZH!"=="Y" call :InstallLanguage "Chinese Simplified" "zh-CN"
+if /i "!INSTALL_RU!"=="Y" call :InstallLanguage "Russian" "ru-RU"
+
+echo.
+echo ===================================================
+if /i "!FAILED!"=="Y" (
+    echo   Some language packs failed to install.
+    echo   Check the messages above, then run this file as Administrator again if needed.
+) else (
+    echo   Selected language pack installation completed.
+)
+echo ===================================================
+echo.
+echo Installing OCR language packs can also add keyboard input methods.
+echo You can optionally keep only Korean and English input methods.
+echo OCR recognition languages remain installed even if extra keyboard inputs are removed.
+echo.
+set "CLEAN_INPUTS="
+set /p "CLEAN_INPUTS=Keep only Korean and English keyboard inputs? (Y/N): "
+if /i "!CLEAN_INPUTS!"=="Y" (
+    echo.
+    echo Cleaning keyboard input language list...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$list = Get-WinUserLanguageList; $list = $list | Where-Object { $_.LanguageTag -match 'ko-KR|en-US' }; Set-WinUserLanguageList -LanguageList $list -Force"
+    if errorlevel 1 (
+        echo [WARN] Failed to clean keyboard input language list.
+    ) else (
+        echo [OK] Keyboard input language list was limited to Korean and English.
+    )
+) else (
+    echo Keyboard input language list was not changed.
+)
+
+echo.
+echo All tasks finished.
+echo Please reboot Windows to activate OCR language recognition.
 echo.
 pause
+exit /b 0
+
+:AskLanguage
+set "%~1=N"
+set "ANSWER="
+echo.
+set /p "ANSWER=Install %~2 OCR language pack (%~3)? (Y/N): "
+if /i "!ANSWER!"=="Y" set "%~1=Y"
+exit /b 0
+
+:InstallLanguage
+echo.
+echo [Install] %~1 (%~2)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Install-Language -Language '%~2' -Confirm:$false -ErrorAction Stop; exit 0 } catch { Write-Host $_.Exception.Message; exit 1 }"
+if errorlevel 1 (
+    echo [FAIL] %~1 (%~2)
+    set "FAILED=Y"
+) else (
+    echo [OK] %~1 (%~2)
+)
+exit /b 0
