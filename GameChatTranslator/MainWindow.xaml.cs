@@ -50,6 +50,7 @@ namespace GameTranslator
         // 🌟 [추가] 최상단 강제 유지 타이머
         private DispatcherTimer topmostTimer;
 
+        private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
@@ -89,7 +90,7 @@ namespace GameTranslator
 
             autoTranslateTimer = new DispatcherTimer();
             autoTranslateTimer.Interval = TimeSpan.FromSeconds(intervalSeconds);
-            autoTranslateTimer.Tick += (s, e) => { if (!isTranslating) runTranslation(); };
+            autoTranslateTimer.Tick += (s, e) => { if (!isTranslating) runTranslation(GetCurrentOcrProcessingMode()); };
 
             string[] tags = { "ko", "en-US", "zh-Hans-CN", "ja", "ru" };
             foreach (var tag in tags)
