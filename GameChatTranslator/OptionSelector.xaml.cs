@@ -73,22 +73,18 @@ namespace GameTranslator
                 TxtAreaInfo.Text = "저장된 영역: 없음 (좌측 하단 기본값)";
             }
 
-            // [배율 세팅 불러오기]
+            // 🌟 [수정] 배율 세팅 불러오기 (빈칸 및 위치 날아감 버그 완벽 해결)
             string scale = _ini.Read("ScaleFactor") ?? "3";
-            // 콤보박스 아이템 중 Tag가 scale값과 일치하는 것을 선택
-            foreach (ComboBoxItem item in ComboScale.Items)
-            {
-                if (item.Tag.ToString() == scale)
-                {
-                    ComboScale.SelectedItem = item;
-                    break;
-                }
-            }
+            SetComboByTag(ComboScale, scale); // 기존의 꼬이던 foreach 문을 지우고 안전한 함수로 교체
+
+            // [추가] 임계값(Threshold) 및 자동 번역 주기 불러오기
+            // UI에 TxtThreshold, TxtInterval 텍스트박스가 있다고 가정합니다.
+            if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "80";
+            if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
         }
 
         // ==========================================
         // 📌 3. 콤보박스 아이템 자동 선택 도우미 함수
-        // Tag 속성("ko", "ja" 등)을 비교하여 일치하는 항목을 찾아 SelectedItem으로 지정합니다.
         // ==========================================
         private void SetComboByTag(System.Windows.Controls.ComboBox combo, string tag)
         {
@@ -97,59 +93,47 @@ namespace GameTranslator
                 if (item.Tag.ToString() == tag)
                 {
                     combo.SelectedItem = item;
-                    break; // 찾았으면 반복문 종료
+                    break;
                 }
             }
-            // 만약 매칭되는 태그가 없는데 콤보박스에 항목이 있다면, 강제로 첫 번째(0) 항목을 선택합니다.
             if (combo.SelectedItem == null && combo.Items.Count > 0) combo.SelectedIndex = 0;
         }
 
         // ==========================================
         // 📌 4. 투명도 슬라이더 변경 이벤트 (실시간 적용)
-        // 사용자가 슬라이더를 움직일 때마다 즉각적으로 반응합니다.
         // ==========================================
         private void SliderOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (TxtOpacityInfo != null)
             {
-                // UI 텍스트 업데이트 (예: "번역창 불투명도: 70%")
                 TxtOpacityInfo.Text = $"번역창 불투명도: {(int)e.NewValue}%";
-
-                // 슬라이더 값(10~100)을 실제 윈도우 투명도 비율(0.1 ~ 1.0)로 변환하여 메인 윈도우에 즉시 적용
                 if (_mainWindow != null) _mainWindow.Opacity = e.NewValue / 100.0;
             }
         }
 
         // ==========================================
         // 📌 5. 단축키 자동 입력기 (스마트 키보드 캡처)
-        // 텍스트박스에 마우스를 클릭하고 키보드를 누르면, 타이핑되는 대신 누른 키 조합이 텍스트로 변환됩니다.
         // ==========================================
         private void Hotkey_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            e.Handled = true; // 기본 키보드 타이핑 동작을 완전히 막습니다.
+            e.Handled = true;
 
-            // 시스템 키(Alt 등)를 눌렀을 때와 일반 키를 눌렀을 때를 구분하여 실제 키 값을 가져옵니다.
             Key key = (e.Key == Key.System ? e.SystemKey : e.Key);
 
-            // Ctrl, Alt, Shift, 윈도우 키 등 수식어(Modifier) 키만 단독으로 눌렸을 때는 입력을 무시하고 대기합니다.
             if (key == Key.LeftCtrl || key == Key.RightCtrl || key == Key.LeftAlt || key == Key.RightAlt || key == Key.LeftShift || key == Key.RightShift || key == Key.LWin || key == Key.RWin)
                 return;
 
             string modifierStr = "";
-
-            // 눌려있는 수식어 키들을 감지하여 문자열을 누적합니다. (예: "Ctrl+Shift+")
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) modifierStr += "Ctrl+";
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) modifierStr += "Alt+";
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) modifierStr += "Shift+";
 
-            // 이벤트를 발생시킨 텍스트박스를 찾아 최종 문자열(예: "Ctrl+Shift+T")을 입력해줍니다.
             System.Windows.Controls.TextBox tb = sender as System.Windows.Controls.TextBox;
             tb.Text = modifierStr + key.ToString();
         }
 
         // ==========================================
         // 📌 6. 캡처 영역 초기화 버튼 이벤트
-        // 번역창이 화면 밖으로 날아갔거나 꼬였을 때, INI에 저장된 좌표를 백지화합니다.
         // ==========================================
         private void BtnResetArea_Click(object sender, RoutedEventArgs e)
         {
@@ -164,7 +148,6 @@ namespace GameTranslator
 
         // ==========================================
         // 📌 7. [저장 및 게임 시작] 버튼 이벤트
-        // 설정한 모든 값을 INI에 최종 기록하고 창을 닫습니다.
         // ==========================================
         private void BtnSaveAndStart_Click(object sender, RoutedEventArgs e)
         {
@@ -185,6 +168,26 @@ namespace GameTranslator
             if (ComboScale.SelectedItem is ComboBoxItem scaleItem)
             {
                 _ini.Write("ScaleFactor", scaleItem.Tag.ToString());
+            }
+
+            // [추가] 임계값(Threshold) 저장 (안전하게 숫자인지 검사 후 저장)
+            if (TxtThreshold != null && int.TryParse(TxtThreshold.Text, out int threshold))
+            {
+                _ini.Write("Threshold", threshold.ToString());
+            }
+            else
+            {
+                _ini.Write("Threshold", "80"); // 숫자가 아니면 기본값 80 강제 지정
+            }
+
+            // [추가] 자동 번역 주기(Interval) 저장 (안전하게 숫자인지 검사 후 저장)
+            if (TxtInterval != null && int.TryParse(TxtInterval.Text, out int interval))
+            {
+                _ini.Write("AutoTranslateInterval", interval.ToString());
+            }
+            else
+            {
+                _ini.Write("AutoTranslateInterval", "5"); // 숫자가 아니면 기본값 5 강제 지정
             }
 
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
