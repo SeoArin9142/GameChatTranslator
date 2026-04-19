@@ -228,7 +228,7 @@ namespace GameTranslator
             _ini.Write("Threshold", string.IsNullOrWhiteSpace(TxtThreshold?.Text) ? "120" : TxtThreshold.Text.Trim(), section);
             _ini.Write("AutoTranslateInterval", string.IsNullOrWhiteSpace(TxtInterval?.Text) ? "5" : TxtInterval.Text.Trim(), section);
             _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, "Latest"), section);
-            _ini.Write("ResultHistoryLimit", string.IsNullOrWhiteSpace(TxtResultHistoryLimit?.Text) ? "30" : TxtResultHistoryLimit.Text.Trim(), section);
+            _ini.Write("ResultHistoryLimit", string.IsNullOrWhiteSpace(TxtResultHistoryLimit?.Text) ? "5" : TxtResultHistoryLimit.Text.Trim(), section);
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false", section);
             _ini.Write("GeminiModel", string.IsNullOrWhiteSpace(TxtGeminiModel?.Text) ? MainWindow.DefaultGeminiModel : TxtGeminiModel.Text.Trim(), section);
             _ini.Write("Key_MoveLock", TxtKeyMove.Text, section);
@@ -265,7 +265,7 @@ namespace GameTranslator
             TxtThreshold.Text = ReadPresetValue(section, "Threshold", "120");
             TxtInterval.Text = ReadPresetValue(section, "AutoTranslateInterval", "5");
             SetComboByTag(ComboResultDisplayMode, ReadPresetValue(section, "ResultDisplayMode", "Latest"));
-            TxtResultHistoryLimit.Text = ReadPresetValue(section, "ResultHistoryLimit", "30");
+            TxtResultHistoryLimit.Text = ReadPresetValue(section, "ResultHistoryLimit", "5");
             CheckSaveDebugImages.IsChecked = IsTruthy(ReadPresetValue(section, "SaveDebugImages", "false"));
             TxtGeminiModel.Text = ReadPresetValue(section, "GeminiModel", MainWindow.DefaultGeminiModel);
             TxtKeyMove.Text = ReadPresetValue(section, "Key_MoveLock", DefaultKeyMoveLock);

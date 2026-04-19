@@ -12,7 +12,7 @@ namespace GameTranslator
     public partial class MainWindow
     {
         private const string ResultDisplayModeHistory = "History";
-        private const int DefaultResultHistoryLimit = 30;
+        private const int DefaultResultHistoryLimit = 5;
         private readonly List<TranslationDisplayLine> translationDisplayHistory = new List<TranslationDisplayLine>();
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace GameTranslator
 
         /// <summary>
         /// 누적 표시 모드에서 오래된 번역 줄을 삭제해 UI가 끝없이 길어지는 것을 막습니다.
-        /// 유지 개수는 ResultHistoryLimit 설정값이며 기본값은 30줄입니다.
+        /// 유지 개수는 ResultHistoryLimit 설정값이며 기본값은 5줄입니다.
         /// </summary>
         private void TrimTranslationDisplayHistory()
         {
@@ -123,13 +123,13 @@ namespace GameTranslator
 
         /// <summary>
         /// 누적 표시 모드에서 유지할 최대 번역 줄 수를 읽습니다.
-        /// 너무 작거나 큰 값은 5~100 범위로 보정합니다.
+        /// 너무 작거나 큰 값은 1~10 범위로 보정합니다.
         /// </summary>
         private int ReadResultHistoryLimit()
         {
             int limit = int.TryParse(ini.Read("ResultHistoryLimit"), out int parsed) ? parsed : DefaultResultHistoryLimit;
-            if (limit < 5) limit = 5;
-            if (limit > 100) limit = 100;
+            if (limit < 1) limit = 1;
+            if (limit > 10) limit = 10;
             return limit;
         }
     }
