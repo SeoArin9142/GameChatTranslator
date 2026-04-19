@@ -96,6 +96,7 @@ jobs:
             -o $env:PUBLISH_DIR
 
       - name: Compress release files and calculate checksum
+        id: package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path $env:DIST_DIR | Out-Null
@@ -114,13 +115,14 @@ jobs:
           "ZIP_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "CHECKSUM_PATH=$checksumPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "zip_path=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "checksum_path=$checksumPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Create or update GitHub release
+      - name: Write release notes
+        id: notes
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          $repo = $env:GITHUB_REPOSITORY
           $targetCommit = git rev-parse HEAD
           $body = @"
           $env:RELEASE_TITLE 자동 릴리즈 빌드입니다.
@@ -136,33 +138,26 @@ jobs:
           $env:SHA256  $env:ZIP_NAME
           "@
 
-          $payload = @{
-            tag_name = $env:RELEASE_TAG
-            target_commitish = $targetCommit
-            name = $env:RELEASE_TITLE
-            body = $body
-            draft = $false
-            prerelease = $false
-            make_latest = "true"
-          }
+          $notesPath = Join-Path $env:RUNNER_TEMP "release-notes.md"
+          $body | Set-Content -Path $notesPath -Encoding utf8
+          "RELEASE_NOTES_PATH=$notesPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "path=$notesPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-          $payloadPath = Join-Path $env:RUNNER_TEMP "release-payload.json"
-          $payload | ConvertTo-Json -Depth 4 | Set-Content -Path $payloadPath -Encoding utf8
-
-          $release = $null
-          try {
-            $release = gh api "repos/$repo/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
-          } catch {
-            $release = $null
-          }
-
-          if ($null -eq $release) {
-            gh api -X POST "repos/$repo/releases" --input $payloadPath | Out-Null
-          } else {
-            gh api -X PATCH "repos/$repo/releases/$($release.id)" --input $payloadPath | Out-Null
-          }
-
-          gh release upload $env:RELEASE_TAG $env:ZIP_PATH $env:CHECKSUM_PATH --repo $repo --clobber
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TITLE }}
+          body_path: ${{ steps.notes.outputs.path }}
+          files: |
+            ${{ steps.package.outputs.zip_path }}
+            ${{ steps.package.outputs.checksum_path }}
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
