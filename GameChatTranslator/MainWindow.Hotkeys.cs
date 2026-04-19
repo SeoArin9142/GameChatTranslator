@@ -33,6 +33,7 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AUTO);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_PAUSE_TRANSLATION);
 
             hotkeyWarningMessage = "";
             var failedHotkeys = new List<string>();
@@ -42,18 +43,21 @@ namespace GameTranslator
             string translateHotkey = ini.Read("Key_Translate") ?? "Ctrl+9";
             string autoHotkey = ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
             string toggleHotkey = ini.Read("Key_ToggleEngine") ?? "Ctrl+-";
+            string pauseHotkey = ini.Read("Key_PauseTranslate") ?? "Ctrl+P";
 
             ParseHotkey(moveHotkey, out modMove, out keyMove);
             ParseHotkey(areaHotkey, out modArea, out keyArea);
             ParseHotkey(translateHotkey, out modTrans, out keyTrans);
             ParseHotkey(autoHotkey, out modAuto, out keyAuto);
             ParseHotkey(toggleHotkey, out modToggle, out keyToggle);
+            ParseHotkey(pauseHotkey, out modPause, out keyPause);
 
             RegisterHotKeyOrWarn(ID_HOTKEY_MOVE_LOCK, modMove, keyMove, "이동/잠금", moveHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_AREA_SELECT, modArea, keyArea, "영역 설정", areaHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_TRANSLATE, modTrans, keyTrans, "수동 번역", translateHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_AUTO, modAuto, keyAuto, "자동 번역", autoHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_TOGGLE_ENGINE, modToggle, keyToggle, "엔진 전환", toggleHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_PAUSE_TRANSLATION, modPause, keyPause, "번역 일시정지", pauseHotkey, failedHotkeys);
 
             if (failedHotkeys.Count > 0)
             {
@@ -92,10 +96,11 @@ namespace GameTranslator
             string t = ini.Read("Key_Translate") ?? "Ctrl+9";
             string au = ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
             string tg = ini.Read("Key_ToggleEngine") ?? "Ctrl+-";
+            string p = ini.Read("Key_PauseTranslate") ?? "Ctrl+P";
 
             // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = useGeminiEngine ? "Gemini" : "Google";
-            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  \n[{au}] 자동  [{tg}] {engineStr} 전환";
+            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  \n[{au}] 자동  [{tg}] {engineStr} 전환  [{p}] 일시정지";
 
             foreach (var tb in FindVisualChildren<TextBlock>(this))
             {
@@ -106,6 +111,10 @@ namespace GameTranslator
                     if (isAutoTranslating)
                     {
                         tb.Inlines.Add(new Run("  ● 자동 번역 중...") { Foreground = Brushes.Lime, FontWeight = FontWeights.Bold });
+                    }
+                    if (isTranslationPaused)
+                    {
+                        tb.Inlines.Add(new Run("  ⏸ 일시정지") { Foreground = Brushes.Orange, FontWeight = FontWeights.Bold });
                     }
                     break;
                 }
@@ -149,6 +158,7 @@ namespace GameTranslator
                     case ID_HOTKEY_TRANSLATE: runTranslation(); handled = true; break;
                     case ID_HOTKEY_AUTO: ToggleAutoTranslate(); handled = true; break;
                     case ID_HOTKEY_TOGGLE_ENGINE: ToggleEngine(); handled = true; break;
+                    case ID_HOTKEY_PAUSE_TRANSLATION: ToggleTranslationPause(); handled = true; break;
                 }
             }
             return IntPtr.Zero;

@@ -86,6 +86,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Text="이동/잠금 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
@@ -102,6 +103,9 @@
 
                 <TextBlock Text="엔진 전환 단축키 :" Grid.Row="4" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                 <TextBox x:Name="TxtKeyToggle" Grid.Row="4" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+
+                <TextBlock Text="일시정지/재개 :" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                <TextBox x:Name="TxtKeyPause" Grid.Row="5" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
             </Grid>
         </GroupBox>
 

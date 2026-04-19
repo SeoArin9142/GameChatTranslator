@@ -41,8 +41,8 @@ namespace GameTranslator
         private string gameLang = "ko";
         private string targetLang = "ko";
 
-        private uint modMove, modArea, modTrans, modAuto, modToggle;
-        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle;
+        private uint modMove, modArea, modTrans, modAuto, modToggle, modPause;
+        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyPause;
 
         private bool useGeminiEngine = false; // 🌟 [추가] 현재 제미나이를 사용 중인지 상태 저장
 
@@ -51,6 +51,7 @@ namespace GameTranslator
         private DispatcherTimer topmostTimer;
 
         private bool isAutoTranslating = false;
+        private bool isTranslationPaused = false;
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
 

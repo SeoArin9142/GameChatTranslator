@@ -63,6 +63,11 @@ namespace GameTranslator
             {
                 ini.Write("SaveDebugImages", "false");
             }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_PauseTranslate")))
+            {
+                ini.Write("Key_PauseTranslate", "Ctrl+P");
+            }
         }
         private string ReadGeminiKey()
         {

@@ -61,6 +61,7 @@ namespace GameTranslator
             TxtKeyTrans.Text = _ini.Read("Key_Translate") ?? "Ctrl+9";
             TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
             TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? "Ctrl+-"; // 🌟 추가
+            TxtKeyPause.Text = _ini.Read("Key_PauseTranslate") ?? "Ctrl+P";
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -335,6 +336,7 @@ namespace GameTranslator
             _ini.Write("Key_Translate", TxtKeyTrans.Text);
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
             _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
+            _ini.Write("Key_PauseTranslate", TxtKeyPause.Text);
 
             // [배율 설정 저장]
             if (ComboScale.SelectedItem is ComboBoxItem scaleItem)
