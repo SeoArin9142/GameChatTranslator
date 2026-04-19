@@ -116,7 +116,7 @@ namespace GameTranslator
         /// </summary>
         private bool ShouldAccumulateTranslationResults()
         {
-            string displayMode = ini.Read("ResultDisplayMode") ?? "Latest";
+            string displayMode = ini.Read("ResultDisplayMode") ?? SettingsService.DefaultResultDisplayMode;
             return displayMode.Equals(ResultDisplayModeHistory, StringComparison.OrdinalIgnoreCase);
         }
 

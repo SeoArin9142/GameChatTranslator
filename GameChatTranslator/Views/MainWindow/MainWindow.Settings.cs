@@ -69,7 +69,7 @@ namespace GameTranslator
 
             if (string.IsNullOrWhiteSpace(ini.Read("GeminiModel")))
             {
-                ini.Write("GeminiModel", DefaultGeminiModel);
+                ini.Write("GeminiModel", SettingsService.DefaultGeminiModel);
             }
 
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
@@ -84,17 +84,17 @@ namespace GameTranslator
 
             if (string.IsNullOrWhiteSpace(ini.Read("Key_CopyResult")))
             {
-                ini.Write("Key_CopyResult", "Ctrl+6");
+                ini.Write("Key_CopyResult", SettingsService.DefaultKeyCopyResult);
             }
 
             if (string.IsNullOrWhiteSpace(ini.Read("Key_LogViewer")))
             {
-                ini.Write("Key_LogViewer", "Ctrl+=");
+                ini.Write("Key_LogViewer", SettingsService.DefaultKeyLogViewer);
             }
 
             if (string.IsNullOrWhiteSpace(ini.Read("ResultDisplayMode")))
             {
-                ini.Write("ResultDisplayMode", "Latest");
+                ini.Write("ResultDisplayMode", SettingsService.DefaultResultDisplayMode);
             }
 
             if (string.IsNullOrWhiteSpace(ini.Read("ResultHistoryLimit")))
@@ -109,22 +109,16 @@ namespace GameTranslator
         /// </summary>
         private string ReadGeminiKey()
         {
-            string settingsKey = ini.Read("GeminiKey");
-            if (!string.IsNullOrWhiteSpace(settingsKey))
+            GeminiKeySelection selectedKey = settingsService.SelectGeminiKey(
+                ini.Read("GeminiKey"),
+                ini.Read("GeminiKey", "GeminiKey"));
+            if (selectedKey.ShouldMigrateLegacyKey)
             {
-                return settingsKey.Trim();
-            }
-
-            string legacySectionKey = ini.Read("GeminiKey", "GeminiKey");
-            if (!string.IsNullOrWhiteSpace(legacySectionKey))
-            {
-                string trimmedKey = legacySectionKey.Trim();
-                ini.Write("GeminiKey", trimmedKey);
+                ini.Write("GeminiKey", selectedKey.Key);
                 AppendLog("기존 [GeminiKey] 섹션의 API 키를 [Settings] 섹션으로 이전했습니다.");
-                return trimmedKey;
             }
 
-            return "";
+            return selectedKey.Key;
         }
 
         /// <summary>
@@ -133,8 +127,7 @@ namespace GameTranslator
         /// </summary>
         private string ReadGeminiModel()
         {
-            string modelName = ini.Read("GeminiModel");
-            return string.IsNullOrWhiteSpace(modelName) ? DefaultGeminiModel : modelName.Trim();
+            return settingsService.NormalizeGeminiModel(ini.Read("GeminiModel"));
         }
 
         /// <summary>
@@ -143,11 +136,7 @@ namespace GameTranslator
         /// </summary>
         private bool ShouldSaveDebugImages()
         {
-            string value = ini.Read("SaveDebugImages") ?? "false";
-            return value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("y", StringComparison.OrdinalIgnoreCase);
+            return settingsService.IsEnabled(ini.Read("SaveDebugImages"));
         }
     }
 }

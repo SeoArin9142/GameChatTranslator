@@ -16,14 +16,8 @@ namespace GameTranslator
         private MainWindow _mainWindow;
         // 환경설정 파일(config.ini)을 읽고 쓰기 위한 객체
         private IniFile _ini;
+        private readonly SettingsService _settingsService = new SettingsService();
 
-        private const string DefaultKeyMoveLock = "Ctrl+7";
-        private const string DefaultKeyAreaSelect = "Ctrl+8";
-        private const string DefaultKeyTranslate = "Ctrl+9";
-        private const string DefaultKeyAutoTranslate = "Ctrl+0";
-        private const string DefaultKeyToggleEngine = "Ctrl+-";
-        private const string DefaultKeyCopyResult = "Ctrl+6";
-        private const string DefaultKeyLogViewer = "Ctrl+=";
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
         {
             ("한국어", "ko"),
@@ -73,13 +67,14 @@ namespace GameTranslator
 
             // [단축키 세팅]
             // 각 텍스트박스에 기존에 저장된 단축키 문자열을 넣어줍니다. (없으면 기본값 적용)
-            TxtKeyMove.Text = _ini.Read("Key_MoveLock") ?? DefaultKeyMoveLock;
-            TxtKeyArea.Text = _ini.Read("Key_AreaSelect") ?? DefaultKeyAreaSelect;
-            TxtKeyTrans.Text = _ini.Read("Key_Translate") ?? DefaultKeyTranslate;
-            TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? DefaultKeyAutoTranslate;
-            TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? DefaultKeyToggleEngine;
-            TxtKeyCopy.Text = _ini.Read("Key_CopyResult") ?? DefaultKeyCopyResult;
-            TxtKeyLog.Text = _ini.Read("Key_LogViewer") ?? DefaultKeyLogViewer;
+            DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
+            TxtKeyMove.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_MoveLock"), defaults.MoveLock);
+            TxtKeyArea.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_AreaSelect"), defaults.AreaSelect);
+            TxtKeyTrans.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_Translate"), defaults.Translate);
+            TxtKeyAuto.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
+            TxtKeyToggle.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
+            TxtKeyCopy.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_CopyResult"), defaults.CopyResult);
+            TxtKeyLog.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_LogViewer"), defaults.LogViewer);
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -106,35 +101,27 @@ namespace GameTranslator
             // UI에 TxtThreshold, TxtInterval 텍스트박스가 있다고 가정합니다.
             if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "120";
             if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
-            if (ComboResultDisplayMode != null) SetComboByTag(ComboResultDisplayMode, _ini.Read("ResultDisplayMode") ?? "Latest");
+            if (ComboResultDisplayMode != null) SetComboByTag(ComboResultDisplayMode, _ini.Read("ResultDisplayMode") ?? SettingsService.DefaultResultDisplayMode);
             if (TxtResultHistoryLimit != null)
             {
                 TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(_ini.Read("ResultHistoryLimit")).ToString();
             }
 
-            string geminiKey = _ini.Read("GeminiKey") ?? "";
-            if (string.IsNullOrWhiteSpace(geminiKey))
-            {
-                geminiKey = _ini.Read("GeminiKey", "GeminiKey") ?? "";
-            }
+            GeminiKeySelection geminiKey = _settingsService.SelectGeminiKey(
+                _ini.Read("GeminiKey"),
+                _ini.Read("GeminiKey", "GeminiKey"));
 
-            if (PasswordGeminiKey != null) PasswordGeminiKey.Password = geminiKey.Trim();
-            if (TxtGeminiModel != null) TxtGeminiModel.Text = _ini.Read("GeminiModel") ?? MainWindow.DefaultGeminiModel;
+            if (PasswordGeminiKey != null) PasswordGeminiKey.Password = geminiKey.Key;
+            if (TxtGeminiModel != null) TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(_ini.Read("GeminiModel"));
 
-            string saveDebugImages = _ini.Read("SaveDebugImages") ?? "false";
             if (CheckSaveDebugImages != null)
             {
-                CheckSaveDebugImages.IsChecked =
-                    saveDebugImages.Equals("true", System.StringComparison.OrdinalIgnoreCase) ||
-                    saveDebugImages == "1";
+                CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(_ini.Read("SaveDebugImages"));
             }
 
-            string checkUpdatesOnStartup = _ini.Read("CheckUpdatesOnStartup") ?? "true";
             if (CheckUpdatesOnStartup != null)
             {
-                CheckUpdatesOnStartup.IsChecked =
-                    !checkUpdatesOnStartup.Equals("false", System.StringComparison.OrdinalIgnoreCase) &&
-                    checkUpdatesOnStartup != "0";
+                CheckUpdatesOnStartup.IsChecked = _settingsService.IsEnabledOrDefault(_ini.Read("CheckUpdatesOnStartup"), true);
             }
         }
 
@@ -251,13 +238,14 @@ namespace GameTranslator
         /// </summary>
         private void ApplyDefaultHotkeyValues()
         {
-            TxtKeyMove.Text = DefaultKeyMoveLock;
-            TxtKeyArea.Text = DefaultKeyAreaSelect;
-            TxtKeyTrans.Text = DefaultKeyTranslate;
-            TxtKeyAuto.Text = DefaultKeyAutoTranslate;
-            TxtKeyToggle.Text = DefaultKeyToggleEngine;
-            TxtKeyCopy.Text = DefaultKeyCopyResult;
-            TxtKeyLog.Text = DefaultKeyLogViewer;
+            DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
+            TxtKeyMove.Text = defaults.MoveLock;
+            TxtKeyArea.Text = defaults.AreaSelect;
+            TxtKeyTrans.Text = defaults.Translate;
+            TxtKeyAuto.Text = defaults.AutoTranslate;
+            TxtKeyToggle.Text = defaults.ToggleEngine;
+            TxtKeyCopy.Text = defaults.CopyResult;
+            TxtKeyLog.Text = defaults.LogViewer;
         }
 
         /// <summary>
@@ -340,7 +328,7 @@ namespace GameTranslator
                 _ini.Write("AutoTranslateInterval", "5"); // 숫자가 아니면 기본값 5 강제 지정
             }
 
-            _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, "Latest"));
+            _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode));
             int historyLimit = SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text);
             _ini.Write("ResultHistoryLimit", historyLimit.ToString());
             if (TxtResultHistoryLimit != null) TxtResultHistoryLimit.Text = historyLimit.ToString();
@@ -349,8 +337,7 @@ namespace GameTranslator
             _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
 
-            string geminiModel = TxtGeminiModel?.Text?.Trim();
-            _ini.Write("GeminiModel", string.IsNullOrWhiteSpace(geminiModel) ? MainWindow.DefaultGeminiModel : geminiModel);
+            _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));
 
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
             this.DialogResult = true;
