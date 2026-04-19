@@ -107,7 +107,7 @@ namespace GameTranslator
             if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "120";
             if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
             if (ComboResultDisplayMode != null) SetComboByTag(ComboResultDisplayMode, _ini.Read("ResultDisplayMode") ?? "Latest");
-            if (TxtResultHistoryLimit != null) TxtResultHistoryLimit.Text = _ini.Read("ResultHistoryLimit") ?? "30";
+            if (TxtResultHistoryLimit != null) TxtResultHistoryLimit.Text = _ini.Read("ResultHistoryLimit") ?? "5";
 
             string geminiKey = _ini.Read("GeminiKey") ?? "";
             if (string.IsNullOrWhiteSpace(geminiKey))
@@ -340,15 +340,15 @@ namespace GameTranslator
             _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, "Latest"));
             if (TxtResultHistoryLimit != null && int.TryParse(TxtResultHistoryLimit.Text, out int historyLimit))
             {
-                if (historyLimit < 5) historyLimit = 5;
-                if (historyLimit > 100) historyLimit = 100;
+                if (historyLimit < 1) historyLimit = 1;
+                if (historyLimit > 10) historyLimit = 10;
                 _ini.Write("ResultHistoryLimit", historyLimit.ToString());
                 TxtResultHistoryLimit.Text = historyLimit.ToString();
             }
             else
             {
-                _ini.Write("ResultHistoryLimit", "30");
-                if (TxtResultHistoryLimit != null) TxtResultHistoryLimit.Text = "30";
+                _ini.Write("ResultHistoryLimit", "5");
+                if (TxtResultHistoryLimit != null) TxtResultHistoryLimit.Text = "5";
             }
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
