@@ -5,11 +5,18 @@
         SizeToContent="Height" Width="400" 
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True"
         Loaded="Window_Loaded" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <!--
+        MainWindow는 게임 화면 위에 뜨는 실제 번역 오버레이입니다.
+        WindowStyle=None/AllowsTransparency=True로 일반 창 테두리를 제거하고,
+        WindowUtils.SetClickThrough 호출 시 마우스 클릭이 게임으로 통과합니다.
+    -->
     <Border x:Name="MainBorder" Background="#CC1E1E1E" CornerRadius="10" BorderThickness="2" BorderBrush="#55FFFFFF">
         <StackPanel Margin="15">
+            <!-- 단축키와 현재 자동 번역 모드를 표시하는 상단 안내 영역입니다. MainWindow.Hotkeys.cs에서 동적으로 갱신합니다. -->
             <TextBlock Text="[Ctrl+7] 이동/잠금  [Ctrl+8] 영역설정  [Ctrl+9] 번역  [Ctrl+6] 복사"
                        TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10" Height="35"/>
 
+            <!-- 번역 결과 출력 영역입니다. 캐릭터명은 금색, 번역문은 흰색 Run으로 추가됩니다. -->
             <Border Background="#22FFFFFF" CornerRadius="5" Padding="10" MinHeight="100">
                 <TextBlock x:Name="TxtResult" TextWrapping="Wrap" Foreground="White" FontSize="15" LineHeight="22">
                     번역 결과가 여기에 표시됩니다.

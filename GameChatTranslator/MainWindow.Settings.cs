@@ -24,8 +24,16 @@ using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
 {
+    /// <summary>
+    /// 캐릭터 목록 로드, 기본 설정 보정, Gemini 설정 읽기 같은 설정 관련 로직을 담당합니다.
+    /// config.ini 값이 비어 있거나 구버전 구조일 때도 런타임 기본값이 안정적으로 적용되게 합니다.
+    /// </summary>
     public partial class MainWindow
     {
+        /// <summary>
+        /// 실행 폴더의 characters.txt를 읽어 번역 허용 캐릭터명 목록을 초기화합니다.
+        /// 줄 앞이 #인 항목은 주석으로 취급하고, 나머지 이름은 OCR 결과 검증에 사용합니다.
+        /// </summary>
         private void LoadCharacters()
         {
             try
@@ -47,6 +55,11 @@ namespace GameTranslator
             }
             catch (Exception ex) { AppendLog($"파일 로드 중 오류: {ex.Message}"); }
         }
+
+        /// <summary>
+        /// config.ini에 필수 설정 키가 없을 때 기본값을 기록합니다.
+        /// 기존 사용자 설정을 덮어쓰지 않도록 비어 있는 키만 보정합니다.
+        /// </summary>
         private void EnsureDefaultSettings()
         {
             if (string.IsNullOrWhiteSpace(ini.Read("GeminiKey")) && string.IsNullOrWhiteSpace(ini.Read("GeminiKey", "GeminiKey")))
@@ -74,6 +87,11 @@ namespace GameTranslator
                 ini.Write("Key_CopyResult", "Ctrl+6");
             }
         }
+
+        /// <summary>
+        /// Gemini API 키를 현재 [Settings] 섹션에서 읽고, 구버전 [GeminiKey] 섹션에 있던 키는 자동 마이그레이션합니다.
+        /// 반환값은 공백이 제거된 API 키이며, 설정되어 있지 않으면 빈 문자열입니다.
+        /// </summary>
         private string ReadGeminiKey()
         {
             string settingsKey = ini.Read("GeminiKey");
@@ -93,12 +111,21 @@ namespace GameTranslator
 
             return "";
         }
+
+        /// <summary>
+        /// Gemini 호출에 사용할 모델명을 읽습니다.
+        /// config.ini의 GeminiModel 값이 비어 있으면 DefaultGeminiModel을 반환합니다.
+        /// </summary>
         private string ReadGeminiModel()
         {
             string modelName = ini.Read("GeminiModel");
             return string.IsNullOrWhiteSpace(modelName) ? DefaultGeminiModel : modelName.Trim();
         }
 
+        /// <summary>
+        /// 디버그 캡처 이미지 저장 여부를 config.ini에서 읽어 bool로 변환합니다.
+        /// true/1/yes/y 값을 켜짐으로 인정하고, 그 외 값은 꺼짐으로 처리합니다.
+        /// </summary>
         private bool ShouldSaveDebugImages()
         {
             string value = ini.Read("SaveDebugImages") ?? "false";

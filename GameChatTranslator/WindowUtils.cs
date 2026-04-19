@@ -29,6 +29,11 @@ namespace GameTranslator
         // 📌 1. 마우스 클릭 관통 활성화 (게임 모드)
         // 창이 화면에 보이기만 할 뿐, 마우스로 클릭하면 번역창 뒤에 있는 게임(스트리노바)이 클릭되게 만듭니다.
         // ==========================================
+        /// <summary>
+        /// 지정한 WPF 창에 클릭 관통 속성을 추가합니다.
+        /// <paramref name="window"/>는 클릭을 통과시킬 번역창 또는 캡처 테두리 창입니다.
+        /// 게임 플레이 중 번역 오버레이가 마우스 입력을 가로막지 않도록 잠금 상태에서 호출합니다.
+        /// </summary>
         public static void SetClickThrough(System.Windows.Window window)
         {
             // 현재 띄워진 WPF 창의 OS 고유 핸들(ID)을 추출합니다.
@@ -45,6 +50,11 @@ namespace GameTranslator
         // 📌 2. 마우스 클릭 관통 비활성화 (설정 모드)
         // 번역창을 다시 마우스로 클릭할 수 있도록 만들어, 사용자가 창을 잡고 드래그(이동)할 수 있게 합니다.
         // ==========================================
+        /// <summary>
+        /// 지정한 WPF 창에서 클릭 관통 속성을 제거합니다.
+        /// <paramref name="window"/>는 다시 마우스 입력을 받아야 하는 창입니다.
+        /// 사용자가 Ctrl+7로 이동 모드에 들어가 창을 드래그할 때 호출합니다.
+        /// </summary>
         public static void RemoveClickThrough(System.Windows.Window window)
         {
             // 현재 띄워진 WPF 창의 OS 고유 핸들(ID)을 추출합니다.

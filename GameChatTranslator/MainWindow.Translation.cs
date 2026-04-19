@@ -24,8 +24,16 @@ using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
 {
+    /// <summary>
+    /// 자동 번역 모드, OCR 전처리, 텍스트 추출, 번역 API 호출, 결과 출력까지 담당하는 partial 파일입니다.
+    /// 캡처된 채팅 이미지를 전처리하고 Windows OCR 결과를 검증한 뒤 Google 또는 Gemini로 번역합니다.
+    /// </summary>
     public partial class MainWindow
     {
+        /// <summary>
+        /// Ctrl+0으로 순환되는 자동 번역 상태입니다.
+        /// Off는 타이머 정지, Fast/Auto/Accurate는 각각 속도/균형/정확도 우선 OCR 전략입니다.
+        /// </summary>
         private enum AutoTranslateMode
         {
             Off,
@@ -34,6 +42,10 @@ namespace GameTranslator
             Accurate
         }
 
+        /// <summary>
+        /// 실제 OCR 후보 실행 범위를 결정하는 내부 처리 모드입니다.
+        /// 수동 번역은 항상 Accurate를 사용하고, 자동 번역은 AutoTranslateMode에서 변환됩니다.
+        /// </summary>
         private enum OcrProcessingMode
         {
             Fast,
@@ -41,6 +53,10 @@ namespace GameTranslator
             Accurate
         }
 
+        /// <summary>
+        /// 캡처 이미지를 OCR에 넣기 전 적용할 전처리 후보 종류입니다.
+        /// Color는 기본 색상 필터, ColorThick은 글자 굵기 보정, Adaptive는 로컬 밝기 기반 이진화입니다.
+        /// </summary>
         private enum OcrPreprocessKind
         {
             Color,
@@ -48,6 +64,10 @@ namespace GameTranslator
             Adaptive
         }
 
+        /// <summary>
+        /// 자동 번역 단축키를 눌렀을 때 모드를 빠름 → 자동 → 정확 → OFF 순서로 전환합니다.
+        /// 영역이 아직 설정되지 않았다면 자동 번역을 시작하지 않습니다.
+        /// </summary>
         private void ToggleAutoTranslate()
         {
             if (gameChatArea == Rectangle.Empty) return;
@@ -67,6 +87,11 @@ namespace GameTranslator
                 autoTranslateTimer.Stop();
             }
         }
+
+        /// <summary>
+        /// 현재 자동 번역 모드의 다음 모드를 계산합니다.
+        /// <paramref name="currentMode"/>는 현재 상태이며, 반환값은 Ctrl+0을 한 번 더 눌렀을 때 적용될 상태입니다.
+        /// </summary>
         private AutoTranslateMode GetNextAutoTranslateMode(AutoTranslateMode currentMode)
         {
             return currentMode switch
@@ -78,6 +103,11 @@ namespace GameTranslator
                 _ => AutoTranslateMode.Fast
             };
         }
+
+        /// <summary>
+        /// 자동 번역 상태를 실제 OCR 처리 모드로 변환합니다.
+        /// Off 상태는 호출되지 않는 것이 정상이나, 방어적으로 Accurate를 반환합니다.
+        /// </summary>
         private OcrProcessingMode GetCurrentOcrProcessingMode()
         {
             return autoTranslateMode switch
@@ -88,6 +118,11 @@ namespace GameTranslator
                 _ => OcrProcessingMode.Accurate
             };
         }
+
+        /// <summary>
+        /// 현재 자동 번역 모드를 사용자에게 보여줄 한국어 라벨로 변환합니다.
+        /// 상단 안내 문구와 로그 메시지에서 사용됩니다.
+        /// </summary>
         private string GetAutoTranslateModeLabel()
         {
             return autoTranslateMode switch
@@ -98,6 +133,11 @@ namespace GameTranslator
                 _ => "OFF"
             };
         }
+
+        /// <summary>
+        /// OCR 처리 모드를 로그에 남길 한국어 라벨로 변환합니다.
+        /// <paramref name="processingMode"/>는 이번 번역 실행에서 실제로 사용한 OCR 전략입니다.
+        /// </summary>
         private string GetOcrProcessingModeLabel(OcrProcessingMode processingMode)
         {
             return processingMode switch
@@ -108,6 +148,11 @@ namespace GameTranslator
                 _ => "정확"
             };
         }
+
+        /// <summary>
+        /// Ctrl+- 단축키로 Google 무료 번역과 Gemini AI 번역 엔진을 전환합니다.
+        /// Gemini API 키가 없거나 형식이 너무 짧으면 전환하지 않고 사용자 경고를 표시합니다.
+        /// </summary>
         private void ToggleEngine()
         {
             string geminiKey = ReadGeminiKey();
@@ -130,27 +175,50 @@ namespace GameTranslator
 
             UpdateYellowHotkeyGuideText(); // 노란색 안내문구도 업데이트
         }
+
+        /// <summary>
+        /// 같은 OCR 원문을 중복 번역하지 않기 위해 저장해 둔 캐시를 초기화합니다.
+        /// <paramref name="reason"/>은 로그에 남길 초기화 사유입니다. 예: 번역 엔진 변경, 캡처 영역 변경.
+        /// </summary>
         private void ResetTranslationCache(string reason)
         {
             lastRawTextCombined = "";
             AppendLog($"재번역 캐시 초기화: {reason}");
         }
+
+        /// <summary>
+        /// OCR 결과의 한 줄을 병합한 내부 모델입니다.
+        /// Top/Bottom은 화면상 세로 위치이고, Text는 병합된 OCR 문자열입니다.
+        /// </summary>
         private class MergedLine
         {
             public double Top;
             public double Bottom;
             public string Text;
         }
+
+        /// <summary>
+        /// 전처리된 OCR 입력 이미지를 이름과 함께 관리하는 disposable 모델입니다.
+        /// Bitmap은 unmanaged 리소스를 포함하므로 사용 후 Dispose로 해제합니다.
+        /// </summary>
         private class PreprocessedOcrImage : IDisposable
         {
             public string Name;
             public Bitmap Bitmap;
 
+            /// <summary>
+            /// 전처리 이미지 Bitmap 리소스를 해제합니다.
+            /// </summary>
             public void Dispose()
             {
                 Bitmap?.Dispose();
             }
         }
+
+        /// <summary>
+        /// 하나의 전처리 후보에 대해 OCR 결과, 병합 라인, 품질 점수를 묶어 보관합니다.
+        /// 후보 간 Score를 비교해 최종 번역에 사용할 OCR 결과를 선택합니다.
+        /// </summary>
         private class OcrCandidate
         {
             public string PreprocessName;
@@ -158,6 +226,13 @@ namespace GameTranslator
             public List<MergedLine> Lines;
             public int Score;
         }
+
+        /// <summary>
+        /// 번역 대상 문장이 이미 목표 언어인지 간단한 문자 범위 검사로 판단합니다.
+        /// <paramref name="text"/>는 번역 전 원문 또는 OCR 후처리된 문자열,
+        /// <paramref name="tLang"/>은 목표 언어 코드입니다. 예: ko, en-US, ja.
+        /// 반환값이 true이면 API 번역 호출을 생략할 수 있습니다.
+        /// </summary>
         private bool IsSameLanguage(string text, string tLang)
         {
             if (tLang == "ko" && Regex.IsMatch(text, @"[가-힣]{2,}")) return true;
@@ -167,16 +242,32 @@ namespace GameTranslator
             if (tLang == "en-US" && Regex.IsMatch(text, @"[a-zA-Z]") && !Regex.IsMatch(text, @"[가-힣а-яА-ЯёЁぁ-んァ-ヶ\u4e00-\u9fa5]")) return true;
             return false;
         }
+
+        /// <summary>
+        /// 내부 언어 코드를 Google Translate API가 요구하는 언어 코드로 변환합니다.
+        /// <paramref name="lang"/>은 앱 내부에서 쓰는 언어 코드입니다.
+        /// 반환값은 Google API의 tl 파라미터에 넣을 코드입니다.
+        /// </summary>
         private string GetGoogleTransLangCode(string lang)
         {
             if (lang == "zh-Hans-CN") return "zh-CN";
             if (lang == "en-US") return "en";
             return lang;
         }
+
+        /// <summary>
+        /// 수동 번역 단축키에서 호출하는 기본 번역 실행 함수입니다.
+        /// 수동 번역은 속도보다 인식률을 우선하므로 정확 모드로 실행합니다.
+        /// </summary>
         private void runTranslation()
         {
             runTranslation(OcrProcessingMode.Accurate);
         }
+
+        /// <summary>
+        /// 화면 캡처부터 OCR, 번역 API 호출, 번역창 출력까지 한 번의 번역 사이클을 수행합니다.
+        /// <paramref name="processingMode"/>는 이번 실행에서 사용할 OCR 전처리/언어 후보 전략입니다.
+        /// </summary>
         private async void runTranslation(OcrProcessingMode processingMode)
         {
             if (isTranslating || gameChatArea == Rectangle.Empty) return;
@@ -189,6 +280,7 @@ namespace GameTranslator
 
             try
             {
+                // 1. 저장된 채팅 영역을 실제 화면 픽셀 기준으로 캡처합니다.
                 Rectangle captureArea = GetCapturePixelArea();
                 using Bitmap rawBitmap = new Bitmap(captureArea.Width, captureArea.Height);
                 using (Graphics g = Graphics.FromImage(rawBitmap))
@@ -200,6 +292,7 @@ namespace GameTranslator
                     ReleaseDC(IntPtr.Zero, hdcSrc);
                 }
 
+                // 2. OCR 인식률 향상을 위해 설정된 배율만큼 이미지를 확대합니다.
                 int newWidth = rawBitmap.Width * scaleFactor;
                 int newHeight = rawBitmap.Height * scaleFactor;
                 using Bitmap resizedBitmap = new Bitmap(newWidth, newHeight);
@@ -219,6 +312,7 @@ namespace GameTranslator
                     });
                 }
 
+                // 3. 모드별 후보 전략으로 OCR을 수행하고 가장 점수가 높은 후보를 선택합니다.
                 OcrCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode);
 
                 if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0) return;
@@ -234,6 +328,7 @@ namespace GameTranslator
                 TxtResult.Inlines.Clear();
                 ResetClipboardTranslationText();
 
+                // 4. OCR에서 검증된 채팅 줄만 번역하고 UI/클립보드/로그에 반영합니다.
                 foreach (var chatLine in mergedLines)
                 {
                     string krRawText = chatLine.Text.Trim();
@@ -375,6 +470,13 @@ namespace GameTranslator
             catch (Exception ex) { TxtResult.Text = "에러: " + ex.Message; }
             finally { isTranslating = false; }
         }
+
+        /// <summary>
+        /// OCR 처리 모드에 맞춰 전처리 후보와 OCR 언어 범위를 선택하고 최종 후보를 반환합니다.
+        /// <paramref name="resizedBitmap"/>은 캡처 후 설정 배율로 확대한 이미지,
+        /// <paramref name="threshold"/>는 색상/밝기 기반 이진화 기준값,
+        /// <paramref name="processingMode"/>는 빠름/자동/정확 중 이번 실행 전략입니다.
+        /// </summary>
         private async Task<OcrCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode)
         {
             if (processingMode == OcrProcessingMode.Fast)
@@ -419,6 +521,14 @@ namespace GameTranslator
                 OcrPreprocessKind.ColorThick,
                 OcrPreprocessKind.Adaptive);
         }
+
+        /// <summary>
+        /// 지정된 전처리 후보들을 실제 Bitmap으로 만들고 OCR을 수행한 뒤 가장 높은 점수의 후보를 고릅니다.
+        /// <paramref name="resizedBitmap"/>은 OCR 전처리 입력 이미지,
+        /// <paramref name="threshold"/>는 색상 필터와 적응형 이진화의 기준값,
+        /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 OCR 언어를 실행하고 false이면 게임 언어만 실행합니다.
+        /// <paramref name="preprocessKinds"/>는 평가할 전처리 후보 목록입니다.
+        /// </summary>
         private async Task<OcrCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
         {
             OcrCandidate bestCandidate = null;
@@ -442,6 +552,7 @@ namespace GameTranslator
                         });
                     }
 
+                    // OCR 엔진 호출이 가장 큰 병목입니다. 빠름 모드에서는 게임 언어만 호출해 처리량을 줄입니다.
                     Dictionary<string, OcrResult> candidateResults = await RecognizeLanguagesAsync(croppedBitmap, recognizeAllLanguages);
                     OcrResult candidateMasterResult = SelectMasterOcrResult(candidateResults);
                     if (candidateMasterResult == null) continue;
@@ -471,6 +582,12 @@ namespace GameTranslator
 
             return bestCandidate;
         }
+
+        /// <summary>
+        /// 빠른 경로 결과가 바로 번역해도 될 정도로 신뢰 가능한지 판단합니다.
+        /// <paramref name="candidate"/>는 Color 전처리 + 게임 언어 OCR만 수행한 후보입니다.
+        /// 반환값은 캐릭터명과 채팅 포맷이 모두 확인된 경우에만 true입니다.
+        /// </summary>
         private bool IsFastPathSuccess(OcrCandidate candidate)
         {
             if (candidate == null || candidate.Score <= 0 || candidate.Lines == null) return false;
@@ -479,6 +596,13 @@ namespace GameTranslator
                 TryExtractKnownCharacterChatLine(line.Text, out _, out string message) &&
                 !string.IsNullOrWhiteSpace(message));
         }
+
+        /// <summary>
+        /// OCR 문자열이 "[캐릭터명]: 내용" 형식이고 캐릭터 목록에 있는 이름인지 검사합니다.
+        /// <paramref name="rawText"/>는 OCR에서 얻은 한 줄 원문,
+        /// <paramref name="characterNameOnly"/>는 성공 시 추출된 캐릭터명,
+        /// <paramref name="message"/>는 성공 시 추출된 채팅 본문입니다.
+        /// </summary>
         private bool TryExtractKnownCharacterChatLine(string rawText, out string characterNameOnly, out string message)
         {
             characterNameOnly = "";
@@ -495,6 +619,14 @@ namespace GameTranslator
 
             return characterNames.Contains(characterNameOnly) && !string.IsNullOrWhiteSpace(message);
         }
+
+        /// <summary>
+        /// 요청된 전처리 후보 종류만 생성해 OCR 입력 Bitmap 목록을 만듭니다.
+        /// <paramref name="source"/>는 확대된 원본 캡처 이미지,
+        /// <paramref name="threshold"/>는 색상/밝기 판단 기준값,
+        /// <paramref name="preprocessKinds"/>는 만들 전처리 후보 종류 목록입니다.
+        /// 반환값의 Bitmap은 호출자가 Dispose해야 합니다.
+        /// </summary>
         private List<PreprocessedOcrImage> CreatePreprocessedOcrImages(Bitmap source, int threshold, params OcrPreprocessKind[] preprocessKinds)
         {
             int width = source.Width;
@@ -532,6 +664,13 @@ namespace GameTranslator
 
             return images;
         }
+
+        /// <summary>
+        /// Bitmap의 픽셀 데이터를 32bpp ARGB byte 배열로 복사합니다.
+        /// <paramref name="source"/>는 읽을 Bitmap,
+        /// <paramref name="stride"/>는 반환되는 한 행의 byte 길이입니다.
+        /// 반환 배열은 B,G,R,A 순서의 픽셀 데이터를 담습니다.
+        /// </summary>
         private byte[] ReadBitmapPixels(Bitmap source, out int stride)
         {
             BitmapData data = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
@@ -547,6 +686,15 @@ namespace GameTranslator
                 source.UnlockBits(data);
             }
         }
+
+        /// <summary>
+        /// 흰색 채팅 글자와 노란색 캐릭터명을 보존하는 기본 색상 마스크를 생성합니다.
+        /// <paramref name="pixels"/>는 ReadBitmapPixels로 읽은 원본 픽셀 배열,
+        /// <paramref name="stride"/>는 한 행의 byte 길이,
+        /// <paramref name="width"/>와 <paramref name="height"/>는 이미지 크기,
+        /// <paramref name="threshold"/>는 밝기 판단 기준입니다.
+        /// 반환값은 흰 픽셀 255, 배경 0으로 구성된 1채널 마스크입니다.
+        /// </summary>
         private byte[] CreateColorMask(byte[] pixels, int stride, int width, int height, int threshold)
         {
             byte[] mask = new byte[width * height];
@@ -583,6 +731,14 @@ namespace GameTranslator
 
             return mask;
         }
+
+        /// <summary>
+        /// 주변 밝기 평균과 현재 픽셀 밝기를 비교해 배경 변화에 강한 적응형 이진화 마스크를 만듭니다.
+        /// <paramref name="pixels"/>는 원본 픽셀 배열,
+        /// <paramref name="stride"/>는 한 행의 byte 길이,
+        /// <paramref name="width"/>와 <paramref name="height"/>는 이미지 크기,
+        /// <paramref name="threshold"/>는 최소 밝기 기준입니다.
+        /// </summary>
         private byte[] CreateAdaptiveThresholdMask(byte[] pixels, int stride, int width, int height, int threshold)
         {
             byte[] gray = new byte[width * height];
@@ -633,6 +789,13 @@ namespace GameTranslator
 
             return mask;
         }
+
+        /// <summary>
+        /// 흰색 픽셀 주변 1픽셀 영역을 확장해 얇은 글자를 굵게 보정합니다.
+        /// <paramref name="mask"/>는 0/255로 구성된 입력 마스크,
+        /// <paramref name="width"/>와 <paramref name="height"/>는 마스크 크기입니다.
+        /// 반환값은 글자가 한 픽셀 정도 두꺼워진 새 마스크입니다.
+        /// </summary>
         private byte[] DilateMask(byte[] mask, int width, int height)
         {
             byte[] result = new byte[mask.Length];
@@ -667,6 +830,12 @@ namespace GameTranslator
 
             return result;
         }
+
+        /// <summary>
+        /// 주변 흰색 픽셀이 거의 없는 고립 노이즈 픽셀을 제거합니다.
+        /// <paramref name="mask"/>는 0/255로 구성된 입력 마스크,
+        /// <paramref name="width"/>와 <paramref name="height"/>는 마스크 크기입니다.
+        /// </summary>
         private byte[] RemoveIsolatedWhitePixels(byte[] mask, int width, int height)
         {
             byte[] result = new byte[mask.Length];
@@ -700,6 +869,12 @@ namespace GameTranslator
 
             return result;
         }
+
+        /// <summary>
+        /// 0/255 마스크를 Windows OCR이 읽을 수 있는 32bpp ARGB Bitmap으로 변환합니다.
+        /// <paramref name="mask"/>는 width*height 길이의 1채널 마스크,
+        /// <paramref name="width"/>와 <paramref name="height"/>는 생성할 Bitmap 크기입니다.
+        /// </summary>
         private Bitmap CreateBitmapFromMask(byte[] mask, int width, int height)
         {
             Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
@@ -735,6 +910,12 @@ namespace GameTranslator
 
             return bitmap;
         }
+
+        /// <summary>
+        /// OCR 후보 이미지의 하단 여백 일부를 잘라 채팅 외부 노이즈를 줄입니다.
+        /// <paramref name="source"/>는 전처리 완료된 OCR 입력 이미지입니다.
+        /// 반환값은 하단 5%가 제거된 새 Bitmap이며 호출자가 Dispose해야 합니다.
+        /// </summary>
         private Bitmap CropForOcr(Bitmap source)
         {
             int cropTop = 0;
@@ -752,6 +933,13 @@ namespace GameTranslator
 
             return croppedBitmap;
         }
+
+        /// <summary>
+        /// Bitmap을 SoftwareBitmap으로 변환해 Windows OCR 엔진을 실행합니다.
+        /// <paramref name="bitmap"/>은 OCR에 넣을 전처리/크롭 이미지,
+        /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 언어, false이면 게임 언어 우선으로 OCR합니다.
+        /// 반환값은 언어 코드별 OCR 결과 딕셔너리입니다.
+        /// </summary>
         private async Task<Dictionary<string, OcrResult>> RecognizeLanguagesAsync(Bitmap bitmap, bool recognizeAllLanguages)
         {
             using MemoryStream ms = new MemoryStream();
@@ -768,6 +956,11 @@ namespace GameTranslator
 
             return ocrResults;
         }
+
+        /// <summary>
+        /// 이번 OCR 실행에 사용할 OCR 엔진 목록을 선택합니다.
+        /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 엔진, false이면 gameLang/ko/첫 엔진 순서로 하나만 선택합니다.
+        /// </summary>
         private List<KeyValuePair<string, OcrEngine>> SelectOcrEngines(bool recognizeAllLanguages)
         {
             if (recognizeAllLanguages) return ocrEngines.ToList();
@@ -790,10 +983,22 @@ namespace GameTranslator
 
             return ocrEngines.Take(1).ToList();
         }
+
+        /// <summary>
+        /// 여러 언어 OCR 결과 중 줄 병합 기준으로 사용할 주 결과를 선택합니다.
+        /// <paramref name="ocrResults"/>는 언어 코드별 OCR 결과 딕셔너리입니다.
+        /// 게임 언어 결과가 있으면 우선 사용하고, 없으면 한국어 결과를 fallback으로 사용합니다.
+        /// </summary>
         private OcrResult SelectMasterOcrResult(Dictionary<string, OcrResult> ocrResults)
         {
             return ocrResults.ContainsKey(gameLang) ? ocrResults[gameLang] : (ocrResults.ContainsKey("ko") ? ocrResults["ko"] : null);
         }
+
+        /// <summary>
+        /// Windows OCR이 여러 조각으로 나눈 라인을 세로 위치 기준으로 다시 합칩니다.
+        /// <paramref name="masterResult"/>는 기준 언어 OCR 결과입니다.
+        /// 반환값은 채팅 한 줄 단위에 가깝게 병합된 MergedLine 목록입니다.
+        /// </summary>
         private List<MergedLine> MergeOcrLines(OcrResult masterResult)
         {
             var mergedLines = new List<MergedLine>();
@@ -817,6 +1022,12 @@ namespace GameTranslator
 
             return mergedLines;
         }
+
+        /// <summary>
+        /// OCR 후보 라인 목록의 신뢰도를 점수화합니다.
+        /// <paramref name="lines"/>는 후보 전처리에서 얻은 병합 라인 목록입니다.
+        /// 채팅 포맷, 캐릭터명 일치, 본문 길이, 언어별 문자 포함 여부는 가산하고 노이즈 문자는 감산합니다.
+        /// </summary>
         private int ScoreOcrCandidate(List<MergedLine> lines)
         {
             int score = 0;
@@ -859,6 +1070,13 @@ namespace GameTranslator
 
             return score;
         }
+
+        /// <summary>
+        /// Google Translate 비공식 무료 엔드포인트를 호출해 문자열을 목표 언어로 번역합니다.
+        /// <paramref name="text"/>는 번역할 OCR 후처리 문장이고,
+        /// <paramref name="tLang"/>은 목표 언어 코드입니다.
+        /// 반환값은 번역문이며 실패하거나 의미 없는 입력이면 빈 문자열일 수 있습니다.
+        /// </summary>
         private async Task<string> CallGoogleAPI(string text, string tLang)
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
@@ -905,6 +1123,12 @@ namespace GameTranslator
             }
             return result;
         }
+
+        /// <summary>
+        /// 현재 API 키로 사용 가능한 Gemini 모델 목록을 조회해 로그에 남깁니다.
+        /// <paramref name="apiKey"/>는 Google AI Studio에서 발급받은 Gemini API 키입니다.
+        /// 시작 시 키가 있을 때만 호출되며, 실패해도 프로그램 실행은 계속됩니다.
+        /// </summary>
         private async Task ListAvailableGeminiModels(string apiKey)
         {
             string url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
@@ -928,6 +1152,14 @@ namespace GameTranslator
             }
             catch (Exception ex) { AppendLog($"모델 목록 확인 중 오류 발생: {ex.Message}"); }
         }
+
+        /// <summary>
+        /// Gemini API를 호출해 OCR 오타가 포함된 게임 채팅 문장을 문맥 기반으로 번역합니다.
+        /// <paramref name="text"/>는 번역할 OCR 후처리 문장,
+        /// <paramref name="tLang"/>은 목표 언어 코드,
+        /// <paramref name="apiKey"/>는 Gemini API 키입니다.
+        /// 반환값은 Gemini가 생성한 번역문이며, 실패하면 빈 문자열을 반환해 Google fallback이 가능하게 합니다.
+        /// </summary>
         private async Task<string> CallGeminiAPI(string text, string tLang, string apiKey)
         {
             string modelName = ReadGeminiModel();

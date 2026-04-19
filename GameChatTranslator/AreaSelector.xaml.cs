@@ -20,12 +20,22 @@ namespace GameTranslator
         // 마우스 드래그가 끝난 후 최종적으로 계산된 사각형 영역
         private Rectangle selectionArea;
 
+        /// <summary>
+        /// 캡처 영역 선택 창을 초기화합니다.
+        /// InitializeComponent는 AreaSelector.xaml의 Canvas와 선택 테두리를 로드하고,
+        /// ConfigureVirtualScreenBounds는 멀티모니터 전체 영역을 덮도록 창 크기를 맞춥니다.
+        /// </summary>
         public AreaSelector()
         {
             InitializeComponent();
             ConfigureVirtualScreenBounds();
         }
 
+        /// <summary>
+        /// 영역 선택 창을 Windows 가상 화면 전체에 맞춥니다.
+        /// SystemParameters.VirtualScreen* 값은 주 모니터뿐 아니라 좌측/상단에 배치된 보조 모니터까지 포함하므로,
+        /// 멀티모니터 환경에서도 원하는 채팅 영역을 드래그할 수 있습니다.
+        /// </summary>
         private void ConfigureVirtualScreenBounds()
         {
             WindowStartupLocation = WindowStartupLocation.Manual;
@@ -39,6 +49,11 @@ namespace GameTranslator
         // ==========================================
         // 📌 1. 마우스 클릭 시작 이벤트 (드래그 시작)
         // ==========================================
+        /// <summary>
+        /// 사용자가 캡처 영역 선택 창에서 마우스 버튼을 누른 순간 호출됩니다.
+        /// <paramref name="sender"/>는 이벤트를 발생시킨 Window이고,
+        /// <paramref name="e"/>는 클릭 위치와 버튼 상태를 담은 WPF 마우스 이벤트 정보입니다.
+        /// </summary>
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             // 클릭한 순간의 마우스 좌표를 시작점으로 기록
@@ -58,6 +73,11 @@ namespace GameTranslator
         // ==========================================
         // 📌 2. 마우스 이동 이벤트 (드래그 중)
         // ==========================================
+        /// <summary>
+        /// 마우스 왼쪽 버튼을 누른 채 이동할 때 선택 사각형의 위치와 크기를 실시간으로 갱신합니다.
+        /// <paramref name="sender"/>는 이벤트를 발생시킨 Window이고,
+        /// <paramref name="e"/>는 현재 마우스 좌표와 버튼 상태를 담은 이벤트 정보입니다.
+        /// </summary>
         private void Window_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
             // 마우스 왼쪽 버튼을 누른 상태로 이동할 때만 실행
@@ -89,6 +109,11 @@ namespace GameTranslator
         // ==========================================
         // 📌 3. 마우스 클릭 종료 이벤트 (드래그 끝)
         // ==========================================
+        /// <summary>
+        /// 드래그가 끝났을 때 WPF 표시 좌표와 실제 화면 픽셀 좌표를 계산해 MainWindow에 전달합니다.
+        /// <paramref name="sender"/>는 이벤트를 발생시킨 Window이고,
+        /// <paramref name="e"/>는 마우스 버튼을 놓은 시점의 이벤트 정보입니다.
+        /// </summary>
         private void Window_MouseUp(object sender, MouseButtonEventArgs e)
         {
             // 드래그를 해서 정상적인 영역이 만들어졌다면
@@ -104,6 +129,8 @@ namespace GameTranslator
                     selectionArea.Width,
                     selectionArea.Height);
 
+                // PointToScreen은 WPF 장치 독립 좌표를 현재 DPI가 반영된 물리 픽셀 좌표로 변환합니다.
+                // BitBlt 캡처는 물리 픽셀을 요구하므로 표시용 좌표(screenArea)와 캡처용 좌표(pixelArea)를 분리 저장합니다.
                 System.Windows.Point topLeft = PointToScreen(new System.Windows.Point(selectionArea.X, selectionArea.Y));
                 System.Windows.Point bottomRight = PointToScreen(new System.Windows.Point(selectionArea.Right, selectionArea.Bottom));
                 Rectangle pixelArea = new Rectangle(
