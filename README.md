@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.6-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.6-alpha/GameChatTranslator_v1.0.6-alpha.zip)
+[**👉 GameChatTranslator v1.0.7-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.7-alpha/GameChatTranslator_v1.0.7-alpha.zip)
 
 ---
 
@@ -100,6 +100,37 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.7-alpha)
+
+   이번 버전에서는 코드 이해도를 높이기 위한 상세 주석 보강, OCR 언어팩 선택 설치, 단축키 초기화 편의 기능을 추가했습니다.
+
+   📝 소스 주석 및 문서 보강
+
+      주요 함수 위에 역할, 파라미터, 반환값, 부작용을 설명하는 주석을 추가했습니다.
+
+      캡처 -> 전처리 -> OCR -> 점수화 -> 번역 -> 출력으로 이어지는 핵심 흐름을 따라가기 쉽도록 내부 로직 설명을 보강했습니다.
+
+      배포용 readme.txt에 실행 흐름, 단축키, OCR 모드, config.ini 주요 키, 문제 해결 항목을 더 자세히 정리했습니다.
+
+   🌐 OCR 언어팩 선택 설치
+
+      LangInstall.bat 실행 시 영어, 일본어, 중국어, 러시아어 중 필요한 OCR 언어팩만 선택 설치할 수 있도록 변경했습니다.
+
+      영어(en-US) 설치 선택지를 추가했습니다.
+
+      설치 전 선택한 언어 목록을 다시 확인하고, 관리자 권한 또는 설치 실패 가능성을 안내하도록 개선했습니다.
+
+   ⌨️ 단축키 초기화
+
+      환경설정창에 [단축키 초기화] 버튼을 추가했습니다.
+
+      버튼을 누르면 UI 입력칸만 기본 단축키로 돌아가며, [저장 및 게임 시작]을 눌러야 config.ini에 실제 저장됩니다.
+
+      프리셋 불러오기 시 누락된 단축키 값도 동일한 기본값을 사용하도록 정리했습니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.6-alpha)
 
    이번 버전에서는 투명한 채팅창 배경에서 OCR 인식률을 보완하고, 자동 번역 처리 속도를 상황별로 조절할 수 있도록 개선했습니다.
@@ -125,9 +156,6 @@
    🧩 빌드 정리
 
       고DPI 설정을 프로젝트 속성으로 정리해 빌드 경고를 제거했습니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.5)
 
