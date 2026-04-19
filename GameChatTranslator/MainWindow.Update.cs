@@ -14,6 +14,18 @@ namespace GameTranslator
     {
         private const string ReleaseListApiUrl = "https://api.github.com/repos/SeoArin9142/GameChatTranslator/releases?per_page=10";
         private const string ReleasePageUrl = "https://github.com/SeoArin9142/GameChatTranslator/releases";
+        private enum UpdateCheckMode
+        {
+            Startup,
+            Manual
+        }
+
+        private sealed class ReleaseInfo
+        {
+            public string Tag { get; set; } = "";
+            public string Url { get; set; } = ReleasePageUrl;
+        }
+
         private static string CurrentAppVersion
         {
             get
@@ -33,51 +45,70 @@ namespace GameTranslator
             }
         }
 
-        private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        internal async Task RunManualUpdateCheckAsync(Window owner, Action<string> setStatus)
         {
-            await CheckForUpdatesAsync();
+            await CheckForUpdatesAsync(UpdateCheckMode.Manual, owner, setStatus);
         }
 
-        private async Task CheckForUpdatesAsync()
+        private async Task<bool> CheckForUpdatesOnStartupAsync()
         {
-            BtnCheckUpdate.IsEnabled = false;
-            TxtUpdateStatus.Text = "확인 중...";
+            string value = ini.Read("CheckUpdatesOnStartup") ?? "true";
+            if (IsDisabledSetting(value))
+            {
+                AppendLog("시작 시 업데이트 자동 확인이 비활성화되어 있습니다.");
+                return true;
+            }
+
+            return await CheckForUpdatesAsync(UpdateCheckMode.Startup, this, null);
+        }
+
+        private async Task<bool> CheckForUpdatesAsync(UpdateCheckMode mode, Window owner, Action<string> setStatus)
+        {
+            setStatus?.Invoke("확인 중...");
 
             try
             {
-                using var response = await httpClient.GetAsync(ReleaseListApiUrl);
-                response.EnsureSuccessStatusCode();
+                ReleaseInfo releaseInfo = await FetchLatestReleaseAsync();
 
-                string json = await response.Content.ReadAsStringAsync();
-                using JsonDocument document = JsonDocument.Parse(json);
-
-                if (TryReadLatestRelease(document.RootElement, out string latestTag, out string latestUrl))
+                if (releaseInfo != null)
                 {
-                    ShowUpdateResult(latestTag, latestUrl);
-                    return;
+                    return ShowUpdateResult(mode, owner, setStatus, releaseInfo.Tag, releaseInfo.Url);
                 }
 
-                TxtUpdateStatus.Text = "릴리즈 없음";
-                MessageBox.Show("확인 가능한 릴리즈가 없습니다.", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
+                setStatus?.Invoke("릴리즈 없음");
+                if (mode == UpdateCheckMode.Manual)
+                {
+                    MessageBox.Show(owner, "확인 가능한 릴리즈가 없습니다.", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
-                TxtUpdateStatus.Text = "확인 실패";
+                setStatus?.Invoke("확인 실패");
                 AppendLog($"업데이트 확인 실패: {ex.Message}");
-                MessageBox.Show($"업데이트 정보를 확인하지 못했습니다.\n{ex.Message}", "업데이트 확인 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                if (mode == UpdateCheckMode.Manual)
+                {
+                    MessageBox.Show(owner, $"업데이트 정보를 확인하지 못했습니다.\n{ex.Message}", "업데이트 확인 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
-            finally
-            {
-                BtnCheckUpdate.IsEnabled = true;
-            }
+
+            return true;
         }
 
-        private bool TryReadLatestRelease(JsonElement releases, out string latestTag, out string latestUrl)
+        private async Task<ReleaseInfo> FetchLatestReleaseAsync()
         {
-            latestTag = "";
-            latestUrl = ReleasePageUrl;
+            using var response = await httpClient.GetAsync(ReleaseListApiUrl);
+            response.EnsureSuccessStatusCode();
 
-            if (releases.ValueKind != JsonValueKind.Array) return false;
+            string json = await response.Content.ReadAsStringAsync();
+            using JsonDocument document = JsonDocument.Parse(json);
+
+            return TryReadLatestRelease(document.RootElement);
+        }
+
+        private ReleaseInfo TryReadLatestRelease(JsonElement releases)
+        {
+            if (releases.ValueKind != JsonValueKind.Array) return null;
 
             foreach (JsonElement release in releases.EnumerateArray())
             {
@@ -97,62 +128,99 @@ namespace GameTranslator
                     continue;
                 }
 
-                latestTag = tag.Trim();
+                var releaseInfo = new ReleaseInfo
+                {
+                    Tag = tag.Trim(),
+                    Url = ReleasePageUrl
+                };
 
                 if (release.TryGetProperty("html_url", out JsonElement urlValue))
                 {
                     string url = urlValue.GetString();
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        latestUrl = url.Trim();
+                        releaseInfo.Url = url.Trim();
                     }
+                }
+
+                return releaseInfo;
+            }
+
+            return null;
+        }
+
+        private bool ShowUpdateResult(UpdateCheckMode mode, Window owner, Action<string> setStatus, string latestTag, string latestUrl)
+        {
+            if (IsNewerVersion(latestTag, CurrentAppVersion))
+            {
+                setStatus?.Invoke($"새 버전 {latestTag}");
+                AppendLog($"새 버전 확인: {latestTag}");
+
+                var prompt = new UpdatePromptWindow(CurrentAppVersion, latestTag, mode == UpdateCheckMode.Startup)
+                {
+                    Owner = owner,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+
+                prompt.ShowDialog();
+
+                if (prompt.Result == UpdatePromptResult.DisableStartupCheck)
+                {
+                    ini.Write("CheckUpdatesOnStartup", "false");
+                    setStatus?.Invoke("자동 확인 끔");
+                    AppendLog("시작 시 업데이트 자동 확인을 비활성화했습니다.");
+                    return true;
+                }
+
+                if (prompt.Result == UpdatePromptResult.OpenReleasePage)
+                {
+                    OpenReleasePage(latestUrl);
+                    System.Windows.Application.Current.Shutdown();
+                    return false;
                 }
 
                 return true;
             }
 
-            return false;
-        }
-
-        private void ShowUpdateResult(string latestTag, string latestUrl)
-        {
-            if (IsNewerVersion(latestTag, CurrentAppVersion))
+            if (AreSameVersion(latestTag, CurrentAppVersion))
             {
-                TxtUpdateStatus.Text = $"새 버전 {latestTag}";
-                AppendLog($"새 버전 확인: {latestTag}");
+                setStatus?.Invoke("최신 버전");
+                AppendLog($"업데이트 확인: 현재 최신 버전입니다. ({CurrentAppVersion})");
 
-                MessageBoxResult result = MessageBox.Show(
-                    $"새 버전이 있습니다.\n현재: {CurrentAppVersion}\n최신: {latestTag}\n\n릴리즈 페이지를 열까요?",
+                if (mode == UpdateCheckMode.Manual)
+                {
+                    MessageBox.Show(owner, $"현재 최신 버전입니다.\n현재: {CurrentAppVersion}", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                return true;
+            }
+
+            setStatus?.Invoke($"확인 필요 {latestTag}");
+
+            if (mode == UpdateCheckMode.Manual)
+            {
+                MessageBoxResult fallbackResult = MessageBox.Show(
+                    owner,
+                    $"릴리즈 버전 형식이 달라 직접 확인이 필요합니다.\n현재: {CurrentAppVersion}\n확인된 릴리즈: {latestTag}\n\n릴리즈 페이지를 열까요?",
                     "업데이트 확인",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Information);
 
-                if (result == MessageBoxResult.Yes)
+                if (fallbackResult == MessageBoxResult.Yes)
                 {
                     OpenReleasePage(latestUrl);
                 }
-
-                return;
             }
 
-            if (AreSameVersion(latestTag, CurrentAppVersion))
-            {
-                TxtUpdateStatus.Text = "최신 버전";
-                MessageBox.Show($"현재 최신 버전입니다.\n현재: {CurrentAppVersion}", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
+            return true;
+        }
 
-            TxtUpdateStatus.Text = $"확인 필요 {latestTag}";
-            MessageBoxResult fallbackResult = MessageBox.Show(
-                $"릴리즈 버전 형식이 달라 직접 확인이 필요합니다.\n현재: {CurrentAppVersion}\n확인된 릴리즈: {latestTag}\n\n릴리즈 페이지를 열까요?",
-                "업데이트 확인",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Information);
-
-            if (fallbackResult == MessageBoxResult.Yes)
-            {
-                OpenReleasePage(latestUrl);
-            }
+        private bool IsDisabledSetting(string value)
+        {
+            return value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("no", StringComparison.OrdinalIgnoreCase) ||
+                   value.Equals("n", StringComparison.OrdinalIgnoreCase);
         }
 
         private bool AreSameVersion(string left, string right)

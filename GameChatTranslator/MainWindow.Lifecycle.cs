@@ -48,6 +48,11 @@ namespace GameTranslator
         {
             await Task.Delay(500);
 
+            if (!await CheckForUpdatesOnStartupAsync())
+            {
+                return;
+            }
+
             OptionSelector selector = new OptionSelector(this, ini);
             selector.Owner = this;
             selector.WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -167,6 +172,7 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AUTO);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_COPY_RESULT);
 
             AppendLog("프로그램이 정상적으로 종료되었습니다.");
             Application.Current.Shutdown();

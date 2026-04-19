@@ -63,6 +63,16 @@ namespace GameTranslator
             {
                 ini.Write("SaveDebugImages", "false");
             }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("CheckUpdatesOnStartup")))
+            {
+                ini.Write("CheckUpdatesOnStartup", "true");
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_CopyResult")))
+            {
+                ini.Write("Key_CopyResult", "Ctrl+6");
+            }
         }
         private string ReadGeminiKey()
         {
