@@ -227,10 +227,10 @@ namespace GameTranslator
             _ini.Write("ScaleFactor", GetSelectedTag(ComboScale, "3"), section);
             _ini.Write("Threshold", string.IsNullOrWhiteSpace(TxtThreshold?.Text) ? "120" : TxtThreshold.Text.Trim(), section);
             _ini.Write("AutoTranslateInterval", string.IsNullOrWhiteSpace(TxtInterval?.Text) ? "5" : TxtInterval.Text.Trim(), section);
-            _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, "Latest"), section);
+            _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode), section);
             _ini.Write("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text).ToString(), section);
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false", section);
-            _ini.Write("GeminiModel", string.IsNullOrWhiteSpace(TxtGeminiModel?.Text) ? MainWindow.DefaultGeminiModel : TxtGeminiModel.Text.Trim(), section);
+            _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text), section);
             _ini.Write("Key_MoveLock", TxtKeyMove.Text, section);
             _ini.Write("Key_AreaSelect", TxtKeyArea.Text, section);
             _ini.Write("Key_Translate", TxtKeyTrans.Text, section);
@@ -264,17 +264,18 @@ namespace GameTranslator
 
             TxtThreshold.Text = ReadPresetValue(section, "Threshold", "120");
             TxtInterval.Text = ReadPresetValue(section, "AutoTranslateInterval", "5");
-            SetComboByTag(ComboResultDisplayMode, ReadPresetValue(section, "ResultDisplayMode", "Latest"));
+            SetComboByTag(ComboResultDisplayMode, ReadPresetValue(section, "ResultDisplayMode", SettingsService.DefaultResultDisplayMode));
             TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(ReadPresetValue(section, "ResultHistoryLimit", "5")).ToString();
-            CheckSaveDebugImages.IsChecked = IsTruthy(ReadPresetValue(section, "SaveDebugImages", "false"));
-            TxtGeminiModel.Text = ReadPresetValue(section, "GeminiModel", MainWindow.DefaultGeminiModel);
-            TxtKeyMove.Text = ReadPresetValue(section, "Key_MoveLock", DefaultKeyMoveLock);
-            TxtKeyArea.Text = ReadPresetValue(section, "Key_AreaSelect", DefaultKeyAreaSelect);
-            TxtKeyTrans.Text = ReadPresetValue(section, "Key_Translate", DefaultKeyTranslate);
-            TxtKeyAuto.Text = ReadPresetValue(section, "Key_AutoTranslate", DefaultKeyAutoTranslate);
-            TxtKeyToggle.Text = ReadPresetValue(section, "Key_ToggleEngine", DefaultKeyToggleEngine);
-            TxtKeyCopy.Text = ReadPresetValue(section, "Key_CopyResult", DefaultKeyCopyResult);
-            TxtKeyLog.Text = ReadPresetValue(section, "Key_LogViewer", DefaultKeyLogViewer);
+            CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(ReadPresetValue(section, "SaveDebugImages", "false"));
+            TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(ReadPresetValue(section, "GeminiModel", SettingsService.DefaultGeminiModel));
+            DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
+            TxtKeyMove.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_MoveLock", defaults.MoveLock), defaults.MoveLock);
+            TxtKeyArea.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_AreaSelect", defaults.AreaSelect), defaults.AreaSelect);
+            TxtKeyTrans.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_Translate", defaults.Translate), defaults.Translate);
+            TxtKeyAuto.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_AutoTranslate", defaults.AutoTranslate), defaults.AutoTranslate);
+            TxtKeyToggle.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_ToggleEngine", defaults.ToggleEngine), defaults.ToggleEngine);
+            TxtKeyCopy.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_CopyResult", defaults.CopyResult), defaults.CopyResult);
+            TxtKeyLog.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_LogViewer", defaults.LogViewer), defaults.LogViewer);
 
             foreach (string key in PresetSettingKeys)
             {
@@ -303,18 +304,6 @@ namespace GameTranslator
         private string GetSelectedTag(System.Windows.Controls.ComboBox combo, string defaultValue)
         {
             return (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? defaultValue;
-        }
-
-        /// <summary>
-        /// INI 문자열 값을 bool true 여부로 해석합니다.
-        /// <paramref name="value"/>는 true/1/yes/y 중 하나일 수 있는 설정 문자열입니다.
-        /// </summary>
-        private bool IsTruthy(string value)
-        {
-            return value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("y", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

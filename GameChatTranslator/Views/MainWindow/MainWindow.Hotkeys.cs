@@ -47,13 +47,14 @@ namespace GameTranslator
             hotkeyWarningMessage = "";
             var failedHotkeys = new List<string>();
 
-            string moveHotkey = ini.Read("Key_MoveLock") ?? "Ctrl+7";
-            string areaHotkey = ini.Read("Key_AreaSelect") ?? "Ctrl+8";
-            string translateHotkey = ini.Read("Key_Translate") ?? "Ctrl+9";
-            string autoHotkey = ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
-            string toggleHotkey = ini.Read("Key_ToggleEngine") ?? "Ctrl+-";
-            string copyHotkey = ini.Read("Key_CopyResult") ?? "Ctrl+6";
-            string logHotkey = ini.Read("Key_LogViewer") ?? "Ctrl+=";
+            DefaultHotkeys defaults = settingsService.GetDefaultHotkeys();
+            string moveHotkey = settingsService.NormalizeHotkey(ini.Read("Key_MoveLock"), defaults.MoveLock);
+            string areaHotkey = settingsService.NormalizeHotkey(ini.Read("Key_AreaSelect"), defaults.AreaSelect);
+            string translateHotkey = settingsService.NormalizeHotkey(ini.Read("Key_Translate"), defaults.Translate);
+            string autoHotkey = settingsService.NormalizeHotkey(ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
+            string toggleHotkey = settingsService.NormalizeHotkey(ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
+            string copyHotkey = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
+            string logHotkey = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
 
             ParseHotkey(moveHotkey, out modMove, out keyMove);
             ParseHotkey(areaHotkey, out modArea, out keyArea);
@@ -123,13 +124,14 @@ namespace GameTranslator
         /// </summary>
         private void UpdateYellowHotkeyGuideText()
         {
-            string m = ini.Read("Key_MoveLock") ?? "Ctrl+7";
-            string a = ini.Read("Key_AreaSelect") ?? "Ctrl+8";
-            string t = ini.Read("Key_Translate") ?? "Ctrl+9";
-            string au = ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
-            string tg = ini.Read("Key_ToggleEngine") ?? "Ctrl+-";
-            string copy = ini.Read("Key_CopyResult") ?? "Ctrl+6";
-            string log = ini.Read("Key_LogViewer") ?? "Ctrl+=";
+            DefaultHotkeys defaults = settingsService.GetDefaultHotkeys();
+            string m = settingsService.NormalizeHotkey(ini.Read("Key_MoveLock"), defaults.MoveLock);
+            string a = settingsService.NormalizeHotkey(ini.Read("Key_AreaSelect"), defaults.AreaSelect);
+            string t = settingsService.NormalizeHotkey(ini.Read("Key_Translate"), defaults.Translate);
+            string au = settingsService.NormalizeHotkey(ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
+            string tg = settingsService.NormalizeHotkey(ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
+            string copy = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
+            string log = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
 
             // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = useGeminiEngine ? "Gemini" : "Google";

@@ -273,10 +273,7 @@ namespace GameTranslator
         /// </summary>
         private bool IsDisabledSetting(string value)
         {
-            return value.Equals("false", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("0", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("no", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("n", StringComparison.OrdinalIgnoreCase);
+            return settingsService.IsDisabled(value);
         }
 
         /// <summary>

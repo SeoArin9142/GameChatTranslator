@@ -61,6 +61,7 @@ namespace GameTranslator
 
         private HttpClient httpClient = new HttpClient();
         private readonly OcrService ocrService = new OcrService();
+        private readonly SettingsService settingsService = new SettingsService();
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
         private LogViewerWindow logViewerWindow;
