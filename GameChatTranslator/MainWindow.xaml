@@ -18,9 +18,14 @@
 
             <!-- 번역 결과 출력 영역입니다. 캐릭터명은 금색, 번역문은 흰색 Run으로 추가됩니다. -->
             <Border Background="#22FFFFFF" CornerRadius="5" Padding="10" MinHeight="100">
-                <TextBlock x:Name="TxtResult" TextWrapping="Wrap" Foreground="White" FontSize="15" LineHeight="22">
-                    번역 결과가 여기에 표시됩니다.
-                </TextBlock>
+                <ScrollViewer x:Name="ResultScrollViewer"
+                              MaxHeight="260"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="TxtResult" TextWrapping="Wrap" Foreground="White" FontSize="15" LineHeight="22">
+                        번역 결과가 여기에 표시됩니다.
+                    </TextBlock>
+                </ScrollViewer>
             </Border>
         </StackPanel>
     </Border>
