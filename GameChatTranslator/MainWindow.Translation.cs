@@ -72,6 +72,23 @@ namespace GameTranslator
             public double Bottom;
             public string Text;
         }
+        private class PreprocessedOcrImage : IDisposable
+        {
+            public string Name;
+            public Bitmap Bitmap;
+
+            public void Dispose()
+            {
+                Bitmap?.Dispose();
+            }
+        }
+        private class OcrCandidate
+        {
+            public string PreprocessName;
+            public Dictionary<string, OcrResult> Results;
+            public List<MergedLine> Lines;
+            public int Score;
+        }
         private bool IsSameLanguage(string text, string tLang)
         {
             if (tLang == "ko" && Regex.IsMatch(text, @"[가-힣]{2,}")) return true;
@@ -119,99 +136,69 @@ namespace GameTranslator
                     g.DrawImage(rawBitmap, 0, 0, newWidth, newHeight);
                 }
 
-                BitmapData bmpData = resizedBitmap.LockBits(new Rectangle(0, 0, resizedBitmap.Width, resizedBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-                int bytes = Math.Abs(bmpData.Stride) * resizedBitmap.Height;
-                byte[] rgbValues = new byte[bytes];
-                Marshal.Copy(bmpData.Scan0, rgbValues, 0, bytes);
-
-                for (int i = 0; i < rgbValues.Length; i += 4)
-                {
-                    byte b = rgbValues[i], g = rgbValues[i + 1], r = rgbValues[i + 2];
-
-                    // 1. 하얀색 채팅 텍스트: 단순히 밝은 게 아니라 R/G/B 값의 차이가 거의 없는 '순백색' 필터링
-                    // -> 배경에 파란 하늘이나 붉은 이펙트가 비치면 R,G,B 차이가 벌어져서 가차 없이 버림
-                    bool isWhite = (r > threshold && g > threshold && b > threshold) &&
-                                   (Math.Abs(r - g) < 35 && Math.Abs(g - b) < 35 && Math.Abs(r - b) < 35);
-
-                    // 2. 노란색/금색 닉네임: R과 G는 높고, B는 낮아야 함 (G에 약간의 여유를 주어 번짐 방어)
-                    bool isYellow = (r > threshold && g > (threshold - 40) && b < 100);
-
-                    // 둘 중 하나라도 만족하면 완벽한 글자(흰색)로, 아니면 전부 배경(검은색)으로 밀어버립니다.
-                    byte finalColor = (isWhite || isYellow) ? (byte)255 : (byte)0;
-
-                    rgbValues[i] = finalColor;     // B
-                    rgbValues[i + 1] = finalColor; // G
-                    rgbValues[i + 2] = finalColor; // R
-                    rgbValues[i + 3] = 255;        // A
-                }
-
-                Marshal.Copy(rgbValues, 0, bmpData.Scan0, bytes);
-                resizedBitmap.UnlockBits(bmpData);
-
                 if (ShouldSaveDebugImages())
                 {
                     // 🌟 [프레임 방어 최적화] 메인 스레드 대기 방지를 위해 복사본을 만들어 백그라운드 저장
                     Bitmap rawClone = new Bitmap(rawBitmap);
-                    Bitmap resizeClone = new Bitmap(resizedBitmap);
                     _ = Task.Run(() =>
                     {
                         using (rawClone) SaveDebugImage(rawClone, "[Origin]");
-                        using (resizeClone) SaveDebugImage(resizeClone, "[Resize]");
                     });
                 }
 
-                int cropTop = 0;
-                int cropBottom = (int)(resizedBitmap.Height * 0.05);
-                int newH = resizedBitmap.Height - cropTop - cropBottom;
+                OcrCandidate bestCandidate = null;
+                List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(resizedBitmap, threshold);
 
-                using Bitmap croppedBitmap = new Bitmap(resizedBitmap.Width, newH);
-                using (Graphics g = Graphics.FromImage(croppedBitmap))
+                try
                 {
-                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                    g.DrawImage(resizedBitmap, new Rectangle(0, 0, resizedBitmap.Width, newH),
-                                new Rectangle(0, cropTop, resizedBitmap.Width, newH), GraphicsUnit.Pixel);
-                }
-
-                if (ShouldSaveDebugImages())
-                {
-                    // 🌟 [프레임 방어 최적화] 백그라운드 저장
-                    Bitmap cropClone = new Bitmap(croppedBitmap);
-                    _ = Task.Run(() => { using (cropClone) SaveDebugImage(cropClone, "[Cropped]"); });
-                }
-
-                using MemoryStream ms = new MemoryStream();
-                croppedBitmap.Save(ms, ImageFormat.Png);
-                ms.Position = 0;
-                var decoder = await BitmapDecoder.CreateAsync(ms.AsRandomAccessStream());
-                using SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
-
-                var ocrResults = new Dictionary<string, OcrResult>();
-                foreach (var kvp in ocrEngines)
-                {
-                    ocrResults.Add(kvp.Key, await kvp.Value.RecognizeAsync(softwareBitmap));
-                }
-
-                var masterResult = ocrResults.ContainsKey(gameLang) ? ocrResults[gameLang] : (ocrResults.ContainsKey("ko") ? ocrResults["ko"] : null);
-                if (masterResult == null) return;
-
-                var mergedLines = new List<MergedLine>();
-                foreach (var mLine in masterResult.Lines)
-                {
-                    if (mLine.Words.Count == 0) continue;
-                    double top = mLine.Words.Min(w => w.BoundingRect.Top);
-                    double bot = mLine.Words.Max(w => w.BoundingRect.Bottom);
-                    string text = mLine.Text.Trim();
-
-                    var existing = mergedLines.FirstOrDefault(c => Math.Abs(c.Top - top) < 15 || Math.Abs(c.Bottom - bot) < 15);
-                    if (existing != null)
+                    foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
                     {
-                        existing.Text += " " + text;
-                        existing.Top = Math.Min(existing.Top, top);
-                        existing.Bottom = Math.Max(existing.Bottom, bot);
+                        using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+
+                        if (ShouldSaveDebugImages())
+                        {
+                            Bitmap preprocessClone = new Bitmap(preprocessedImage.Bitmap);
+                            Bitmap cropClone = new Bitmap(croppedBitmap);
+                            string imageName = preprocessedImage.Name;
+                            _ = Task.Run(() =>
+                            {
+                                using (preprocessClone) SaveDebugImage(preprocessClone, $"[Pre_{imageName}]");
+                                using (cropClone) SaveDebugImage(cropClone, $"[Crop_{imageName}]");
+                            });
+                        }
+
+                        Dictionary<string, OcrResult> candidateResults = await RecognizeAllLanguagesAsync(croppedBitmap);
+                        OcrResult candidateMasterResult = SelectMasterOcrResult(candidateResults);
+                        if (candidateMasterResult == null) continue;
+
+                        List<MergedLine> candidateLines = MergeOcrLines(candidateMasterResult);
+                        int candidateScore = ScoreOcrCandidate(candidateLines);
+
+                        if (bestCandidate == null || candidateScore > bestCandidate.Score)
+                        {
+                            bestCandidate = new OcrCandidate
+                            {
+                                PreprocessName = preprocessedImage.Name,
+                                Results = candidateResults,
+                                Lines = candidateLines,
+                                Score = candidateScore
+                            };
+                        }
                     }
-                    else mergedLines.Add(new MergedLine { Top = top, Bottom = bot, Text = text });
                 }
+                finally
+                {
+                    foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                    {
+                        preprocessedImage.Dispose();
+                    }
+                }
+
+                if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0) return;
+
+                var ocrResults = bestCandidate.Results;
+                var mergedLines = bestCandidate.Lines;
+                AppendLog("DEBUG", $"OCR 전처리 선택: {bestCandidate.PreprocessName} (점수 {bestCandidate.Score})", "System");
 
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
                 if (currentRawTextCombined == lastRawTextCombined) return;
@@ -360,6 +347,329 @@ namespace GameTranslator
             }
             catch (Exception ex) { TxtResult.Text = "에러: " + ex.Message; }
             finally { isTranslating = false; }
+        }
+        private List<PreprocessedOcrImage> CreatePreprocessedOcrImages(Bitmap source, int threshold)
+        {
+            int width = source.Width;
+            int height = source.Height;
+            byte[] pixels = ReadBitmapPixels(source, out int stride);
+
+            byte[] colorMask = CreateColorMask(pixels, stride, width, height, threshold);
+            byte[] colorThickMask = DilateMask(colorMask, width, height);
+            byte[] adaptiveMask = CreateAdaptiveThresholdMask(pixels, stride, width, height, threshold);
+            byte[] adaptiveCleanMask = DilateMask(RemoveIsolatedWhitePixels(adaptiveMask, width, height), width, height);
+
+            return new List<PreprocessedOcrImage>
+            {
+                new PreprocessedOcrImage { Name = "Color", Bitmap = CreateBitmapFromMask(colorMask, width, height) },
+                new PreprocessedOcrImage { Name = "ColorThick", Bitmap = CreateBitmapFromMask(colorThickMask, width, height) },
+                new PreprocessedOcrImage { Name = "Adaptive", Bitmap = CreateBitmapFromMask(adaptiveCleanMask, width, height) }
+            };
+        }
+        private byte[] ReadBitmapPixels(Bitmap source, out int stride)
+        {
+            BitmapData data = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                stride = Math.Abs(data.Stride);
+                byte[] pixels = new byte[stride * source.Height];
+                Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+                return pixels;
+            }
+            finally
+            {
+                source.UnlockBits(data);
+            }
+        }
+        private byte[] CreateColorMask(byte[] pixels, int stride, int width, int height, int threshold)
+        {
+            byte[] mask = new byte[width * height];
+
+            for (int y = 0; y < height; y++)
+            {
+                int rowOffset = y * stride;
+                int maskOffset = y * width;
+
+                for (int x = 0; x < width; x++)
+                {
+                    int i = rowOffset + x * 4;
+                    byte b = pixels[i], g = pixels[i + 1], r = pixels[i + 2];
+
+                    int max = Math.Max(r, Math.Max(g, b));
+                    int min = Math.Min(r, Math.Min(g, b));
+                    int diff = max - min;
+
+                    // 흰 채팅 글자: 밝고 채도가 낮은 픽셀을 우선 보존합니다.
+                    bool isWhite = max > threshold &&
+                                   min > Math.Max(0, threshold - 18) &&
+                                   (diff < 42 || (max > 0 && diff * 100 / max < 24));
+
+                    // 노란 닉네임: RGB 조건에 채도 조건을 추가해 밝은 배경과 구분합니다.
+                    bool isYellow = r > threshold &&
+                                    g > Math.Max(0, threshold - 45) &&
+                                    b < 125 &&
+                                    r + g > b * 3 &&
+                                    Math.Abs(r - g) < 95;
+
+                    mask[maskOffset + x] = (isWhite || isYellow) ? (byte)255 : (byte)0;
+                }
+            }
+
+            return mask;
+        }
+        private byte[] CreateAdaptiveThresholdMask(byte[] pixels, int stride, int width, int height, int threshold)
+        {
+            byte[] gray = new byte[width * height];
+            long[] integral = new long[(width + 1) * (height + 1)];
+
+            for (int y = 0; y < height; y++)
+            {
+                long rowSum = 0;
+                int rowOffset = y * stride;
+
+                for (int x = 0; x < width; x++)
+                {
+                    int i = rowOffset + x * 4;
+                    int value = (pixels[i + 2] * 299 + pixels[i + 1] * 587 + pixels[i] * 114) / 1000;
+                    gray[y * width + x] = (byte)value;
+                    rowSum += value;
+                    integral[(y + 1) * (width + 1) + x + 1] = integral[y * (width + 1) + x + 1] + rowSum;
+                }
+            }
+
+            byte[] mask = new byte[width * height];
+            int radius = Math.Max(10, Math.Min(28, Math.Min(width, height) / 24));
+            int offset = 16;
+            int minAbsolute = Math.Max(70, threshold - 42);
+
+            for (int y = 0; y < height; y++)
+            {
+                int y1 = Math.Max(0, y - radius);
+                int y2 = Math.Min(height - 1, y + radius);
+
+                for (int x = 0; x < width; x++)
+                {
+                    int x1 = Math.Max(0, x - radius);
+                    int x2 = Math.Min(width - 1, x + radius);
+
+                    int area = (x2 - x1 + 1) * (y2 - y1 + 1);
+                    long sum = integral[(y2 + 1) * (width + 1) + x2 + 1]
+                               - integral[y1 * (width + 1) + x2 + 1]
+                               - integral[(y2 + 1) * (width + 1) + x1]
+                               + integral[y1 * (width + 1) + x1];
+
+                    int localAverage = (int)(sum / area);
+                    int current = gray[y * width + x];
+
+                    mask[y * width + x] = current >= minAbsolute && current > localAverage + offset ? (byte)255 : (byte)0;
+                }
+            }
+
+            return mask;
+        }
+        private byte[] DilateMask(byte[] mask, int width, int height)
+        {
+            byte[] result = new byte[mask.Length];
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    bool hasWhite = false;
+
+                    for (int dy = -1; dy <= 1 && !hasWhite; dy++)
+                    {
+                        int yy = y + dy;
+                        if (yy < 0 || yy >= height) continue;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int xx = x + dx;
+                            if (xx < 0 || xx >= width) continue;
+
+                            if (mask[yy * width + xx] == 255)
+                            {
+                                hasWhite = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    result[y * width + x] = hasWhite ? (byte)255 : (byte)0;
+                }
+            }
+
+            return result;
+        }
+        private byte[] RemoveIsolatedWhitePixels(byte[] mask, int width, int height)
+        {
+            byte[] result = new byte[mask.Length];
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    int index = y * width + x;
+                    if (mask[index] == 0) continue;
+
+                    int neighbors = 0;
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        int yy = y + dy;
+                        if (yy < 0 || yy >= height) continue;
+
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            if (dx == 0 && dy == 0) continue;
+
+                            int xx = x + dx;
+                            if (xx < 0 || xx >= width) continue;
+                            if (mask[yy * width + xx] == 255) neighbors++;
+                        }
+                    }
+
+                    result[index] = neighbors >= 2 ? (byte)255 : (byte)0;
+                }
+            }
+
+            return result;
+        }
+        private Bitmap CreateBitmapFromMask(byte[] mask, int width, int height)
+        {
+            Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            BitmapData data = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+            try
+            {
+                int stride = Math.Abs(data.Stride);
+                byte[] pixels = new byte[stride * height];
+
+                for (int y = 0; y < height; y++)
+                {
+                    int rowOffset = y * stride;
+                    int maskOffset = y * width;
+
+                    for (int x = 0; x < width; x++)
+                    {
+                        byte value = mask[maskOffset + x];
+                        int i = rowOffset + x * 4;
+                        pixels[i] = value;
+                        pixels[i + 1] = value;
+                        pixels[i + 2] = value;
+                        pixels[i + 3] = 255;
+                    }
+                }
+
+                Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
+            }
+            finally
+            {
+                bitmap.UnlockBits(data);
+            }
+
+            return bitmap;
+        }
+        private Bitmap CropForOcr(Bitmap source)
+        {
+            int cropTop = 0;
+            int cropBottom = (int)(source.Height * 0.05);
+            int newH = Math.Max(1, source.Height - cropTop - cropBottom);
+
+            Bitmap croppedBitmap = new Bitmap(source.Width, newH);
+            using (Graphics g = Graphics.FromImage(croppedBitmap))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                g.DrawImage(source, new Rectangle(0, 0, source.Width, newH),
+                            new Rectangle(0, cropTop, source.Width, newH), GraphicsUnit.Pixel);
+            }
+
+            return croppedBitmap;
+        }
+        private async Task<Dictionary<string, OcrResult>> RecognizeAllLanguagesAsync(Bitmap bitmap)
+        {
+            using MemoryStream ms = new MemoryStream();
+            bitmap.Save(ms, ImageFormat.Png);
+            ms.Position = 0;
+            var decoder = await BitmapDecoder.CreateAsync(ms.AsRandomAccessStream());
+            using SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
+
+            var ocrResults = new Dictionary<string, OcrResult>();
+            foreach (var kvp in ocrEngines)
+            {
+                ocrResults.Add(kvp.Key, await kvp.Value.RecognizeAsync(softwareBitmap));
+            }
+
+            return ocrResults;
+        }
+        private OcrResult SelectMasterOcrResult(Dictionary<string, OcrResult> ocrResults)
+        {
+            return ocrResults.ContainsKey(gameLang) ? ocrResults[gameLang] : (ocrResults.ContainsKey("ko") ? ocrResults["ko"] : null);
+        }
+        private List<MergedLine> MergeOcrLines(OcrResult masterResult)
+        {
+            var mergedLines = new List<MergedLine>();
+
+            foreach (var mLine in masterResult.Lines)
+            {
+                if (mLine.Words.Count == 0) continue;
+                double top = mLine.Words.Min(w => w.BoundingRect.Top);
+                double bot = mLine.Words.Max(w => w.BoundingRect.Bottom);
+                string text = mLine.Text.Trim();
+
+                var existing = mergedLines.FirstOrDefault(c => Math.Abs(c.Top - top) < 15 || Math.Abs(c.Bottom - bot) < 15);
+                if (existing != null)
+                {
+                    existing.Text += " " + text;
+                    existing.Top = Math.Min(existing.Top, top);
+                    existing.Bottom = Math.Max(existing.Bottom, bot);
+                }
+                else mergedLines.Add(new MergedLine { Top = top, Bottom = bot, Text = text });
+            }
+
+            return mergedLines;
+        }
+        private int ScoreOcrCandidate(List<MergedLine> lines)
+        {
+            int score = 0;
+
+            foreach (MergedLine line in lines)
+            {
+                string text = line.Text?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                int letterCount = Regex.Matches(text, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]").Count;
+                int noiseCount = Regex.Matches(text, @"[^a-zA-Z0-9가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\[\]\(\):;：!\.,\?\-]").Count;
+                score += letterCount * 2;
+                score -= noiseCount * 18;
+
+                Match strictMatch = Regex.Match(text, @"^(.*[\[\(]([^\]\)]+)[\]\)]\s*[:;：!])\s*(.*)$");
+                if (!strictMatch.Success)
+                {
+                    score -= 80;
+                    continue;
+                }
+
+                string characterNameOnly = strictMatch.Groups[2].Value.Trim();
+                string message = strictMatch.Groups[3].Value.Trim();
+
+                if (characterNames.Contains(characterNameOnly))
+                {
+                    score += 10000;
+                    score += Math.Min(message.Length, 80) * 40;
+                }
+                else
+                {
+                    score -= 200;
+                }
+
+                if (Regex.IsMatch(message, @"[\u4e00-\u9fa5]")) score += 400;
+                if (Regex.IsMatch(message, @"[a-zA-Z]{2,}")) score += 300;
+                if (Regex.IsMatch(message, @"[ぁ-んァ-ヶ]")) score += 200;
+                if (Regex.IsMatch(message, @"[а-яА-ЯёЁ]")) score += 100;
+            }
+
+            return score;
         }
         private async Task<string> CallGoogleAPI(string text, string tLang)
         {
