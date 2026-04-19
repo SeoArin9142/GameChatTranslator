@@ -142,7 +142,7 @@ namespace GameTranslator
                     // TextBlock 내부 Run을 직접 교체해 자동 모드 상태만 색상 강조합니다.
                     tb.Inlines.Clear();
                     tb.Inlines.Add(new Run(newGuide));
-                    tb.Inlines.Add(new Run($"  ● 자동: {GetAutoTranslateModeLabel()}")
+                    tb.Inlines.Add(new Run($"\n  ● 자동: {GetAutoTranslateModeLabel()}")
                     {
                         Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
                         FontWeight = FontWeights.Bold
