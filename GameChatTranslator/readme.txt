@@ -60,6 +60,7 @@
 - GeminiKey: Gemini API 키
 - GeminiModel: Gemini 호출 모델 (기본 gemini-2.5-flash)
 - SaveDebugImages: 디버그 캡처 이미지 저장 여부 (true/false, 기본 false)
+- Presets: 환경 설정 창의 프리셋 저장/불러오기 기능에서 자동 관리
 
 ------------------------------------------
 6. 주의 사항
