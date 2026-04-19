@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameTranslator v1.0.1-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.2-alpha/GameChatTranslator_v1.0.2.zip)
+[**👉 GameChatTranslator v1.0.3-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.3-alpha/GameChatTranslator_v1.0.3-alpha.zip)
 
 ---
 
@@ -76,6 +76,46 @@
 ## 👨‍💻 기여 및 문의
 
 본 프로젝트는 **Google Gemini Pro**와 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
+
+## 업데이트 내역 (v.1.0.3-alpha)
+
+   이번 버전에서는 알파 버전 안정화, 유지보수성 개선, DPI/멀티모니터 환경의 캡처 정확도 개선이 진행되었습니다.
+
+   🛠️ 알파 안정화
+
+      영역 선택 후 프로그램이 함께 종료되던 문제를 수정했습니다.
+
+      config.ini 기본값 처리 방식을 정리하여 GeminiKey, GeminiModel 등 설정값이 안정적으로 적용되도록 개선했습니다.
+
+      단축키 등록 실패 시 로그와 화면 경고가 표시되도록 보완했습니다.
+
+      Google 번역 모드에서 OCR 후처리 로직이 실제로 적용되지 않던 문제를 수정했습니다.
+
+   🧩 코드 구조 개선
+
+      기존 MainWindow.xaml.cs에 몰려 있던 기능을 역할별 partial class 파일로 분리했습니다.
+
+      Win32 API, 설정, 창 생명주기, 단축키, 캡처, 로그, OCR/번역 로직을 각각 별도 파일로 나누어 유지보수성을 높였습니다.
+
+   🖥️ DPI 및 멀티모니터 캡처 개선
+
+      WPF 표시 좌표와 BitBlt 물리 픽셀 좌표를 분리하여 고DPI 환경에서 캡처 영역이 어긋날 가능성을 줄였습니다.
+
+      영역 선택 창을 VirtualScreen 기준으로 표시하여 보조 모니터에서도 영역 선택이 가능하도록 개선했습니다.
+
+      캡처 좌표를 CapturePixelX/Y/W/H 값으로 저장하여 재실행 후에도 실제 픽셀 좌표를 유지합니다.
+
+   🔁 재번역 캐시 개선
+
+      Google/Gemini 엔진 전환 또는 캡처 영역 변경 시 이전 OCR 결과 캐시를 초기화하도록 수정했습니다.
+
+      같은 채팅이라도 엔진 전환 후 다시 번역할 수 있습니다.
+
+   📂 디버그 이미지 저장 옵션화
+
+      디버그 캡처 이미지 저장을 기본 비활성화했습니다.
+
+      설정창에 "디버그 캡처 이미지 저장" 옵션을 추가하여 문제 재현 시에만 Captures 폴더에 이미지를 저장할 수 있습니다.
 
 ## 업데이트 내역 (v.1.0.2-alpha)
 
