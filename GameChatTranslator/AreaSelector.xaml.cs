@@ -98,5 +98,14 @@ namespace GameTranslator
                 SelectionBorder.Visibility = Visibility.Collapsed;
             }
         }
+        // AreaSelector.xaml.cs 파일 내부에 추가
+        protected override void OnClosed(EventArgs e)
+        {
+            // 🌟 영역 선택창이 닫히면 앱 전체를 종료시킵니다.
+            // 만약 영역 선택 후 자동으로 닫히는 로직이 있다면 주의가 필요하지만, 
+            // "강제로 끄면" 같이 꺼지게 하려면 이 방법이 가장 확실합니다.
+            System.Windows.Application.Current.Shutdown();
+            base.OnClosed(e);
+        }
     }
 }

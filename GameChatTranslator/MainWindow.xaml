@@ -8,7 +8,7 @@
     <Border x:Name="MainBorder" Background="#CC1E1E1E" CornerRadius="10" BorderThickness="2" BorderBrush="#55FFFFFF">
         <StackPanel Margin="15">
             <TextBlock Text="[Ctrl+1] 이동/잠금  [Ctrl+2] 영역설정  [Ctrl+3] 번역" 
-                       TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                       TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10" Height="35"/>
 
             <Border Background="#22FFFFFF" CornerRadius="5" Padding="10" MinHeight="100">
                 <TextBlock x:Name="TxtResult" TextWrapping="Wrap" Foreground="White" FontSize="15" LineHeight="22">

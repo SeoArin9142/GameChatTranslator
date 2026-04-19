@@ -55,6 +55,7 @@ namespace GameTranslator
             TxtKeyArea.Text = _ini.Read("Key_AreaSelect") ?? "Ctrl+8";
             TxtKeyTrans.Text = _ini.Read("Key_Translate") ?? "Ctrl+9";
             TxtKeyAuto.Text = _ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
+            TxtKeyToggle.Text = _ini.Read("Key_ToggleEngine") ?? "Ctrl+-"; // 🌟 추가
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -79,7 +80,7 @@ namespace GameTranslator
 
             // [추가] 임계값(Threshold) 및 자동 번역 주기 불러오기
             // UI에 TxtThreshold, TxtInterval 텍스트박스가 있다고 가정합니다.
-            if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "80";
+            if (TxtThreshold != null) TxtThreshold.Text = _ini.Read("Threshold") ?? "120";
             if (TxtInterval != null) TxtInterval.Text = _ini.Read("AutoTranslateInterval") ?? "5";
         }
 
@@ -163,6 +164,7 @@ namespace GameTranslator
             _ini.Write("Key_AreaSelect", TxtKeyArea.Text);
             _ini.Write("Key_Translate", TxtKeyTrans.Text);
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
+            _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
 
             // [배율 설정 저장]
             if (ComboScale.SelectedItem is ComboBoxItem scaleItem)

@@ -17,20 +17,36 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
+using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
 {
     public partial class MainWindow : Window
     {
         // ==========================================
-        // 📌 1. Windows API 단축키 등록 (Global Hotkey)
-        // 백그라운드 캡처 및 제어를 위한 Win32 API 호출부
+        // 📌 1. Windows API 단축키 등록 (Global Hotkey) 및 화면 캡처(BitBlt)
         // ==========================================
         [DllImport("user32.dll")]
         public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vlc);
         [DllImport("user32.dll")]
         public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetWindowDC(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+        [DllImport("gdi32.dll")]
+        public static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, int dwRop);
+        // 🌟 [추가] 창을 강제로 최상단에 고정하는 API
+        [DllImport("user32.dll")]
+        public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOMOVE = 0x0002;
+        private const uint SWP_NOACTIVATE = 0x0010; // 창이 포커스를 뺏지 않도록 함 (게임 방해 금지)
 
         private const uint MOD_CONTROL = 0x0002;
         private const int WM_HOTKEY = 0x0312;
@@ -39,32 +55,63 @@ namespace GameTranslator
         private const int ID_HOTKEY_AREA_SELECT = 9002;
         private const int ID_HOTKEY_TRANSLATE = 9003;
         private const int ID_HOTKEY_AUTO = 9004;
+        private const int ID_HOTKEY_TOGGLE_ENGINE = 9005;
 
         // ==========================================
         // 📌 2. 전역 변수 (UI, 캡처, OCR, API 관련)
         // ==========================================
-        private AreaSelector areaSelector;           // 화면 캡처 영역 지정창
-        private Rectangle gameChatArea;              // 실제 캡처 영역 좌표/크기
-        private Window captureBorderWindow;          // 캡처 테두리(Red) 표시용 창
+        private AreaSelector areaSelector;
+        private Rectangle gameChatArea;
+        private Window captureBorderWindow;
 
-        private bool isTranslating = false;          // 번역 중복 방지 플래그
-        private bool isLocked = true;                // 창 잠금(마우스 통과) 플래그
+        private bool isTranslating = false;
+        private bool isLocked = true;
 
-        public IniFile ini;                          // 설정 파일(config.ini) I/O
-        private string gameLang = "ko";              // 원본 게임 언어
-        private string targetLang = "ko";            // 최종 번역 목표 언어
+        public IniFile ini;
+        private string gameLang = "ko";
+        private string targetLang = "ko";
 
-        // 단축키 매핑용 변수
-        private uint modMove, modArea, modTrans, modAuto;
-        private uint keyMove, keyArea, keyTrans, keyAuto;
+        private uint modMove, modArea, modTrans, modAuto, modToggle;
+        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle;
 
-        private DispatcherTimer autoTranslateTimer;  // 자동 번역 루프 타이머
+        private bool useGeminiEngine = false; // 🌟 [추가] 현재 제미나이를 사용 중인지 상태 저장
+
+        private DispatcherTimer autoTranslateTimer;
+        // 🌟 [추가] 최상단 강제 유지 타이머
+        private DispatcherTimer topmostTimer;
+
         private bool isAutoTranslating = false;
-        private string lastRawTextCombined = "";     // 중복 캡처 방지용 이전 텍스트
+        private string lastRawTextCombined = "";
 
         private HttpClient httpClient = new HttpClient();
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
+
+        private HashSet<string> characterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private string sessionLogFileName;
+
+        private void LoadCharacters()
+        {
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "characters.txt");
+                if (File.Exists(path))
+                {
+                    var lines = File.ReadAllLines(path);
+                    foreach (var line in lines)
+                    {
+                        string name = line.Trim();
+                        if (!string.IsNullOrEmpty(name) && !name.StartsWith("#"))
+                        {
+                            characterNames.Add(name);
+                        }
+                    }
+                    AppendLog($"캐릭터 {characterNames.Count}명 로드 완료.");
+                }
+            }
+            catch (Exception ex) { AppendLog($"파일 로드 중 오류: {ex.Message}"); }
+        }
 
         // ==========================================
         // 📌 3. 초기화 (생성자)
@@ -73,10 +120,21 @@ namespace GameTranslator
         {
             InitializeComponent();
 
+            // 🌟 [추가] 켜진 시간을 기준으로 로그 파일명 고정 (예: log_20260419_1635.txt)
+            // 초(ss)까지 넣고 싶으시면 yyyyMMdd_HHmmss 로 변경하시면 됩니다.
+            sessionLogFileName = $"log_{DateTime.Now:yyyyMMdd_HHmm}.txt";
+
+            LoadCharacters();
+
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
-            string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
             ini = new IniFile(iniPath);
+
+            if (ini.Read("GeminiKey") == null)
+            {
+                ini.Write("GeminiKey", "");
+            }
 
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";
@@ -92,44 +150,99 @@ namespace GameTranslator
                 var engine = OcrEngine.TryCreateFromLanguage(new Windows.Globalization.Language(tag));
                 if (engine != null) ocrEngines.Add(tag, engine);
             }
+
+            // 🌟 [추가] 2초마다 창을 최상단으로 강제 끌어올리는 타이머 시작
+            topmostTimer = new DispatcherTimer();
+            topmostTimer.Interval = TimeSpan.FromSeconds(2);
+            topmostTimer.Tick += (s, e) => ForceTopmost();
+            topmostTimer.Start();
         }
 
         // ==========================================
-        // 📌 4. 창 로드 이벤트 (렌더링 직후 실행)
+        // 📌 창 강제 최상단 유지 로직
+        // ==========================================
+        private void ForceTopmost()
+        {
+            // 1. 메인 번역창 최상단 강제 적용
+            if (_windowHandle != IntPtr.Zero)
+            {
+                SetWindowPos(_windowHandle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+
+            // 2. 캡처 영역 표시(빨간 테두리) 창 최상단 강제 적용
+            if (captureBorderWindow != null && captureBorderWindow.IsVisible)
+            {
+                IntPtr borderHandle = new WindowInteropHelper(captureBorderWindow).Handle;
+                if (borderHandle != IntPtr.Zero)
+                {
+                    SetWindowPos(borderHandle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                }
+            }
+        }
+
+        // ==========================================
+        // 📌 4. 창 로드 이벤트
         // ==========================================
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // 🌟 버그 픽스: 투명 윈도우(AllowsTransparency)의 자식 창 팝업 위치가 어긋나는 버그 방지
-            // 메인 UI가 완벽하게 그려지도록 0.5초 대기 후 설정창을 호출합니다.
             await Task.Delay(500);
 
-            // [초기 설정창 호출]
             OptionSelector selector = new OptionSelector(this, ini);
             selector.Owner = this;
             selector.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
             bool? dialogResult = selector.ShowDialog();
 
-            // [UX 예외 처리] 설정창을 저장하지 않고 X 버튼으로 닫았을 경우 프로그램 완전 종료
             if (dialogResult != true)
             {
-                System.Windows.Application.Current.Shutdown();
+                Application.Current.Shutdown();
                 return;
             }
 
-            // 설정창에서 저장된 최신 언어값을 갱신
+            this.Topmost = false;
+            this.Topmost = true;
+
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";
 
-            // 단축키 후킹 시작
             _windowHandle = new WindowInteropHelper(this).Handle;
             HwndSource.FromHwnd(_windowHandle).AddHook(HwndHook);
             RegisterAllHotkeys();
 
+            string geminiKey = ini.Read("GeminiKey") ?? "";
+
+            useGeminiEngine = !string.IsNullOrEmpty(geminiKey);
+
+            string currentEngine = string.IsNullOrEmpty(geminiKey) ? "Google 무료 번역" : "Gemini AI 번역";
+
+            AppendLog($"프로그램이 시작되었습니다. (적용 엔진: {currentEngine})");
+
+            // 🌟 [추가] 프로그램 시작 시 현재 세팅값(API 키 제외)을 로그에 기록합니다.
+            string log_gLang = ini.Read("GameLanguage") ?? "ko";
+            string log_tLang = ini.Read("TargetLanguage") ?? "ko";
+            string log_interval = ini.Read("AutoTranslateInterval") ?? "5";
+            string log_threshold = ini.Read("Threshold") ?? "120";
+            string log_scale = ini.Read("ScaleFactor") ?? "3";
+            string log_opacity = ini.Read("Opacity") ?? "100";
+            string log_model = ini.Read("GeminiModel") ?? "3-flash";
+
+            AppendLog($"[현재 세팅]");
+            AppendLog($"\t[게임 언어\t\t\t: {log_gLang}\t]");
+            AppendLog($"\t[번역 언어\t\t\t: {log_tLang}\t]");
+            AppendLog($"\t[Threshold\t\t\t: {log_threshold}\t]");
+            AppendLog($"\t[Scale\t\t\t: {log_scale}배\t]");
+            AppendLog($"\t[번역 주기\t\t\t: {log_interval}초\t]");
+            AppendLog($"\t[투명도\t\t\t: {log_opacity}\t]");
+            AppendLog($"\t[모델\t\t\t: {log_model}\t]");
+
+            if (!string.IsNullOrEmpty(geminiKey))
+            {
+                await ListAvailableGeminiModels(geminiKey);
+            }
+
             WindowUtils.SetClickThrough(this);
             UpdateYellowHotkeyGuideText();
 
-            // [캡처 영역 및 창 크기 복구 로직]
             string cx = ini.Read("CaptureX");
             string cy = ini.Read("CaptureY");
             string cw = ini.Read("CaptureW");
@@ -140,17 +253,14 @@ namespace GameTranslator
                 int.TryParse(cw, out int w) && int.TryParse(ch, out int h) && w > 0 && h > 0)
             {
                 gameChatArea = new Rectangle(x, y, w, h);
-
-                // WPF 창 자동 조절 강제 고정 꼼수 (너비 고정, 높이 가변)
-                this.SizeToContent = SizeToContent.Height;
                 this.SizeToContent = SizeToContent.Manual;
                 this.Width = w;
                 this.MinWidth = w;
                 this.SizeToContent = SizeToContent.Height;
-
                 this.Left = x - 5;
                 this.Top = y + h + 50;
-                TxtResult.Text = "📍 마지막으로 저장된 영역과 창 크기를 불러왔습니다.";
+
+                TxtResult.Text = $"📍 마지막으로 저장된 영역을 불러왔습니다.\n🤖 현재 번역 엔진: {currentEngine}";
             }
             else
             {
@@ -166,9 +276,9 @@ namespace GameTranslator
                 if (!ocrEngines.ContainsKey("zh-Hans-CN")) missingLangs += "중국어 ";
 
                 if (missingLangs != "")
-                    TxtResult.Text = $"⚠️ [경고] {missingLangs}언어팩 누락!\n'LangInstall.bat' 실행 권장.\n📍 기본 영역 자동 세팅 완료.";
+                    TxtResult.Text = $"⚠️ [경고] {missingLangs}언어팩 누락!\n'LangInstall.bat' 실행 권장.\n🤖 현재 번역 엔진: {currentEngine}";
                 else
-                    TxtResult.Text = "📍 좌측 하단 기본 영역으로 세팅 완료.\n채팅창 인식 영역이 다르면 단축키로 잡아주세요.";
+                    TxtResult.Text = $"📍 기본 캡처 영역으로 세팅 완료.\n🤖 현재 번역 엔진: {currentEngine}";
             }
 
             UpdateCaptureBorder(!isLocked);
@@ -183,16 +293,19 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AUTO);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
 
             ParseHotkey(ini.Read("Key_MoveLock") ?? "Ctrl+7", out modMove, out keyMove);
             ParseHotkey(ini.Read("Key_AreaSelect") ?? "Ctrl+8", out modArea, out keyArea);
             ParseHotkey(ini.Read("Key_Translate") ?? "Ctrl+9", out modTrans, out keyTrans);
             ParseHotkey(ini.Read("Key_AutoTranslate") ?? "Ctrl+0", out modAuto, out keyAuto);
+            ParseHotkey(ini.Read("Key_ToggleEngine") ?? "Ctrl+-", out modToggle, out keyToggle);
 
             RegisterHotKey(_windowHandle, ID_HOTKEY_MOVE_LOCK, modMove, keyMove);
             RegisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT, modArea, keyArea);
             RegisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE, modTrans, keyTrans);
             RegisterHotKey(_windowHandle, ID_HOTKEY_AUTO, modAuto, keyAuto);
+            RegisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE, modToggle, keyToggle);
         }
 
         private void UpdateYellowHotkeyGuideText()
@@ -201,12 +314,16 @@ namespace GameTranslator
             string a = ini.Read("Key_AreaSelect") ?? "Ctrl+8";
             string t = ini.Read("Key_Translate") ?? "Ctrl+9";
             string au = ini.Read("Key_AutoTranslate") ?? "Ctrl+0";
-            string newGuide = $"[{m}] 이동/잠금  [{a}] 영역설정  [{t}] 번역  [{au}] 자동번역";
+            string tg = ini.Read("Key_ToggleEngine") ?? "Ctrl+-";
+
+            // 🌟 안내 문구에 엔진 전환 추가
+            string engineStr = useGeminiEngine ? "Gemini" : "Google";
+            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  \n[{au}] 자동  [{tg}] {engineStr} 전환";
 
             foreach (var tb in FindVisualChildren<TextBlock>(this))
             {
-                if (tb.Text.Contains("이동") && tb.Text.Contains("영역설정") || tb.Text.Contains("자동번역"))
-                {
+                if (tb.Text.Contains("이동") && tb.Text.Contains("영역설정") || tb.Text.Contains("자동"))
+                { 
                     tb.Inlines.Clear();
                     tb.Inlines.Add(new Run(newGuide));
                     if (isAutoTranslating)
@@ -257,10 +374,12 @@ namespace GameTranslator
                     case ID_HOTKEY_AREA_SELECT: startAreaSelection(); handled = true; break;
                     case ID_HOTKEY_TRANSLATE: runTranslation(); handled = true; break;
                     case ID_HOTKEY_AUTO: ToggleAutoTranslate(); handled = true; break;
+                    case ID_HOTKEY_TOGGLE_ENGINE: ToggleEngine(); handled = true; break;
                 }
             }
             return IntPtr.Zero;
         }
+
 
         protected override void OnClosed(EventArgs e)
         {
@@ -269,6 +388,10 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AUTO);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
+
+            AppendLog("프로그램이 정상적으로 종료되었습니다.");
+            Application.Current.Shutdown();
             base.OnClosed(e);
         }
 
@@ -280,10 +403,12 @@ namespace GameTranslator
         private void ToggleMoveLock()
         {
             isLocked = !isLocked;
+            this.Topmost = true;
+
             if (isLocked)
             {
                 WindowUtils.SetClickThrough(this);
-                MainBorder.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#55FFFFFF"));
+                MainBorder.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#55FFFFFF"));
                 UpdateCaptureBorder(false);
             }
             else
@@ -319,15 +444,12 @@ namespace GameTranslator
         public void SetCaptureArea(Rectangle area)
         {
             gameChatArea = area;
-
             this.Top = area.Y + area.Height + 50;
             this.Left = area.X - 5;
-
             this.SizeToContent = SizeToContent.Manual;
             this.Width = area.Width;
             this.MinWidth = area.Width;
             this.SizeToContent = SizeToContent.Height;
-
             this.Visibility = Visibility.Visible;
             this.Topmost = true;
             UpdateYellowHotkeyGuideText();
@@ -367,18 +489,81 @@ namespace GameTranslator
             captureBorderWindow.Top = gameChatArea.Y;
             captureBorderWindow.Width = gameChatArea.Width;
             captureBorderWindow.Height = gameChatArea.Height;
-
             captureBorderWindow.Visibility = show ? Visibility.Visible : Visibility.Hidden;
+        }
+        private void ToggleEngine()
+        {
+            string geminiKey = ini.Read("GeminiKey") ?? "";
+            if (string.IsNullOrWhiteSpace(geminiKey) || geminiKey.Length < 30)
+            {
+                TxtResult.Text = "⚠️ Gemini API 키가 올바르게 등록되지 않아 전환할 수 없습니다.";
+                return;
+            }
+
+            // 엔진 상태 반전 (true <-> false)
+            useGeminiEngine = !useGeminiEngine;
+            string currentEngine = useGeminiEngine ? "Gemini AI" : "Google 무료";
+
+            AppendLog($"번역 엔진이 '{currentEngine}'(으)로 실시간 변경되었습니다.");
+
+            // 화면에 즉시 알림 표시 (파란색 글씨)
+            TxtResult.Inlines.Clear();
+            TxtResult.Inlines.Add(new Run($"🔄 번역 엔진 변경됨: [ {currentEngine} ]") { Foreground = Brushes.Cyan, FontWeight = FontWeights.Bold });
+
+            UpdateYellowHotkeyGuideText(); // 노란색 안내문구도 업데이트
         }
 
         // ==========================================
-        // 📌 7. 유틸리티 (언어 검증, 로깅)
+        // 📌 7. 유틸리티 (이미지 저장, 파일 정리, 로깅)
         // ==========================================
         private class MergedLine
         {
             public double Top;
             public double Bottom;
             public string Text;
+        }
+
+        private void SaveDebugImage(Bitmap bitmap, string suffix)
+        {
+            try
+            {
+                string captureDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Captures");
+                if (!Directory.Exists(captureDirPath)) Directory.CreateDirectory(captureDirPath);
+
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+                string fileName = $"{timestamp}_{suffix}.png";
+                string filePath = Path.Combine(captureDirPath, fileName);
+
+                bitmap.Save(filePath, ImageFormat.Png);
+                CleanupCaptureFolder(captureDirPath);
+            }
+            catch { }
+        }
+
+        private void CleanupCaptureFolder(string folderPath)
+        {
+            try
+            {
+                int interval = int.TryParse(ini.Read("AutoTranslateInterval"), out int i) ? i : 5;
+                if (interval < 1) interval = 1;
+
+                // 30분(1800초) 분량의 세트 수를 계산 (한 번에 3장 저장)
+                int maxFileCount = (1800 / interval) * 3;
+                if (maxFileCount < 20) maxFileCount = 20;
+
+                var directory = new DirectoryInfo(folderPath);
+                var files = directory.GetFiles("*.png").OrderByDescending(f => f.CreationTime).ToList();
+
+                if (files.Count > maxFileCount)
+                {
+                    var filesToDelete = files.Skip(maxFileCount);
+                    foreach (var file in filesToDelete)
+                    {
+                        file.Delete();
+                    }
+                }
+            }
+            catch { }
         }
 
         private bool IsSameLanguage(string text, string tLang)
@@ -398,20 +583,38 @@ namespace GameTranslator
             return lang;
         }
 
-        private void AppendLog(string original, string translated)
+        // 🌟 버전 1: 시스템 시작/종료 로그용 (인자 1개)
+        private void AppendLog(string systemMessage)
         {
             try
             {
-                string logDirPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                if (!System.IO.Directory.Exists(logDirPath)) System.IO.Directory.CreateDirectory(logDirPath);
+                string logDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (!Directory.Exists(logDirPath)) Directory.CreateDirectory(logDirPath);
 
-                string fileName = $"log_{DateTime.Now:yyyyMMdd}.txt";
-                string filePath = System.IO.Path.Combine(logDirPath, fileName);
-                string logEntry = $"[{DateTime.Now:HH:mm:ss}] {original.Trim()} -> {translated.Trim()}{Environment.NewLine}";
+                // 🌟 수정: 매번 새로 만들지 않고, 켜질 때 고정된 파일명 사용
+                string filePath = Path.Combine(logDirPath, sessionLogFileName);
 
-                System.IO.File.AppendAllText(filePath, logEntry, System.Text.Encoding.UTF8);
+                string logEntry = $"[{DateTime.Now:HH:mm:ss}] [System] {systemMessage}{Environment.NewLine}";
+                File.AppendAllText(filePath, logEntry, System.Text.Encoding.UTF8);
             }
-            catch { /* 로그 기록 실패 시 무시 */ }
+            catch { }
+        }
+
+        // 🌟 버전 2: 번역 결과 로그용 (인자 3개)
+        private void AppendLog(string original, string translated, string engineName)
+        {
+            try
+            {
+                string logDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (!Directory.Exists(logDirPath)) Directory.CreateDirectory(logDirPath);
+
+                // 🌟 수정: 매번 새로 만들지 않고, 켜질 때 고정된 파일명 사용
+                string filePath = Path.Combine(logDirPath, sessionLogFileName);
+
+                string logEntry = $"[{DateTime.Now:HH:mm:ss}] [{engineName}] {original.Trim()} -> {translated.Trim()}{Environment.NewLine}";
+                File.AppendAllText(filePath, logEntry, System.Text.Encoding.UTF8);
+            }
+            catch { }
         }
 
         // ==========================================
@@ -422,22 +625,23 @@ namespace GameTranslator
             if (isTranslating || gameChatArea == Rectangle.Empty) return;
             isTranslating = true;
 
-            int threshold = int.TryParse(ini.Read("Threshold"), out int t) ? t : 80;
-
+            int threshold = int.TryParse(ini.Read("Threshold"), out int t) ? t : 120;
             int scaleFactor = int.TryParse(ini.Read("ScaleFactor"), out int s) ? s : 3;
             if (scaleFactor < 1) scaleFactor = 1;
             if (scaleFactor > 4) scaleFactor = 4;
 
             try
             {
-                // [화면 캡처]
                 using Bitmap rawBitmap = new Bitmap(gameChatArea.Width, gameChatArea.Height);
                 using (Graphics g = Graphics.FromImage(rawBitmap))
                 {
-                    g.CopyFromScreen(gameChatArea.Location, System.Drawing.Point.Empty, gameChatArea.Size);
+                    IntPtr hdcSrc = GetWindowDC(IntPtr.Zero);
+                    IntPtr hdcDest = g.GetHdc();
+                    BitBlt(hdcDest, 0, 0, gameChatArea.Width, gameChatArea.Height, hdcSrc, gameChatArea.X, gameChatArea.Y, 0x00CC0020);
+                    g.ReleaseHdc(hdcDest);
+                    ReleaseDC(IntPtr.Zero, hdcSrc);
                 }
 
-                // [해상도 배율 뻥튀기]
                 int newWidth = rawBitmap.Width * scaleFactor;
                 int newHeight = rawBitmap.Height * scaleFactor;
                 using Bitmap resizedBitmap = new Bitmap(newWidth, newHeight);
@@ -447,31 +651,66 @@ namespace GameTranslator
                     g.DrawImage(rawBitmap, 0, 0, newWidth, newHeight);
                 }
 
-                // [색상 이진화 필터링] 배경 노이즈 제거 및 아군(노랑), 적군(빨강) 닉네임 보존 로직
-                BitmapData bmpData = resizedBitmap.LockBits(new Rectangle(0, 0, resizedBitmap.Width, resizedBitmap.Height), ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                BitmapData bmpData = resizedBitmap.LockBits(new Rectangle(0, 0, resizedBitmap.Width, resizedBitmap.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
                 int bytes = Math.Abs(bmpData.Stride) * resizedBitmap.Height;
                 byte[] rgbValues = new byte[bytes];
                 Marshal.Copy(bmpData.Scan0, rgbValues, 0, bytes);
 
                 for (int i = 0; i < rgbValues.Length; i += 4)
                 {
-                    byte b = rgbValues[i]; byte g = rgbValues[i + 1]; byte r = rgbValues[i + 2];
+                    byte b = rgbValues[i], g = rgbValues[i + 1], r = rgbValues[i + 2];
 
-                    bool isWhite = (r > threshold && g > threshold && b > threshold);
-                    bool isNicknameColor = (r > threshold && b < 120);
+                    // 1. 하얀색 채팅 텍스트: 단순히 밝은 게 아니라 R/G/B 값의 차이가 거의 없는 '순백색' 필터링
+                    // -> 배경에 파란 하늘이나 붉은 이펙트가 비치면 R,G,B 차이가 벌어져서 가차 없이 버림
+                    bool isWhite = (r > threshold && g > threshold && b > threshold) &&
+                                   (Math.Abs(r - g) < 35 && Math.Abs(g - b) < 35 && Math.Abs(r - b) < 35);
 
-                    byte color = (isWhite || isNicknameColor) ? (byte)255 : (byte)0;
-                    rgbValues[i] = color; rgbValues[i + 1] = color; rgbValues[i + 2] = color; rgbValues[i + 3] = 255;
+                    // 2. 노란색/금색 닉네임: R과 G는 높고, B는 낮아야 함 (G에 약간의 여유를 주어 번짐 방어)
+                    bool isYellow = (r > threshold && g > (threshold - 40) && b < 100);
+
+                    // 둘 중 하나라도 만족하면 완벽한 글자(흰색)로, 아니면 전부 배경(검은색)으로 밀어버립니다.
+                    byte finalColor = (isWhite || isYellow) ? (byte)255 : (byte)0;
+
+                    rgbValues[i] = finalColor;     // B
+                    rgbValues[i + 1] = finalColor; // G
+                    rgbValues[i + 2] = finalColor; // R
+                    rgbValues[i + 3] = 255;        // A
                 }
+
                 Marshal.Copy(rgbValues, 0, bmpData.Scan0, bytes);
                 resizedBitmap.UnlockBits(bmpData);
 
-                // [SoftwareBitmap 변환 및 다중 OCR 병렬 스캔]
+                // 🌟 [프레임 방어 최적화] 메인 스레드 대기 방지를 위해 복사본을 만들어 백그라운드 저장
+                Bitmap rawClone = new Bitmap(rawBitmap);
+                Bitmap resizeClone = new Bitmap(resizedBitmap);
+                _ = Task.Run(() =>
+                {
+                    using (rawClone) SaveDebugImage(rawClone, "[Origin]");
+                    using (resizeClone) SaveDebugImage(resizeClone, "[Resize]");
+                });
+
+                int cropTop = 0;
+                int cropBottom = (int)(resizedBitmap.Height * 0.05);
+                int newH = resizedBitmap.Height - cropTop - cropBottom;
+
+                using Bitmap croppedBitmap = new Bitmap(resizedBitmap.Width, newH);
+                using (Graphics g = Graphics.FromImage(croppedBitmap))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                    g.DrawImage(resizedBitmap, new Rectangle(0, 0, resizedBitmap.Width, newH),
+                                new Rectangle(0, cropTop, resizedBitmap.Width, newH), GraphicsUnit.Pixel);
+                }
+
+                // 🌟 [프레임 방어 최적화] 백그라운드 저장
+                Bitmap cropClone = new Bitmap(croppedBitmap);
+                _ = Task.Run(() => { using (cropClone) SaveDebugImage(cropClone, "[Cropped]"); });
+
                 using MemoryStream ms = new MemoryStream();
-                resizedBitmap.Save(ms, ImageFormat.Png);
+                croppedBitmap.Save(ms, ImageFormat.Png);
                 ms.Position = 0;
-                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ms.AsRandomAccessStream());
-                SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
+                var decoder = await BitmapDecoder.CreateAsync(ms.AsRandomAccessStream());
+                using SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
 
                 var ocrResults = new Dictionary<string, OcrResult>();
                 foreach (var kvp in ocrEngines)
@@ -482,7 +721,6 @@ namespace GameTranslator
                 var masterResult = ocrResults.ContainsKey(gameLang) ? ocrResults[gameLang] : (ocrResults.ContainsKey("ko") ? ocrResults["ko"] : null);
                 if (masterResult == null) return;
 
-                // [줄 병합 (Line Merge)] Y축 +-15 픽셀 오차 허용
                 var mergedLines = new List<MergedLine>();
                 foreach (var mLine in masterResult.Lines)
                 {
@@ -498,30 +736,45 @@ namespace GameTranslator
                         existing.Top = Math.Min(existing.Top, top);
                         existing.Bottom = Math.Max(existing.Bottom, bot);
                     }
-                    else
-                    {
-                        mergedLines.Add(new MergedLine { Top = top, Bottom = bot, Text = text });
-                    }
+                    else mergedLines.Add(new MergedLine { Top = top, Bottom = bot, Text = text });
                 }
 
-                // [중복 스킵] 완전히 동일한 화면이면 API 호출 방지
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
                 if (currentRawTextCombined == lastRawTextCombined) return;
                 lastRawTextCombined = currentRawTextCombined;
 
                 TxtResult.Inlines.Clear();
 
-                // [텍스트 치환 및 번역 엔진 호출]
                 foreach (var chatLine in mergedLines)
                 {
                     string krRawText = chatLine.Text.Trim();
+                    string usedEngine = "None";
 
-                    // 정규식을 통한 닉네임과 채팅 내용 완벽 분리
-                    var strictMatch = Regex.Match(krRawText, @"^([^:]*\[[^\]]+\]\s*[:;：!])(.*)$");
-                    if (!strictMatch.Success) continue;
+                    AppendLog("DEBUG", $"OCR 원본: {krRawText}", "System");
 
-                    string characterNameGold = strictMatch.Groups[1].Value + " ";
-                    string bestMessage = strictMatch.Groups[2].Value.Trim();
+                    if (!Regex.IsMatch(krRawText, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]"))
+                    {
+                        AppendLog("DEBUG", "글자 없음으로 스킵", "System");
+                        continue;
+                    }
+
+                    var strictMatch = Regex.Match(krRawText, @"^(.*[\[\(]([^\]\)]+)[\]\)]\s*[:;：!])\s*(.*)$");
+                    if (!strictMatch.Success)
+                    {
+                        AppendLog("DEBUG", "정규식(strictMatch) 불일치로 스킵됨", "System");
+                        continue;
+                    }
+
+                    string characterNameOnly = strictMatch.Groups[2].Value.Trim();
+
+                    if (!characterNames.Contains(characterNameOnly))
+                    {
+                        AppendLog("DEBUG", $"리스트에 없는 이름이라 스킵됨: {characterNameOnly}", "System");
+                        continue;
+                    }
+
+                    string characterNameGold = $"[{characterNameOnly}]: ";
+                    string bestMessage = strictMatch.Groups[3].Value.Trim();
                     int bestScore = -1;
 
                     double mTop = chatLine.Top - 5;
@@ -538,19 +791,23 @@ namespace GameTranslator
                             string fullText = string.Join(" ", linesInBand.Select(l => l.Text.Trim()));
                             string msgOnly = fullText;
 
-                            int subCIdx = fullText.IndexOfAny(new char[] { ':', ';', '：' });
-                            if (subCIdx != -1) msgOnly = fullText.Substring(subCIdx + 1).Trim();
+                            int subCIdx = fullText.LastIndexOfAny(new char[] { ':', ';', '：', '!' });
+                            if (subCIdx != -1)
+                            {
+                                msgOnly = fullText.Substring(subCIdx + 1).Trim();
+                            }
                             else
                             {
-                                int brIdx = fullText.LastIndexOf(']');
+                                int brIdx = fullText.LastIndexOfAny(new char[] { ']', ')' });
                                 if (brIdx != -1) msgOnly = fullText.Substring(brIdx + 1).Trim();
+                                else msgOnly = "";
                             }
 
                             int score = msgOnly.Length;
-                            if (kvp.Key == "ru" && Regex.Matches(msgOnly, @"[а-яА-ЯёЁ]").Count >= 1) score += 20000;
-                            else if (kvp.Key == "ja" && Regex.Matches(msgOnly, @"[ぁ-んァ-ヶ]").Count >= 1) score += 10000;
-                            else if (kvp.Key == "zh-Hans-CN" && Regex.Matches(msgOnly, @"[\u4e00-\u9fa5]").Count >= 1) score += 5000;
-                            else if (kvp.Key == "en-US" && Regex.Matches(msgOnly, @"[a-zA-Z]").Count >= 3) score += 1000;
+                            if (kvp.Key == "zh-Hans-CN" && Regex.IsMatch(msgOnly, @"[\u4e00-\u9fa5]")) score += 40000;
+                            else if (kvp.Key == "en-US" && Regex.IsMatch(msgOnly, @"[a-zA-Z]{2,}")) score += 30000;
+                            else if (kvp.Key == "ja" && Regex.IsMatch(msgOnly, @"[ぁ-んァ-ヶ]")) score += 20000;
+                            else if (kvp.Key == "ru" && Regex.IsMatch(msgOnly, @"[а-яА-ЯёЁ]")) score += 10000;
 
                             if (score > bestScore)
                             {
@@ -560,58 +817,190 @@ namespace GameTranslator
                         }
                     }
 
-                    if (string.IsNullOrEmpty(bestMessage)) bestMessage = strictMatch.Groups[2].Value.Trim();
-                    string translated = bestMessage;
+                    string finalContent = bestMessage.Trim();
 
-                    // 번역 API 호출 전 동일 언어 검증
-                    if (!string.IsNullOrEmpty(bestMessage) && !Regex.IsMatch(bestMessage, @"^[0-9\W]+$"))
+                    if (usedEngine.Contains("Google"))
                     {
-                        if (IsSameLanguage(bestMessage, targetLang))
+                        if (Regex.IsMatch(finalContent, @"[\u4e00-\u9fa5]") && Regex.IsMatch(finalContent, @"[ぁ-んァ-ヶ]"))
+                            finalContent = Regex.Replace(finalContent, @"[ぁ-んァ-ヶ]", "");
+
+                        finalContent = Regex.Replace(finalContent, @"^[0-9\W_]+", "");
+                        finalContent = Regex.Replace(finalContent, @"[イ尓カ幺哓ロト昌号i]", "").Trim();
+                    }
+
+                    if (string.IsNullOrWhiteSpace(finalContent)) continue;
+
+                    // 🌟 [1글자 채팅 예외처리 포함]
+                    if (finalContent.Length == 1)
+                    {
+                        if (Regex.IsMatch(finalContent, @"^[イ尓カ幺哓ロト昌号iI0-9\W_]$")) continue;
+                        if (!Regex.IsMatch(finalContent, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$")) continue;
+                    }
+                    else if (finalContent.Length < 2) continue;
+
+                    string modelName = ini.Read("GeminiModel") ?? "3-flash";
+                    usedEngine = "Google";
+                    string translated = finalContent;
+
+                    if (!Regex.IsMatch(finalContent, @"^[0-9\W]+$"))
+                    {
+                        if (IsSameLanguage(finalContent, targetLang))
                         {
-                            translated = bestMessage;
+                            translated = finalContent;
+                            usedEngine = "Skip";
                         }
                         else
                         {
-                            int retryCount = 3;
-                            string targetApiLang = GetGoogleTransLangCode(targetLang);
+                            string geminiKey = ini.Read("GeminiKey") ?? "";
 
-                            while (retryCount > 0)
+                            // 🌟 이제 제미나이 키가 있어도, 상태(useGeminiEngine)가 켜져 있을 때만 사용!
+                            if (useGeminiEngine && !string.IsNullOrEmpty(geminiKey))
                             {
-                                try
-                                {
-                                    string url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={targetApiLang}&dt=t&q={Uri.EscapeDataString(bestMessage)}";
-                                    var res = await httpClient.GetStringAsync(url);
+                                translated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
+                                usedEngine = $"Gemini {modelName}";
 
-                                    using var doc = System.Text.Json.JsonDocument.Parse(res);
-                                    translated = "";
-
-                                    foreach (var item in doc.RootElement[0].EnumerateArray()) { translated += item[0].GetString(); }
-                                    break;
-                                }
-                                catch
+                                if (string.IsNullOrEmpty(translated))
                                 {
-                                    retryCount--;
-                                    await Task.Delay(300);
+                                    translated = await CallGoogleAPI(finalContent, targetLang);
+                                    translated = "[Gemini 에러 - 구글 전환됨] " + translated;
+                                    usedEngine = "Google (Fallback)";
                                 }
+                            }
+                            else
+                            {
+                                // 스위치를 꺼두면 무조건 구글님 호출
+                                translated = await CallGoogleAPI(finalContent, targetLang);
+                                usedEngine = "Google";
                             }
                         }
                     }
 
-                    AppendLog(characterNameGold + bestMessage, translated);
+                    AppendLog(characterNameGold + finalContent, translated, usedEngine);
 
                     TxtResult.Inlines.Add(new Run(characterNameGold) { Foreground = Brushes.Gold, FontWeight = FontWeights.Bold });
                     TxtResult.Inlines.Add(new Run(translated) { Foreground = Brushes.White });
                     TxtResult.Inlines.Add(new LineBreak());
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) { TxtResult.Text = "에러: " + ex.Message; }
+            finally { isTranslating = false; }
+        }
+
+        // ==========================================
+        // 📌 9. API 통신 로직
+        // ==========================================
+        private async Task<string> CallGoogleAPI(string text, string tLang)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+
+            string cleaned = Regex.Replace(text, @"\d{1,2}:\d{2}", "");
+            cleaned = Regex.Replace(cleaned, @"[\[\]\(\)\{\}\<\>]", " ");
+            cleaned = Regex.Replace(cleaned, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]", "");
+            cleaned = Regex.Replace(cleaned, @"([\-\=\.\/_])\1+", "$1");
+            cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+
+            if (cleaned.Length < 2 || !Regex.IsMatch(cleaned, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]"))
             {
-                TxtResult.Text = "에러: " + ex.Message;
+                // 여기에도 1글자 예외 처리 허용
+                if (cleaned.Length == 1 && Regex.IsMatch(cleaned, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$")) { /* 통과 */ }
+                else return "";
             }
-            finally
+
+            int retryCount = 3;
+            string targetApiLang = GetGoogleTransLangCode(tLang);
+            string result = "";
+
+            httpClient.DefaultRequestHeaders.Clear();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+            while (retryCount > 0)
             {
-                isTranslating = false;
+                try
+                {
+                    string url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={targetApiLang}&dt=t&q={Uri.EscapeDataString(cleaned)}";
+                    var res = await httpClient.GetStringAsync(url);
+                    using var doc = System.Text.Json.JsonDocument.Parse(res);
+
+                    foreach (var item in doc.RootElement[0].EnumerateArray())
+                    {
+                        result += item[0].GetString();
+                    }
+                    break;
+                }
+                catch
+                {
+                    retryCount--;
+                    await Task.Delay(300);
+                }
             }
+            return result;
+        }
+
+        private async Task ListAvailableGeminiModels(string apiKey)
+        {
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
+            try
+            {
+                var response = await httpClient.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    string resJson = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(resJson);
+
+                    var models = doc.RootElement.GetProperty("models")
+                                    .EnumerateArray()
+                                    .Select(m => m.GetProperty("name").GetString().Replace("models/", ""))
+                                    .ToList();
+
+                    string modelList = string.Join(", ", models);
+                    AppendLog($"사용 가능한 제미나이 모델 목록: {modelList}");
+                }
+                else AppendLog($"제미나이 모델 목록 가져오기 실패 (HTTP {(int)response.StatusCode})");
+            }
+            catch (Exception ex) { AppendLog($"모델 목록 확인 중 오류 발생: {ex.Message}"); }
+        }
+
+        private async Task<string> CallGeminiAPI(string text, string tLang, string apiKey)
+        {
+            string modelName = ini.Read("GeminiModel") ?? "gemini-2.5-flash";
+            string url = $"https://generativelanguage.googleapis.com/v1/models/{modelName}:generateContent?key={apiKey}";
+            string targetLanguage = tLang == "ko" ? "Korean" : (tLang == "en-US" ? "English" : tLang);
+
+            string prompt = "You are an expert game translator. " +
+                            "The input text is from OCR and has many typos (e.g., '伽' instead of '你', 'カ' instead of '为'). " +
+                            "Your job: 1. Guess the original intended sentence by ignoring OCR noise. " +
+                            "2. Translate it naturally into " + targetLanguage + ". " +
+                            "3. If the text is just a name or nonsense, return an empty string. " +
+                            "Output ONLY the translation: \n\n" + text;
+
+            var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+            string jsonPayload = System.Text.Json.JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+            int retryCount = 2;
+            while (retryCount > 0)
+            {
+                try
+                {
+                    var response = await httpClient.PostAsync(url, content);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        string errorDetail = await response.Content.ReadAsStringAsync();
+                        AppendLog($"[Gemini API 오류] 모델({modelName}) 호출 실패: {errorDetail}");
+                        throw new Exception("Gemini 호출 실패");
+                    }
+
+                    string resJson = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(resJson);
+                    return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString().Trim();
+                }
+                catch
+                {
+                    retryCount--;
+                    await Task.Delay(300);
+                }
+            }
+            return "";
         }
     }
 }
