@@ -100,7 +100,7 @@ namespace GameTranslator
 
             // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = useGeminiEngine ? "Gemini" : "Google";
-            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{copy}] 복사\n[{au}] 자동  [{tg}] {engineStr} 전환";
+            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{copy}] 복사\n[{au}] 자동모드  [{tg}] {engineStr} 전환";
 
             foreach (var tb in FindVisualChildren<TextBlock>(this))
             {
@@ -108,10 +108,11 @@ namespace GameTranslator
                 {
                     tb.Inlines.Clear();
                     tb.Inlines.Add(new Run(newGuide));
-                    if (isAutoTranslating)
+                    tb.Inlines.Add(new Run($"  ● 자동: {GetAutoTranslateModeLabel()}")
                     {
-                        tb.Inlines.Add(new Run("  ● 자동 번역 중...") { Foreground = Brushes.Lime, FontWeight = FontWeights.Bold });
-                    }
+                        Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
+                        FontWeight = FontWeights.Bold
+                    });
                     break;
                 }
             }

@@ -26,18 +26,87 @@ namespace GameTranslator
 {
     public partial class MainWindow
     {
+        private enum AutoTranslateMode
+        {
+            Off,
+            Fast,
+            Auto,
+            Accurate
+        }
+
+        private enum OcrProcessingMode
+        {
+            Fast,
+            Auto,
+            Accurate
+        }
+
+        private enum OcrPreprocessKind
+        {
+            Color,
+            ColorThick,
+            Adaptive
+        }
+
         private void ToggleAutoTranslate()
         {
             if (gameChatArea == Rectangle.Empty) return;
-            isAutoTranslating = !isAutoTranslating;
+            autoTranslateMode = GetNextAutoTranslateMode(autoTranslateMode);
+            isAutoTranslating = autoTranslateMode != AutoTranslateMode.Off;
+            ResetTranslationCache($"자동 번역 모드 변경: {GetAutoTranslateModeLabel()}");
             UpdateYellowHotkeyGuideText();
+            AppendLog($"자동 번역 모드: {GetAutoTranslateModeLabel()}");
 
             if (isAutoTranslating)
             {
-                runTranslation();
+                runTranslation(GetCurrentOcrProcessingMode());
                 autoTranslateTimer.Start();
             }
-            else autoTranslateTimer.Stop();
+            else
+            {
+                autoTranslateTimer.Stop();
+            }
+        }
+        private AutoTranslateMode GetNextAutoTranslateMode(AutoTranslateMode currentMode)
+        {
+            return currentMode switch
+            {
+                AutoTranslateMode.Off => AutoTranslateMode.Fast,
+                AutoTranslateMode.Fast => AutoTranslateMode.Auto,
+                AutoTranslateMode.Auto => AutoTranslateMode.Accurate,
+                AutoTranslateMode.Accurate => AutoTranslateMode.Off,
+                _ => AutoTranslateMode.Fast
+            };
+        }
+        private OcrProcessingMode GetCurrentOcrProcessingMode()
+        {
+            return autoTranslateMode switch
+            {
+                AutoTranslateMode.Fast => OcrProcessingMode.Fast,
+                AutoTranslateMode.Auto => OcrProcessingMode.Auto,
+                AutoTranslateMode.Accurate => OcrProcessingMode.Accurate,
+                _ => OcrProcessingMode.Accurate
+            };
+        }
+        private string GetAutoTranslateModeLabel()
+        {
+            return autoTranslateMode switch
+            {
+                AutoTranslateMode.Fast => "빠름",
+                AutoTranslateMode.Auto => "자동",
+                AutoTranslateMode.Accurate => "정확",
+                _ => "OFF"
+            };
+        }
+        private string GetOcrProcessingModeLabel(OcrProcessingMode processingMode)
+        {
+            return processingMode switch
+            {
+                OcrProcessingMode.Fast => "빠름",
+                OcrProcessingMode.Auto => "자동",
+                OcrProcessingMode.Accurate => "정확",
+                _ => "정확"
+            };
         }
         private void ToggleEngine()
         {
@@ -104,7 +173,11 @@ namespace GameTranslator
             if (lang == "en-US") return "en";
             return lang;
         }
-        private async void runTranslation()
+        private void runTranslation()
+        {
+            runTranslation(OcrProcessingMode.Accurate);
+        }
+        private async void runTranslation(OcrProcessingMode processingMode)
         {
             if (isTranslating || gameChatArea == Rectangle.Empty) return;
             isTranslating = true;
@@ -146,59 +219,13 @@ namespace GameTranslator
                     });
                 }
 
-                OcrCandidate bestCandidate = null;
-                List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(resizedBitmap, threshold);
-
-                try
-                {
-                    foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
-                    {
-                        using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
-
-                        if (ShouldSaveDebugImages())
-                        {
-                            Bitmap preprocessClone = new Bitmap(preprocessedImage.Bitmap);
-                            Bitmap cropClone = new Bitmap(croppedBitmap);
-                            string imageName = preprocessedImage.Name;
-                            _ = Task.Run(() =>
-                            {
-                                using (preprocessClone) SaveDebugImage(preprocessClone, $"[Pre_{imageName}]");
-                                using (cropClone) SaveDebugImage(cropClone, $"[Crop_{imageName}]");
-                            });
-                        }
-
-                        Dictionary<string, OcrResult> candidateResults = await RecognizeAllLanguagesAsync(croppedBitmap);
-                        OcrResult candidateMasterResult = SelectMasterOcrResult(candidateResults);
-                        if (candidateMasterResult == null) continue;
-
-                        List<MergedLine> candidateLines = MergeOcrLines(candidateMasterResult);
-                        int candidateScore = ScoreOcrCandidate(candidateLines);
-
-                        if (bestCandidate == null || candidateScore > bestCandidate.Score)
-                        {
-                            bestCandidate = new OcrCandidate
-                            {
-                                PreprocessName = preprocessedImage.Name,
-                                Results = candidateResults,
-                                Lines = candidateLines,
-                                Score = candidateScore
-                            };
-                        }
-                    }
-                }
-                finally
-                {
-                    foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
-                    {
-                        preprocessedImage.Dispose();
-                    }
-                }
+                OcrCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode);
 
                 if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0) return;
 
                 var ocrResults = bestCandidate.Results;
                 var mergedLines = bestCandidate.Lines;
-                AppendLog("DEBUG", $"OCR 전처리 선택: {bestCandidate.PreprocessName} (점수 {bestCandidate.Score})", "System");
+                AppendLog("DEBUG", $"OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName} (점수 {bestCandidate.Score})", "System");
 
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
                 if (currentRawTextCombined == lastRawTextCombined) return;
@@ -348,23 +375,162 @@ namespace GameTranslator
             catch (Exception ex) { TxtResult.Text = "에러: " + ex.Message; }
             finally { isTranslating = false; }
         }
-        private List<PreprocessedOcrImage> CreatePreprocessedOcrImages(Bitmap source, int threshold)
+        private async Task<OcrCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode)
+        {
+            if (processingMode == OcrProcessingMode.Fast)
+            {
+                OcrCandidate fastCandidate = await EvaluateOcrCandidatesAsync(
+                    resizedBitmap,
+                    threshold,
+                    recognizeAllLanguages: false,
+                    OcrPreprocessKind.Color);
+
+                return IsFastPathSuccess(fastCandidate) ? fastCandidate : null;
+            }
+
+            if (processingMode == OcrProcessingMode.Auto)
+            {
+                OcrCandidate fastCandidate = await EvaluateOcrCandidatesAsync(
+                    resizedBitmap,
+                    threshold,
+                    recognizeAllLanguages: false,
+                    OcrPreprocessKind.Color);
+
+                if (IsFastPathSuccess(fastCandidate))
+                {
+                    return fastCandidate;
+                }
+
+                OcrCandidate fallbackCandidate = await EvaluateOcrCandidatesAsync(
+                    resizedBitmap,
+                    threshold,
+                    recognizeAllLanguages: true,
+                    OcrPreprocessKind.ColorThick,
+                    OcrPreprocessKind.Adaptive);
+
+                return fallbackCandidate;
+            }
+
+            return await EvaluateOcrCandidatesAsync(
+                resizedBitmap,
+                threshold,
+                recognizeAllLanguages: true,
+                OcrPreprocessKind.Color,
+                OcrPreprocessKind.ColorThick,
+                OcrPreprocessKind.Adaptive);
+        }
+        private async Task<OcrCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
+        {
+            OcrCandidate bestCandidate = null;
+            List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds);
+
+            try
+            {
+                foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                {
+                    using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+
+                    if (ShouldSaveDebugImages())
+                    {
+                        Bitmap preprocessClone = new Bitmap(preprocessedImage.Bitmap);
+                        Bitmap cropClone = new Bitmap(croppedBitmap);
+                        string imageName = preprocessedImage.Name;
+                        _ = Task.Run(() =>
+                        {
+                            using (preprocessClone) SaveDebugImage(preprocessClone, $"[Pre_{imageName}]");
+                            using (cropClone) SaveDebugImage(cropClone, $"[Crop_{imageName}]");
+                        });
+                    }
+
+                    Dictionary<string, OcrResult> candidateResults = await RecognizeLanguagesAsync(croppedBitmap, recognizeAllLanguages);
+                    OcrResult candidateMasterResult = SelectMasterOcrResult(candidateResults);
+                    if (candidateMasterResult == null) continue;
+
+                    List<MergedLine> candidateLines = MergeOcrLines(candidateMasterResult);
+                    int candidateScore = ScoreOcrCandidate(candidateLines);
+
+                    if (bestCandidate == null || candidateScore > bestCandidate.Score)
+                    {
+                        bestCandidate = new OcrCandidate
+                        {
+                            PreprocessName = preprocessedImage.Name,
+                            Results = candidateResults,
+                            Lines = candidateLines,
+                            Score = candidateScore
+                        };
+                    }
+                }
+            }
+            finally
+            {
+                foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                {
+                    preprocessedImage.Dispose();
+                }
+            }
+
+            return bestCandidate;
+        }
+        private bool IsFastPathSuccess(OcrCandidate candidate)
+        {
+            if (candidate == null || candidate.Score <= 0 || candidate.Lines == null) return false;
+
+            return candidate.Lines.Any(line =>
+                TryExtractKnownCharacterChatLine(line.Text, out _, out string message) &&
+                !string.IsNullOrWhiteSpace(message));
+        }
+        private bool TryExtractKnownCharacterChatLine(string rawText, out string characterNameOnly, out string message)
+        {
+            characterNameOnly = "";
+            message = "";
+
+            string text = rawText?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            Match strictMatch = Regex.Match(text, @"^(.*[\[\(]([^\]\)]+)[\]\)]\s*[:;：!])\s*(.*)$");
+            if (!strictMatch.Success) return false;
+
+            characterNameOnly = strictMatch.Groups[2].Value.Trim();
+            message = strictMatch.Groups[3].Value.Trim();
+
+            return characterNames.Contains(characterNameOnly) && !string.IsNullOrWhiteSpace(message);
+        }
+        private List<PreprocessedOcrImage> CreatePreprocessedOcrImages(Bitmap source, int threshold, params OcrPreprocessKind[] preprocessKinds)
         {
             int width = source.Width;
             int height = source.Height;
             byte[] pixels = ReadBitmapPixels(source, out int stride);
 
-            byte[] colorMask = CreateColorMask(pixels, stride, width, height, threshold);
-            byte[] colorThickMask = DilateMask(colorMask, width, height);
-            byte[] adaptiveMask = CreateAdaptiveThresholdMask(pixels, stride, width, height, threshold);
-            byte[] adaptiveCleanMask = DilateMask(RemoveIsolatedWhitePixels(adaptiveMask, width, height), width, height);
-
-            return new List<PreprocessedOcrImage>
+            if (preprocessKinds == null || preprocessKinds.Length == 0)
             {
-                new PreprocessedOcrImage { Name = "Color", Bitmap = CreateBitmapFromMask(colorMask, width, height) },
-                new PreprocessedOcrImage { Name = "ColorThick", Bitmap = CreateBitmapFromMask(colorThickMask, width, height) },
-                new PreprocessedOcrImage { Name = "Adaptive", Bitmap = CreateBitmapFromMask(adaptiveCleanMask, width, height) }
-            };
+                preprocessKinds = new[] { OcrPreprocessKind.Color, OcrPreprocessKind.ColorThick, OcrPreprocessKind.Adaptive };
+            }
+
+            byte[] colorMask = null;
+            var images = new List<PreprocessedOcrImage>();
+
+            foreach (OcrPreprocessKind kind in preprocessKinds.Distinct())
+            {
+                if (kind == OcrPreprocessKind.Color)
+                {
+                    colorMask ??= CreateColorMask(pixels, stride, width, height, threshold);
+                    images.Add(new PreprocessedOcrImage { Name = "Color", Bitmap = CreateBitmapFromMask(colorMask, width, height) });
+                }
+                else if (kind == OcrPreprocessKind.ColorThick)
+                {
+                    colorMask ??= CreateColorMask(pixels, stride, width, height, threshold);
+                    byte[] colorThickMask = DilateMask(colorMask, width, height);
+                    images.Add(new PreprocessedOcrImage { Name = "ColorThick", Bitmap = CreateBitmapFromMask(colorThickMask, width, height) });
+                }
+                else if (kind == OcrPreprocessKind.Adaptive)
+                {
+                    byte[] adaptiveMask = CreateAdaptiveThresholdMask(pixels, stride, width, height, threshold);
+                    byte[] adaptiveCleanMask = DilateMask(RemoveIsolatedWhitePixels(adaptiveMask, width, height), width, height);
+                    images.Add(new PreprocessedOcrImage { Name = "Adaptive", Bitmap = CreateBitmapFromMask(adaptiveCleanMask, width, height) });
+                }
+            }
+
+            return images;
         }
         private byte[] ReadBitmapPixels(Bitmap source, out int stride)
         {
@@ -586,7 +752,7 @@ namespace GameTranslator
 
             return croppedBitmap;
         }
-        private async Task<Dictionary<string, OcrResult>> RecognizeAllLanguagesAsync(Bitmap bitmap)
+        private async Task<Dictionary<string, OcrResult>> RecognizeLanguagesAsync(Bitmap bitmap, bool recognizeAllLanguages)
         {
             using MemoryStream ms = new MemoryStream();
             bitmap.Save(ms, ImageFormat.Png);
@@ -595,12 +761,34 @@ namespace GameTranslator
             using SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
 
             var ocrResults = new Dictionary<string, OcrResult>();
-            foreach (var kvp in ocrEngines)
+            foreach (var kvp in SelectOcrEngines(recognizeAllLanguages))
             {
                 ocrResults.Add(kvp.Key, await kvp.Value.RecognizeAsync(softwareBitmap));
             }
 
             return ocrResults;
+        }
+        private List<KeyValuePair<string, OcrEngine>> SelectOcrEngines(bool recognizeAllLanguages)
+        {
+            if (recognizeAllLanguages) return ocrEngines.ToList();
+
+            if (ocrEngines.TryGetValue(gameLang, out OcrEngine gameEngine))
+            {
+                return new List<KeyValuePair<string, OcrEngine>>
+                {
+                    new KeyValuePair<string, OcrEngine>(gameLang, gameEngine)
+                };
+            }
+
+            if (ocrEngines.TryGetValue("ko", out OcrEngine koreanEngine))
+            {
+                return new List<KeyValuePair<string, OcrEngine>>
+                {
+                    new KeyValuePair<string, OcrEngine>("ko", koreanEngine)
+                };
+            }
+
+            return ocrEngines.Take(1).ToList();
         }
         private OcrResult SelectMasterOcrResult(Dictionary<string, OcrResult> ocrResults)
         {
