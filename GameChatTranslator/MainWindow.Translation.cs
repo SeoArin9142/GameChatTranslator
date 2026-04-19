@@ -218,6 +218,7 @@ namespace GameTranslator
                 lastRawTextCombined = currentRawTextCombined;
 
                 TxtResult.Inlines.Clear();
+                ResetClipboardTranslationText();
 
                 foreach (var chatLine in mergedLines)
                 {
@@ -354,6 +355,7 @@ namespace GameTranslator
                     TxtResult.Inlines.Add(new Run(characterNameGold) { Foreground = Brushes.Gold, FontWeight = FontWeights.Bold });
                     TxtResult.Inlines.Add(new Run(translated) { Foreground = Brushes.White });
                     TxtResult.Inlines.Add(new LineBreak());
+                    AddClipboardTranslationLine(characterNameGold, translated);
                 }
             }
             catch (Exception ex) { TxtResult.Text = "에러: " + ex.Message; }
