@@ -23,6 +23,35 @@
             </StackPanel>
         </GroupBox>
 
+        <!-- 설정 백업: config.ini 전체를 파일로 내보내거나 다른 PC/백업 파일에서 다시 가져옵니다. -->
+        <GroupBox Header="설정 백업 / 복원" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <TextBlock Text="현재 저장된 config.ini를 내보내거나, 백업한 config.ini를 가져옵니다. 프리셋도 함께 포함됩니다."
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8"
+                           Foreground="#CCC"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnExportSettings"
+                            Content="설정 내보내기"
+                            Padding="8,2"
+                            Margin="0,0,8,0"
+                            Background="#444"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Click="BtnExportSettings_Click"/>
+                    <Button x:Name="BtnImportSettings"
+                            Content="설정 가져오기"
+                            Padding="8,2"
+                            Background="#444"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Click="BtnImportSettings_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <!-- 업데이트 영역: 시작 시 자동 확인 여부와 수동 릴리즈 확인 버튼을 제공합니다. -->
         <GroupBox Header="업데이트 확인 (Update)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">
