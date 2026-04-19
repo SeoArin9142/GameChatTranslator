@@ -101,7 +101,7 @@ namespace GameTranslator
 
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";
-            int intervalSeconds = int.TryParse(ini.Read("AutoTranslateInterval"), out int i) ? i : 5;
+            int intervalSeconds = SettingsValueNormalizer.NormalizeAutoTranslateInterval(ini.Read("AutoTranslateInterval"));
 
             autoTranslateTimer = new DispatcherTimer();
             autoTranslateTimer.Interval = TimeSpan.FromSeconds(intervalSeconds);

@@ -6,6 +6,87 @@ namespace GameChatTranslator.Tests
     public class SettingsValueNormalizerTests
     {
         [Theory]
+        [InlineData(null, 120)]
+        [InlineData("", 120)]
+        [InlineData("not-number", 120)]
+        [InlineData("0", 1)]
+        [InlineData("-10", 1)]
+        [InlineData("1", 1)]
+        [InlineData("120", 120)]
+        [InlineData("255", 255)]
+        [InlineData("256", 255)]
+        [InlineData("999", 255)]
+        public void NormalizeThreshold_ClampsStringValues(string rawValue, int expected)
+        {
+            Assert.Equal(expected, SettingsValueNormalizer.NormalizeThreshold(rawValue));
+        }
+
+        [Theory]
+        [InlineData(0, 1)]
+        [InlineData(1, 1)]
+        [InlineData(120, 120)]
+        [InlineData(255, 255)]
+        [InlineData(300, 255)]
+        public void NormalizeThreshold_ClampsIntegerValues(int rawValue, int expected)
+        {
+            Assert.Equal(expected, SettingsValueNormalizer.NormalizeThreshold(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, 5)]
+        [InlineData("", 5)]
+        [InlineData("not-number", 5)]
+        [InlineData("0", 1)]
+        [InlineData("-10", 1)]
+        [InlineData("1", 1)]
+        [InlineData("5", 5)]
+        [InlineData("60", 60)]
+        [InlineData("61", 60)]
+        [InlineData("999", 60)]
+        public void NormalizeAutoTranslateInterval_ClampsStringValues(string rawValue, int expected)
+        {
+            Assert.Equal(expected, SettingsValueNormalizer.NormalizeAutoTranslateInterval(rawValue));
+        }
+
+        [Theory]
+        [InlineData(0, 1)]
+        [InlineData(1, 1)]
+        [InlineData(5, 5)]
+        [InlineData(60, 60)]
+        [InlineData(90, 60)]
+        public void NormalizeAutoTranslateInterval_ClampsIntegerValues(int rawValue, int expected)
+        {
+            Assert.Equal(expected, SettingsValueNormalizer.NormalizeAutoTranslateInterval(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, 3)]
+        [InlineData("", 3)]
+        [InlineData("not-number", 3)]
+        [InlineData("0", 1)]
+        [InlineData("-10", 1)]
+        [InlineData("1", 1)]
+        [InlineData("3", 3)]
+        [InlineData("4", 4)]
+        [InlineData("5", 4)]
+        [InlineData("999", 4)]
+        public void NormalizeScaleFactor_ClampsStringValues(string rawValue, int expected)
+        {
+            Assert.Equal(expected, SettingsValueNormalizer.NormalizeScaleFactor(rawValue));
+        }
+
+        [Theory]
+        [InlineData(0, 1)]
+        [InlineData(1, 1)]
+        [InlineData(3, 3)]
+        [InlineData(4, 4)]
+        [InlineData(10, 4)]
+        public void NormalizeScaleFactor_ClampsIntegerValues(int rawValue, int expected)
+        {
+            Assert.Equal(expected, SettingsValueNormalizer.NormalizeScaleFactor(rawValue));
+        }
+
+        [Theory]
         [InlineData(null, 5)]
         [InlineData("", 5)]
         [InlineData("not-number", 5)]

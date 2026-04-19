@@ -100,9 +100,9 @@ namespace GameTranslator
             // 🌟 [추가] 프로그램 시작 시 현재 세팅값(API 키 제외)을 로그에 기록합니다.
             string log_gLang = ini.Read("GameLanguage") ?? "ko";
             string log_tLang = ini.Read("TargetLanguage") ?? "ko";
-            string log_interval = ini.Read("AutoTranslateInterval") ?? "5";
-            string log_threshold = ini.Read("Threshold") ?? "120";
-            string log_scale = ini.Read("ScaleFactor") ?? "3";
+            string log_interval = SettingsValueNormalizer.NormalizeAutoTranslateInterval(ini.Read("AutoTranslateInterval")).ToString();
+            string log_threshold = SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold")).ToString();
+            string log_scale = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor")).ToString();
             string log_opacity = ini.Read("Opacity") ?? "100";
             string log_model = ReadGeminiModel();
 
