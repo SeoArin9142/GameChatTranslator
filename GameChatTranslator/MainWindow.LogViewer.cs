@@ -54,6 +54,7 @@ namespace GameTranslator
             viewer.Topmost = true;
             viewer.Activate();
             viewer.Topmost = false;
+            PushOcrPerformanceSummaryToLogViewer();
         }
 
         /// <summary>

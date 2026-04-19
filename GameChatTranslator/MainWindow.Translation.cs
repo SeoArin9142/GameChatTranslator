@@ -279,6 +279,8 @@ namespace GameTranslator
                 $"Translated={stats.TranslatedLineCount}, " +
                 $"Skipped={stats.SkippedLineCount}, " +
                 $"Outcome={stats.Outcome}");
+
+            TrackOcrPerformanceSummary(stats, totalElapsedMs);
         }
 
         /// <summary>

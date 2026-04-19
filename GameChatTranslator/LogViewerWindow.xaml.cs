@@ -137,6 +137,23 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// MainWindow가 집계한 OCR 모드별 평균 처리 시간을 로그창 상단에 표시합니다.
+        /// <paramref name="summary"/>는 빠름/자동/정확 모드별 평균 Total/OCR/Translate 시간을 담은 문자열입니다.
+        /// </summary>
+        public void UpdateOcrPerformanceSummary(string summary)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateOcrPerformanceSummary(summary)));
+                return;
+            }
+
+            TxtOcrPerformanceSummary.Text = string.IsNullOrWhiteSpace(summary)
+                ? "OCR 평균: 아직 번역 성능 기록 없음"
+                : summary;
+        }
+
+        /// <summary>
         /// [새로고침] 버튼 클릭 시 로그 파일 전체를 다시 읽습니다.
         /// </summary>
         private void BtnReload_Click(object sender, RoutedEventArgs e)
