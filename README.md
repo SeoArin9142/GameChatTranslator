@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.9-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.9-alpha/GameChatTranslator_v1.0.9-alpha.zip)
+[**👉 GameChatTranslator v1.0.10-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.10-alpha/GameChatTranslator_v1.0.10-alpha.zip)
 
 ---
 
@@ -114,6 +114,35 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.10-alpha)
+
+   이번 버전에서는 프로젝트 내부 파일 구조를 정리해 이후 유지보수와 기능 추가가 쉬워지도록 개선했습니다.
+
+   🗂️ 프로젝트 폴더 구조 정리
+
+      MainWindow 관련 XAML/code-behind/partial 파일을 Views/MainWindow 하위로 모았습니다.
+
+      OptionSelector 관련 XAML/code-behind/partial 파일을 Views/OptionSelector 하위로 모았습니다.
+
+      AreaSelector, LogViewer, OcrDiagnostic, UpdatePrompt 창 파일을 Views 하위 역할별 폴더로 정리했습니다.
+
+   🧱 공통/모델/배포 파일 분리
+
+      IniFile, WindowUtils 같은 공통 유틸리티는 Core 폴더로 이동했습니다.
+
+      OCR 진단 모델은 Models 폴더로 이동했습니다.
+
+      characters.txt, LangInstall.bat, readme.txt는 Distribution 폴더로 이동했습니다.
+
+   📦 배포 산출물 경로 유지
+
+      내부 파일 위치는 바뀌었지만 publish 결과물에는 기존처럼 characters.txt, LangInstall.bat, readme.txt가 실행 파일과 같은 위치에 포함됩니다.
+
+      이번 변경은 폴더 구조 정리 전용이며 런타임 기능 동작은 변경하지 않았습니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.9-alpha)
 
    이번 버전에서는 Visual Studio 게시 산출물 구성, 누락된 편의 기능 반영, 번역 결과 누적 표시 기본값을 정리했습니다.
@@ -137,9 +166,6 @@
       번역창이 과도하게 커지지 않도록 누적 표시 최대값을 10줄로 제한했습니다.
 
       번역 결과 영역은 최대 높이를 넘으면 내부 스크롤로 표시됩니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.8-alpha)
 
