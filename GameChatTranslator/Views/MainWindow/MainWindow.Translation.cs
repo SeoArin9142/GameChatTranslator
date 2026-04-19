@@ -240,22 +240,6 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// 번역 대상 문장이 이미 목표 언어인지 간단한 문자 범위 검사로 판단합니다.
-        /// <paramref name="text"/>는 번역 전 원문 또는 OCR 후처리된 문자열,
-        /// <paramref name="tLang"/>은 목표 언어 코드입니다. 예: ko, en-US, ja.
-        /// 반환값이 true이면 API 번역 호출을 생략할 수 있습니다.
-        /// </summary>
-        private bool IsSameLanguage(string text, string tLang)
-        {
-            if (tLang == "ko" && Regex.IsMatch(text, @"[가-힣]{2,}")) return true;
-            if (tLang == "ru" && Regex.IsMatch(text, @"[а-яА-ЯёЁ]")) return true;
-            if (tLang == "ja" && Regex.IsMatch(text, @"[ぁ-んァ-ヶ]")) return true;
-            if (tLang == "zh-Hans-CN" && Regex.IsMatch(text, @"[\u4e00-\u9fa5]")) return true;
-            if (tLang == "en-US" && Regex.IsMatch(text, @"[a-zA-Z]") && !Regex.IsMatch(text, @"[가-힣а-яА-ЯёЁぁ-んァ-ヶ\u4e00-\u9fa5]")) return true;
-            return false;
-        }
-
-        /// <summary>
         /// 수동 번역 단축키에서 호출하는 기본 번역 실행 함수입니다.
         /// 수동 번역은 속도보다 인식률을 우선하므로 정확 모드로 실행합니다.
         /// </summary>
@@ -468,45 +452,43 @@ namespace GameTranslator
                     usedEngine = "Google";
                     string translated = finalContent;
 
-                    if (!Regex.IsMatch(finalContent, @"^[0-9\W]+$"))
+                    TranslationPlan translationPlan = translationService.CreatePlan(finalContent, targetLang, willUseGemini);
+                    TranslationDecisionResult translationResult = translationPlan.ImmediateResult;
+
+                    if (!translationPlan.HasImmediateResult)
                     {
-                        if (IsSameLanguage(finalContent, targetLang))
+                        if (translationPlan.RequestKind == TranslationRequestKind.Gemini)
                         {
-                            translated = finalContent;
-                            usedEngine = "Skip";
-                        }
-                        else
-                        {
-                            // 🌟 이제 제미나이 키가 있어도, 상태(useGeminiEngine)가 켜져 있을 때만 사용!
-                            if (willUseGemini)
+                            Stopwatch translateStopwatch = Stopwatch.StartNew();
+                            string geminiTranslated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
+                            translateStopwatch.Stop();
+                            performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+
+                            if (translationService.ShouldFallbackToGoogle(geminiTranslated))
                             {
-                                Stopwatch translateStopwatch = Stopwatch.StartNew();
-                                translated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
+                                translateStopwatch.Restart();
+                                string googleFallback = await CallGoogleAPI(finalContent, targetLang);
                                 translateStopwatch.Stop();
                                 performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                                usedEngine = $"Gemini {modelName}";
-
-                                if (string.IsNullOrEmpty(translated))
-                                {
-                                    translateStopwatch.Restart();
-                                    translated = await CallGoogleAPI(finalContent, targetLang);
-                                    translateStopwatch.Stop();
-                                    performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                                    translated = "[Gemini 에러 - 구글 전환됨] " + translated;
-                                    usedEngine = "Google (Fallback)";
-                                }
+                                translationResult = translationService.CreateGoogleResult(googleFallback, true);
                             }
                             else
                             {
-                                // 스위치를 꺼두면 무조건 구글님 호출
-                                Stopwatch translateStopwatch = Stopwatch.StartNew();
-                                translated = await CallGoogleAPI(finalContent, targetLang);
-                                translateStopwatch.Stop();
-                                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                                usedEngine = "Google";
+                                translationResult = translationService.CreateGeminiResult(geminiTranslated, modelName);
                             }
                         }
+                        else
+                        {
+                            Stopwatch translateStopwatch = Stopwatch.StartNew();
+                            string googleTranslated = await CallGoogleAPI(finalContent, targetLang);
+                            translateStopwatch.Stop();
+                            performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+                            translationResult = translationService.CreateGoogleResult(googleTranslated, false);
+                        }
                     }
+
+                    translated = translationResult.TranslatedText;
+                    usedEngine = translationResult.EngineName;
 
                     AppendLog(characterNameGold + finalContent, translated, usedEngine);
 
