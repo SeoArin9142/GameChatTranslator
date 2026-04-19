@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -228,6 +229,59 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 한 번의 번역 사이클에서 어느 단계가 시간을 많이 쓰는지 기록하는 진단 모델입니다.
+        /// Capture/Preprocess/OCR/Translate처럼 병목이 될 수 있는 구간을 밀리초 단위로 누적합니다.
+        /// </summary>
+        private class OcrPerformanceStats
+        {
+            public OcrProcessingMode ProcessingMode;
+            public long CaptureMs;
+            public long ResizeMs;
+            public long PreprocessMs;
+            public long CropMs;
+            public long OcrMs;
+            public long ScoringMs;
+            public long TranslateMs;
+            public int PreprocessCandidateCount;
+            public int OcrLanguageCallCount;
+            public int MergedLineCount;
+            public int TranslatedLineCount;
+            public int SkippedLineCount;
+            public string SelectedPreprocessName = "-";
+            public string SelectedOcrLanguages = "-";
+            public int SelectedScore;
+            public string Outcome = "Started";
+        }
+
+        /// <summary>
+        /// OCR 성능 진단 결과를 세션 로그에 한 줄로 남깁니다.
+        /// <paramref name="stats"/>는 단계별 누적 시간과 OCR 후보 정보를 담고,
+        /// <paramref name="totalElapsedMs"/>는 번역 사이클 전체 경과 시간입니다.
+        /// </summary>
+        private void AppendOcrPerformanceLog(OcrPerformanceStats stats, long totalElapsedMs)
+        {
+            AppendLog(
+                "[OCR PERF] " +
+                $"Mode={GetOcrProcessingModeLabel(stats.ProcessingMode)}, " +
+                $"Capture={stats.CaptureMs}ms, " +
+                $"Resize={stats.ResizeMs}ms, " +
+                $"Preprocess={stats.PreprocessMs}ms, " +
+                $"Crop={stats.CropMs}ms, " +
+                $"OCR={stats.OcrMs}ms, " +
+                $"Scoring={stats.ScoringMs}ms, " +
+                $"Translate={stats.TranslateMs}ms, " +
+                $"Total={totalElapsedMs}ms, " +
+                $"Selected={stats.SelectedPreprocessName}/{stats.SelectedOcrLanguages}, " +
+                $"Score={stats.SelectedScore}, " +
+                $"Candidates={stats.PreprocessCandidateCount}, " +
+                $"OcrCalls={stats.OcrLanguageCallCount}, " +
+                $"Lines={stats.MergedLineCount}, " +
+                $"Translated={stats.TranslatedLineCount}, " +
+                $"Skipped={stats.SkippedLineCount}, " +
+                $"Outcome={stats.Outcome}");
+        }
+
+        /// <summary>
         /// 번역 대상 문장이 이미 목표 언어인지 간단한 문자 범위 검사로 판단합니다.
         /// <paramref name="text"/>는 번역 전 원문 또는 OCR 후처리된 문자열,
         /// <paramref name="tLang"/>은 목표 언어 코드입니다. 예: ko, en-US, ja.
@@ -272,6 +326,11 @@ namespace GameTranslator
         {
             if (isTranslating || gameChatArea == Rectangle.Empty) return;
             isTranslating = true;
+            Stopwatch totalStopwatch = Stopwatch.StartNew();
+            OcrPerformanceStats performanceStats = new OcrPerformanceStats
+            {
+                ProcessingMode = processingMode
+            };
 
             int threshold = int.TryParse(ini.Read("Threshold"), out int t) ? t : 120;
             int scaleFactor = int.TryParse(ini.Read("ScaleFactor"), out int s) ? s : 3;
@@ -281,6 +340,7 @@ namespace GameTranslator
             try
             {
                 // 1. 저장된 채팅 영역을 실제 화면 픽셀 기준으로 캡처합니다.
+                Stopwatch captureStopwatch = Stopwatch.StartNew();
                 Rectangle captureArea = GetCapturePixelArea();
                 using Bitmap rawBitmap = new Bitmap(captureArea.Width, captureArea.Height);
                 using (Graphics g = Graphics.FromImage(rawBitmap))
@@ -291,8 +351,11 @@ namespace GameTranslator
                     g.ReleaseHdc(hdcDest);
                     ReleaseDC(IntPtr.Zero, hdcSrc);
                 }
+                captureStopwatch.Stop();
+                performanceStats.CaptureMs += captureStopwatch.ElapsedMilliseconds;
 
                 // 2. OCR 인식률 향상을 위해 설정된 배율만큼 이미지를 확대합니다.
+                Stopwatch resizeStopwatch = Stopwatch.StartNew();
                 int newWidth = rawBitmap.Width * scaleFactor;
                 int newHeight = rawBitmap.Height * scaleFactor;
                 using Bitmap resizedBitmap = new Bitmap(newWidth, newHeight);
@@ -301,6 +364,8 @@ namespace GameTranslator
                     g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                     g.DrawImage(rawBitmap, 0, 0, newWidth, newHeight);
                 }
+                resizeStopwatch.Stop();
+                performanceStats.ResizeMs += resizeStopwatch.ElapsedMilliseconds;
 
                 if (ShouldSaveDebugImages())
                 {
@@ -313,16 +378,28 @@ namespace GameTranslator
                 }
 
                 // 3. 모드별 후보 전략으로 OCR을 수행하고 가장 점수가 높은 후보를 선택합니다.
-                OcrCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode);
+                OcrCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, performanceStats);
 
-                if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0) return;
+                if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0)
+                {
+                    performanceStats.Outcome = "NoOcrCandidate";
+                    return;
+                }
 
                 var ocrResults = bestCandidate.Results;
                 var mergedLines = bestCandidate.Lines;
+                performanceStats.SelectedPreprocessName = bestCandidate.PreprocessName;
+                performanceStats.SelectedOcrLanguages = string.Join("+", ocrResults.Keys);
+                performanceStats.SelectedScore = bestCandidate.Score;
+                performanceStats.MergedLineCount = mergedLines.Count;
                 AppendLog("DEBUG", $"OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName} (점수 {bestCandidate.Score})", "System");
 
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
-                if (currentRawTextCombined == lastRawTextCombined) return;
+                if (currentRawTextCombined == lastRawTextCombined)
+                {
+                    performanceStats.Outcome = "DuplicateOcrText";
+                    return;
+                }
                 lastRawTextCombined = currentRawTextCombined;
 
                 TxtResult.Inlines.Clear();
@@ -339,6 +416,7 @@ namespace GameTranslator
                     if (!Regex.IsMatch(krRawText, @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]"))
                     {
                         AppendLog("DEBUG", "글자 없음으로 스킵", "System");
+                        performanceStats.SkippedLineCount++;
                         continue;
                     }
 
@@ -346,6 +424,7 @@ namespace GameTranslator
                     if (!strictMatch.Success)
                     {
                         AppendLog("DEBUG", "정규식(strictMatch) 불일치로 스킵됨", "System");
+                        performanceStats.SkippedLineCount++;
                         continue;
                     }
 
@@ -354,6 +433,7 @@ namespace GameTranslator
                     if (!characterNames.Contains(characterNameOnly))
                     {
                         AppendLog("DEBUG", $"리스트에 없는 이름이라 스킵됨: {characterNameOnly}", "System");
+                        performanceStats.SkippedLineCount++;
                         continue;
                     }
 
@@ -414,15 +494,31 @@ namespace GameTranslator
                         finalContent = Regex.Replace(finalContent, @"[イ尓カ幺哓ロト昌号i]", "").Trim();
                     }
 
-                    if (string.IsNullOrWhiteSpace(finalContent)) continue;
+                    if (string.IsNullOrWhiteSpace(finalContent))
+                    {
+                        performanceStats.SkippedLineCount++;
+                        continue;
+                    }
 
                     // 🌟 [1글자 채팅 예외처리 포함]
                     if (finalContent.Length == 1)
                     {
-                        if (Regex.IsMatch(finalContent, @"^[イ尓カ幺哓ロト昌号iI0-9\W_]$")) continue;
-                        if (!Regex.IsMatch(finalContent, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$")) continue;
+                        if (Regex.IsMatch(finalContent, @"^[イ尓カ幺哓ロト昌号iI0-9\W_]$"))
+                        {
+                            performanceStats.SkippedLineCount++;
+                            continue;
+                        }
+                        if (!Regex.IsMatch(finalContent, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$"))
+                        {
+                            performanceStats.SkippedLineCount++;
+                            continue;
+                        }
                     }
-                    else if (finalContent.Length < 2) continue;
+                    else if (finalContent.Length < 2)
+                    {
+                        performanceStats.SkippedLineCount++;
+                        continue;
+                    }
 
                     string modelName = ReadGeminiModel();
                     usedEngine = "Google";
@@ -440,12 +536,18 @@ namespace GameTranslator
                             // 🌟 이제 제미나이 키가 있어도, 상태(useGeminiEngine)가 켜져 있을 때만 사용!
                             if (willUseGemini)
                             {
+                                Stopwatch translateStopwatch = Stopwatch.StartNew();
                                 translated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
+                                translateStopwatch.Stop();
+                                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                                 usedEngine = $"Gemini {modelName}";
 
                                 if (string.IsNullOrEmpty(translated))
                                 {
+                                    translateStopwatch.Restart();
                                     translated = await CallGoogleAPI(finalContent, targetLang);
+                                    translateStopwatch.Stop();
+                                    performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                                     translated = "[Gemini 에러 - 구글 전환됨] " + translated;
                                     usedEngine = "Google (Fallback)";
                                 }
@@ -453,7 +555,10 @@ namespace GameTranslator
                             else
                             {
                                 // 스위치를 꺼두면 무조건 구글님 호출
+                                Stopwatch translateStopwatch = Stopwatch.StartNew();
                                 translated = await CallGoogleAPI(finalContent, targetLang);
+                                translateStopwatch.Stop();
+                                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                                 usedEngine = "Google";
                             }
                         }
@@ -465,10 +570,22 @@ namespace GameTranslator
                     TxtResult.Inlines.Add(new Run(translated) { Foreground = Brushes.White });
                     TxtResult.Inlines.Add(new LineBreak());
                     AddClipboardTranslationLine(characterNameGold, translated);
+                    performanceStats.TranslatedLineCount++;
                 }
+
+                performanceStats.Outcome = performanceStats.TranslatedLineCount > 0 ? "Translated" : "NoTranslatableLines";
             }
-            catch (Exception ex) { TxtResult.Text = "에러: " + ex.Message; }
-            finally { isTranslating = false; }
+            catch (Exception ex)
+            {
+                performanceStats.Outcome = "Error";
+                TxtResult.Text = "에러: " + ex.Message;
+            }
+            finally
+            {
+                totalStopwatch.Stop();
+                AppendOcrPerformanceLog(performanceStats, totalStopwatch.ElapsedMilliseconds);
+                isTranslating = false;
+            }
         }
 
         /// <summary>
@@ -476,15 +593,17 @@ namespace GameTranslator
         /// <paramref name="resizedBitmap"/>은 캡처 후 설정 배율로 확대한 이미지,
         /// <paramref name="threshold"/>는 색상/밝기 기반 이진화 기준값,
         /// <paramref name="processingMode"/>는 빠름/자동/정확 중 이번 실행 전략입니다.
+        /// <paramref name="performanceStats"/>는 후보 선택 과정의 단계별 시간을 누적하는 진단 객체입니다.
         /// </summary>
-        private async Task<OcrCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode)
+        private async Task<OcrCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode, OcrPerformanceStats performanceStats)
         {
             if (processingMode == OcrProcessingMode.Fast)
             {
                 OcrCandidate fastCandidate = await EvaluateOcrCandidatesAsync(
                     resizedBitmap,
                     threshold,
-                    recognizeAllLanguages: false,
+                    performanceStats,
+                    false,
                     OcrPreprocessKind.Color);
 
                 return IsFastPathSuccess(fastCandidate) ? fastCandidate : null;
@@ -495,7 +614,8 @@ namespace GameTranslator
                 OcrCandidate fastCandidate = await EvaluateOcrCandidatesAsync(
                     resizedBitmap,
                     threshold,
-                    recognizeAllLanguages: false,
+                    performanceStats,
+                    false,
                     OcrPreprocessKind.Color);
 
                 if (IsFastPathSuccess(fastCandidate))
@@ -506,7 +626,8 @@ namespace GameTranslator
                 OcrCandidate fallbackCandidate = await EvaluateOcrCandidatesAsync(
                     resizedBitmap,
                     threshold,
-                    recognizeAllLanguages: true,
+                    performanceStats,
+                    true,
                     OcrPreprocessKind.ColorThick,
                     OcrPreprocessKind.Adaptive);
 
@@ -516,7 +637,8 @@ namespace GameTranslator
             return await EvaluateOcrCandidatesAsync(
                 resizedBitmap,
                 threshold,
-                recognizeAllLanguages: true,
+                performanceStats,
+                true,
                 OcrPreprocessKind.Color,
                 OcrPreprocessKind.ColorThick,
                 OcrPreprocessKind.Adaptive);
@@ -526,19 +648,27 @@ namespace GameTranslator
         /// 지정된 전처리 후보들을 실제 Bitmap으로 만들고 OCR을 수행한 뒤 가장 높은 점수의 후보를 고릅니다.
         /// <paramref name="resizedBitmap"/>은 OCR 전처리 입력 이미지,
         /// <paramref name="threshold"/>는 색상 필터와 적응형 이진화의 기준값,
+        /// <paramref name="performanceStats"/>는 전처리/OCR/점수화 시간을 누적하는 진단 객체입니다.
         /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 OCR 언어를 실행하고 false이면 게임 언어만 실행합니다.
         /// <paramref name="preprocessKinds"/>는 평가할 전처리 후보 목록입니다.
         /// </summary>
-        private async Task<OcrCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
+        private async Task<OcrCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, OcrPerformanceStats performanceStats, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
         {
             OcrCandidate bestCandidate = null;
+            Stopwatch preprocessStopwatch = Stopwatch.StartNew();
             List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds);
+            preprocessStopwatch.Stop();
+            performanceStats.PreprocessMs += preprocessStopwatch.ElapsedMilliseconds;
+            performanceStats.PreprocessCandidateCount += preprocessedImages.Count;
 
             try
             {
                 foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
                 {
+                    Stopwatch cropStopwatch = Stopwatch.StartNew();
                     using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                    cropStopwatch.Stop();
+                    performanceStats.CropMs += cropStopwatch.ElapsedMilliseconds;
 
                     if (ShouldSaveDebugImages())
                     {
@@ -553,12 +683,20 @@ namespace GameTranslator
                     }
 
                     // OCR 엔진 호출이 가장 큰 병목입니다. 빠름 모드에서는 게임 언어만 호출해 처리량을 줄입니다.
-                    Dictionary<string, OcrResult> candidateResults = await RecognizeLanguagesAsync(croppedBitmap, recognizeAllLanguages);
+                    Dictionary<string, OcrResult> candidateResults = await RecognizeLanguagesAsync(croppedBitmap, recognizeAllLanguages, performanceStats);
+                    Stopwatch scoringStopwatch = Stopwatch.StartNew();
                     OcrResult candidateMasterResult = SelectMasterOcrResult(candidateResults);
-                    if (candidateMasterResult == null) continue;
+                    if (candidateMasterResult == null)
+                    {
+                        scoringStopwatch.Stop();
+                        performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
+                        continue;
+                    }
 
                     List<MergedLine> candidateLines = MergeOcrLines(candidateMasterResult);
                     int candidateScore = ScoreOcrCandidate(candidateLines);
+                    scoringStopwatch.Stop();
+                    performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
 
                     if (bestCandidate == null || candidateScore > bestCandidate.Score)
                     {
@@ -938,23 +1076,35 @@ namespace GameTranslator
         /// Bitmap을 SoftwareBitmap으로 변환해 Windows OCR 엔진을 실행합니다.
         /// <paramref name="bitmap"/>은 OCR에 넣을 전처리/크롭 이미지,
         /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 언어, false이면 게임 언어 우선으로 OCR합니다.
+        /// <paramref name="performanceStats"/>는 OCR 호출 횟수와 OCR 구간 소요 시간을 누적하는 진단 객체입니다.
         /// 반환값은 언어 코드별 OCR 결과 딕셔너리입니다.
         /// </summary>
-        private async Task<Dictionary<string, OcrResult>> RecognizeLanguagesAsync(Bitmap bitmap, bool recognizeAllLanguages)
+        private async Task<Dictionary<string, OcrResult>> RecognizeLanguagesAsync(Bitmap bitmap, bool recognizeAllLanguages, OcrPerformanceStats performanceStats)
         {
-            using MemoryStream ms = new MemoryStream();
-            bitmap.Save(ms, ImageFormat.Png);
-            ms.Position = 0;
-            var decoder = await BitmapDecoder.CreateAsync(ms.AsRandomAccessStream());
-            using SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
-
-            var ocrResults = new Dictionary<string, OcrResult>();
-            foreach (var kvp in SelectOcrEngines(recognizeAllLanguages))
+            Stopwatch ocrStopwatch = Stopwatch.StartNew();
+            try
             {
-                ocrResults.Add(kvp.Key, await kvp.Value.RecognizeAsync(softwareBitmap));
-            }
+                using MemoryStream ms = new MemoryStream();
+                bitmap.Save(ms, ImageFormat.Png);
+                ms.Position = 0;
+                var decoder = await BitmapDecoder.CreateAsync(ms.AsRandomAccessStream());
+                using SoftwareBitmap softwareBitmap = await decoder.GetSoftwareBitmapAsync();
 
-            return ocrResults;
+                var ocrResults = new Dictionary<string, OcrResult>();
+                List<KeyValuePair<string, OcrEngine>> selectedEngines = SelectOcrEngines(recognizeAllLanguages);
+                performanceStats.OcrLanguageCallCount += selectedEngines.Count;
+                foreach (var kvp in selectedEngines)
+                {
+                    ocrResults.Add(kvp.Key, await kvp.Value.RecognizeAsync(softwareBitmap));
+                }
+
+                return ocrResults;
+            }
+            finally
+            {
+                ocrStopwatch.Stop();
+                performanceStats.OcrMs += ocrStopwatch.ElapsedMilliseconds;
+            }
         }
 
         /// <summary>
