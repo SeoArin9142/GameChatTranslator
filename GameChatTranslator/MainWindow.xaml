@@ -14,7 +14,7 @@
         <StackPanel Margin="15">
             <!-- 단축키와 현재 자동 번역 모드를 표시하는 상단 안내 영역입니다. MainWindow.Hotkeys.cs에서 동적으로 갱신합니다. -->
             <TextBlock Text="[Ctrl+7] 이동/잠금  [Ctrl+8] 영역설정  [Ctrl+9] 번역  [Ctrl+6] 복사"
-                       TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10" Height="35"/>
+                       TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10" Height="50"/>
 
             <!-- 번역 결과 출력 영역입니다. 캐릭터명은 금색, 번역문은 흰색 Run으로 추가됩니다. -->
             <Border Background="#22FFFFFF" CornerRadius="5" Padding="10" MinHeight="100">

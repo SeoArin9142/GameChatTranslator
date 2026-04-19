@@ -187,12 +187,14 @@ namespace GameTranslator
         protected override void OnClosed(EventArgs e)
         {
             captureBorderWindow?.Close();
+            logViewerWindow?.CloseForShutdown();
             UnregisterHotKey(_windowHandle, ID_HOTKEY_MOVE_LOCK);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AUTO);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_COPY_RESULT);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_LOG_VIEWER);
 
             AppendLog("프로그램이 정상적으로 종료되었습니다.");
             Application.Current.Shutdown();

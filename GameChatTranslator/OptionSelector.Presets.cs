@@ -235,6 +235,7 @@ namespace GameTranslator
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text, section);
             _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text, section);
             _ini.Write("Key_CopyResult", TxtKeyCopy.Text, section);
+            _ini.Write("Key_LogViewer", TxtKeyLog.Text, section);
 
             foreach (string key in PresetSettingKeys)
             {
@@ -269,6 +270,7 @@ namespace GameTranslator
             TxtKeyAuto.Text = ReadPresetValue(section, "Key_AutoTranslate", DefaultKeyAutoTranslate);
             TxtKeyToggle.Text = ReadPresetValue(section, "Key_ToggleEngine", DefaultKeyToggleEngine);
             TxtKeyCopy.Text = ReadPresetValue(section, "Key_CopyResult", DefaultKeyCopyResult);
+            TxtKeyLog.Text = ReadPresetValue(section, "Key_LogViewer", DefaultKeyLogViewer);
 
             foreach (string key in PresetSettingKeys)
             {

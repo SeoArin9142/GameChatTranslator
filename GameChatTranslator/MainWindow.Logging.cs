@@ -43,6 +43,7 @@ namespace GameTranslator
 
                 string logEntry = $"[{DateTime.Now:HH:mm:ss}] [System] {systemMessage}{Environment.NewLine}";
                 File.AppendAllText(filePath, logEntry, System.Text.Encoding.UTF8);
+                PushLogEntryToLogViewer(logEntry);
             }
             catch { }
         }
@@ -65,6 +66,7 @@ namespace GameTranslator
 
                 string logEntry = $"[{DateTime.Now:HH:mm:ss}] [{engineName}] {original.Trim()} -> {translated.Trim()}{Environment.NewLine}";
                 File.AppendAllText(filePath, logEntry, System.Text.Encoding.UTF8);
+                PushLogEntryToLogViewer(logEntry);
             }
             catch { }
         }

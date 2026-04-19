@@ -35,6 +35,16 @@
             </StackPanel>
         </GroupBox>
 
+        <!-- 로그창 영역: 현재 세션 로그를 별도 창에서 실시간으로 확인합니다. -->
+        <GroupBox Header="로그 확인 (Log Viewer)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+            <StackPanel Margin="10">
+                <TextBlock Text="현재 세션 로그를 별도 창으로 열어 보조 모니터에서 실시간으로 확인할 수 있습니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnOpenLogViewer" Content="로그창 열기" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnOpenLogViewer_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <!-- 언어 영역: OCR 기준 게임 언어와 최종 번역 출력 언어를 선택합니다. -->
         <GroupBox Header="언어 설정 (Language)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
             <StackPanel Margin="10">
@@ -105,6 +115,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="이동/잠금 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
@@ -124,6 +135,9 @@
 
                     <TextBlock Text="번역 복사 :" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                     <TextBox x:Name="TxtKeyCopy" Grid.Row="5" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+
+                    <TextBlock Text="로그창 ON/OFF :" Grid.Row="6" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                    <TextBox x:Name="TxtKeyLog" Grid.Row="6" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
                 </Grid>
 
                 <!-- 입력칸만 기본값으로 되돌립니다. config.ini 저장은 아래 저장 버튼을 눌렀을 때만 수행됩니다. -->
