@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.8-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.8-alpha/GameChatTranslator_v1.0.8-alpha.zip)
+[**👉 GameChatTranslator v1.0.9-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.9-alpha/GameChatTranslator_v1.0.9-alpha.zip)
 
 ---
 
@@ -114,6 +114,33 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.9-alpha)
+
+   이번 버전에서는 Visual Studio 게시 산출물 구성, 누락된 편의 기능 반영, 번역 결과 누적 표시 기본값을 정리했습니다.
+
+   📦 게시 산출물 보완
+
+      Visual Studio 게시 시 실행 파일과 함께 characters.txt, LangInstall.bat, readme.txt가 포함되도록 수정했습니다.
+
+      GitHub Actions/Linux 환경에서도 파일명이 정확히 매칭되도록 readme.txt 대소문자 설정을 정리했습니다.
+
+   🧩 누락 기능 master 반영
+
+      설정 내보내기/가져오기 기능이 최신 master 기준 배포 흐름에 포함되도록 정리했습니다.
+
+      번역 결과 표시 방식 선택, OCR 모드별 평균 성능 표시 기능이 master 배포 기준에 포함되도록 반영했습니다.
+
+   💬 번역 누적 표시 제한 조정
+
+      최근 내역 누적 표시 기본 줄 수를 30줄에서 5줄로 낮췄습니다.
+
+      번역창이 과도하게 커지지 않도록 누적 표시 최대값을 10줄로 제한했습니다.
+
+      번역 결과 영역은 최대 높이를 넘으면 내부 스크롤로 표시됩니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.8-alpha)
 
    이번 버전에서는 자동 번역 병목 분석, 실시간 로그 확인, OCR 언어팩 설치 상태 확인, 릴리즈 자동화를 중심으로 운영 편의 기능을 강화했습니다.
@@ -149,9 +176,6 @@
       GitHub Actions 기반 자동 릴리즈 빌드 workflow를 추가했습니다.
 
       태그 push 시 Release 빌드, win-x64 self-contained publish, zip 압축, SHA256 생성, 릴리즈 asset 업로드, Latest 지정까지 자동으로 진행됩니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.7-alpha)
 
