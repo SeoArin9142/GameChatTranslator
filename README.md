@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.10-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.10-alpha/GameChatTranslator_v1.0.10-alpha.zip)
+[**👉 GameChatTranslator v1.0.11-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.11-alpha/GameChatTranslator_v1.0.11-alpha.zip)
 
 ---
 
@@ -114,6 +114,39 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.11-alpha)
+
+   이번 버전에서는 테스트 기반과 내부 서비스 구조를 강화해 이후 OCR/번역 로직 개선을 더 안전하게 진행할 수 있도록 정리했습니다.
+
+   🧪 테스트 프로젝트 추가 및 회귀 검증 강화
+
+      OCR 채팅 파싱, 캐릭터명 검증, OCR 후보 점수화, 설정값 보정 로직을 단위 테스트로 검증하도록 구성했습니다.
+
+      GitHub Actions 릴리즈 빌드 과정에서도 테스트가 함께 실행되도록 정리했습니다.
+
+   🧠 OCR 후보 선택 정책 분리
+
+      빠름/자동/정확 OCR 모드의 후보 선택 정책과 fast path 판단 로직을 OcrService로 분리했습니다.
+
+      Windows OCR/Bitmap 의존이 없는 순수 로직으로 분리해 테스트 가능한 구조로 개선했습니다.
+
+   ⚙️ 설정값 해석 로직 분리
+
+      GeminiKey 마이그레이션 판단, GeminiModel 기본값, bool 설정 해석, 기본 단축키 값을 SettingsService로 정리했습니다.
+
+      MainWindow와 OptionSelector에 흩어져 있던 설정 해석 중복을 줄였습니다.
+
+   🌐 번역 문자열 처리 로직 분리
+
+      Google 번역 입력 정리, Google API URL 생성, Gemini 프롬프트 생성을 TranslationPromptBuilder로 분리했습니다.
+
+      Google/Gemini 응답 JSON에서 최종 번역문을 추출하는 로직을 TranslationResultParser로 분리했습니다.
+
+      HTTP 호출과 UI 흐름은 유지하면서 문자열 조립/파싱 부분만 테스트 가능한 순수 로직으로 옮겼습니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.10-alpha)
 
    이번 버전에서는 프로젝트 내부 파일 구조를 정리해 이후 유지보수와 기능 추가가 쉬워지도록 개선했습니다.
@@ -139,9 +172,6 @@
       내부 파일 위치는 바뀌었지만 publish 결과물에는 기존처럼 characters.txt, LangInstall.bat, readme.txt가 실행 파일과 같은 위치에 포함됩니다.
 
       이번 변경은 폴더 구조 정리 전용이며 런타임 기능 동작은 변경하지 않았습니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.9-alpha)
 
