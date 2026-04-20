@@ -91,9 +91,13 @@ namespace GameTranslator
 
             string geminiKey = ReadGeminiKey();
 
-            currentTranslationEngineMode = !string.IsNullOrEmpty(geminiKey)
-                ? TranslationEngineMode.Gemini
-                : TranslationEngineMode.Google;
+            currentTranslationEngineMode = ReadTranslationEngineMode();
+            if (currentTranslationEngineMode == TranslationEngineMode.Gemini &&
+                (string.IsNullOrWhiteSpace(geminiKey) || geminiKey.Length < 30))
+            {
+                currentTranslationEngineMode = TranslationEngineMode.Google;
+                AppendLog("저장된 기본 번역 엔진이 Gemini이지만 API 키가 없어 Google로 시작합니다.");
+            }
 
             string currentEngine = GetCurrentTranslationEngineDisplayName();
 

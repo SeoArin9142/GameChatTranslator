@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using System;
+using System.Net.Http;
+using System.Threading;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Windows.Globalization;
@@ -105,6 +108,11 @@ namespace GameTranslator
             if (TxtThreshold != null) TxtThreshold.Text = SettingsValueNormalizer.NormalizeThreshold(_ini.Read("Threshold")).ToString();
             if (TxtInterval != null) TxtInterval.Text = SettingsValueNormalizer.NormalizeAutoTranslateInterval(_ini.Read("AutoTranslateInterval")).ToString();
             if (ComboResultDisplayMode != null) SetComboByTag(ComboResultDisplayMode, _ini.Read("ResultDisplayMode") ?? SettingsService.DefaultResultDisplayMode);
+            if (ComboTranslationEngine != null)
+            {
+                TranslationEngineMode engineMode = _settingsService.NormalizeTranslationEngineMode(_ini.Read("TranslationEngine"));
+                SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(engineMode));
+            }
             if (TxtResultHistoryLimit != null)
             {
                 TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(_ini.Read("ResultHistoryLimit")).ToString();
@@ -333,6 +341,7 @@ namespace GameTranslator
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
             _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");
+            _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine));
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
 
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));
@@ -368,7 +377,65 @@ namespace GameTranslator
             }
             finally
             {
-                BtnCheckUpdate.IsEnabled = true;
+            BtnCheckUpdate.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// Local LLM endpoint/model 설정이 LM Studio Local Server에 연결 가능한지 확인합니다.
+        /// /v1/models를 조회해 서버 응답과 모델 ID 존재 여부를 함께 검사합니다.
+        /// </summary>
+        private async void BtnTestLocalLlm_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnTestLocalLlm == null || TxtLocalLlmTestStatus == null) return;
+
+            string endpoint = _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text);
+            string modelName = _settingsService.NormalizeLocalLlmModel(TxtLocalLlmModel?.Text);
+            int timeoutSeconds = _settingsService.NormalizeLocalLlmTimeoutSeconds(TxtLocalLlmTimeout?.Text);
+
+            BtnTestLocalLlm.IsEnabled = false;
+            TxtLocalLlmTestStatus.Foreground = System.Windows.Media.Brushes.LightGray;
+            TxtLocalLlmTestStatus.Text = "Local LLM 서버 확인 중...";
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+                var apiClient = new TranslationApiClient(httpClient, new TranslationPromptBuilder(), new TranslationResultParser());
+
+                LocalLlmConnectionTestResult result = await apiClient.TestLocalLlmConnectionAsync(endpoint, modelName, cts.Token);
+                if (!result.IsSuccess)
+                {
+                    TxtLocalLlmTestStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                    string detail = string.IsNullOrWhiteSpace(result.ErrorMessage) ? "" : $" ({result.ErrorMessage})";
+                    TxtLocalLlmTestStatus.Text = $"연결 실패: LM Studio 서버와 endpoint를 확인하세요.{detail}";
+                    return;
+                }
+
+                if (!result.ModelFound)
+                {
+                    TxtLocalLlmTestStatus.Foreground = System.Windows.Media.Brushes.Gold;
+                    string models = result.Models.Count == 0 ? "모델 목록 없음" : string.Join(", ", result.Models);
+                    TxtLocalLlmTestStatus.Text = $"서버 연결됨. 설정한 모델을 찾지 못했습니다. 모델: {models}";
+                    return;
+                }
+
+                TxtLocalLlmTestStatus.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                TxtLocalLlmTestStatus.Text = $"연결 성공: {modelName}";
+            }
+            catch (OperationCanceledException)
+            {
+                TxtLocalLlmTestStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                TxtLocalLlmTestStatus.Text = $"연결 시간 초과: {timeoutSeconds}초 안에 응답하지 않았습니다.";
+            }
+            catch (Exception ex)
+            {
+                TxtLocalLlmTestStatus.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                TxtLocalLlmTestStatus.Text = $"연결 실패: {ex.Message}";
+            }
+            finally
+            {
+                BtnTestLocalLlm.IsEnabled = true;
             }
         }
 

@@ -287,6 +287,7 @@ namespace GameTranslator
             _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode), section);
             _ini.Write("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text).ToString(), section);
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false", section);
+            _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine), section);
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text), section);
             _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text), section);
             _ini.Write("LocalLlmModel", _settingsService.NormalizeLocalLlmModel(TxtLocalLlmModel?.Text), section);
@@ -330,6 +331,7 @@ namespace GameTranslator
             SetComboByTag(ComboResultDisplayMode, ReadPresetValue(section, "ResultDisplayMode", SettingsService.DefaultResultDisplayMode));
             TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(ReadPresetValue(section, "ResultHistoryLimit", "5")).ToString();
             CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(ReadPresetValue(section, "SaveDebugImages", "false"));
+            SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(_settingsService.NormalizeTranslationEngineMode(ReadPresetValue(section, "TranslationEngine", SettingsService.DefaultTranslationEngine))));
             TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(ReadPresetValue(section, "GeminiModel", SettingsService.DefaultGeminiModel));
             TxtLocalLlmEndpoint.Text = _settingsService.NormalizeLocalLlmEndpoint(ReadPresetValue(section, "LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint));
             TxtLocalLlmModel.Text = _settingsService.NormalizeLocalLlmModel(ReadPresetValue(section, "LocalLlmModel", SettingsService.DefaultLocalLlmModel));

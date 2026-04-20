@@ -347,7 +347,18 @@
                     </GroupBox>
 
                     <TextBlock Text="4. 번역 엔진" Style="{StaticResource SectionTitleStyle}"/>
-                    <TextBlock Text="Gemini API 키와 모델을 입력합니다. 비워두면 Google 무료 번역만 사용합니다." Style="{StaticResource SectionHintStyle}"/>
+                    <TextBlock Text="기본 번역 엔진을 선택하고 Gemini / Local LLM 연결 정보를 입력합니다." Style="{StaticResource SectionHintStyle}"/>
+
+                    <GroupBox Header="기본 번역 엔진" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="프로그램 시작 시 사용할 번역 엔진입니다. 실행 중에는 Ctrl+-로 순환 전환할 수 있습니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
+                            <ComboBox x:Name="ComboTranslationEngine" Height="24" Background="#333" Foreground="Black">
+                                <ComboBoxItem Content="Google 무료 번역" Tag="Google"/>
+                                <ComboBoxItem Content="Gemini AI 번역" Tag="Gemini"/>
+                                <ComboBoxItem Content="Local LLM 번역" Tag="LocalLlm"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </GroupBox>
 
                     <!-- Gemini 영역: API 키와 모델명을 입력합니다. 프리셋 저장 대상에서 API 키는 제외됩니다. -->
                     <GroupBox Header="Gemini AI 번역 설정" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
@@ -397,6 +408,11 @@
                                     <TextBlock Text="40~512, 기본 160" FontSize="11" Foreground="#888"/>
                                 </StackPanel>
                             </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button x:Name="BtnTestLocalLlm" Content="Local LLM 연결 테스트" Padding="8,3" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnTestLocalLlm_Click"/>
+                                <TextBlock x:Name="TxtLocalLlmTestStatus" Text="서버를 켠 뒤 연결 테스트를 눌러주세요." Margin="10,2,0,0" Foreground="#AAA" TextWrapping="Wrap" Width="250"/>
+                            </StackPanel>
                         </StackPanel>
                     </GroupBox>
                 </StackPanel>

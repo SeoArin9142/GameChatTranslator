@@ -17,6 +17,7 @@ namespace GameTranslator
         public const int DefaultLocalLlmMaxTokens = 160;
         public const int MinLocalLlmMaxTokens = 40;
         public const int MaxLocalLlmMaxTokens = 512;
+        public const string DefaultTranslationEngine = "Google";
         public const string DefaultResultDisplayMode = "Latest";
 
         public const string DefaultKeyMoveLock = "Ctrl+7";
@@ -86,6 +87,41 @@ namespace GameTranslator
         public int NormalizeLocalLlmMaxTokens(string value)
         {
             return NormalizeInt(value, DefaultLocalLlmMaxTokens, MinLocalLlmMaxTokens, MaxLocalLlmMaxTokens);
+        }
+
+        /// <summary>
+        /// 저장된 번역 엔진 문자열을 앱 내부 enum으로 변환합니다.
+        /// 알 수 없는 값은 Google로 되돌려 잘못된 설정 때문에 실행이 막히지 않게 합니다.
+        /// </summary>
+        public TranslationEngineMode NormalizeTranslationEngineMode(string value)
+        {
+            string normalized = (value ?? "").Trim();
+            if (normalized.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+            {
+                return TranslationEngineMode.Gemini;
+            }
+
+            if (normalized.Equals("LocalLlm", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("LocalLLM", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("Local LLM", StringComparison.OrdinalIgnoreCase))
+            {
+                return TranslationEngineMode.LocalLlm;
+            }
+
+            return TranslationEngineMode.Google;
+        }
+
+        /// <summary>
+        /// 번역 엔진 enum을 config.ini와 ComboBox.Tag에 저장할 문자열로 변환합니다.
+        /// </summary>
+        public string GetTranslationEngineTag(TranslationEngineMode mode)
+        {
+            return mode switch
+            {
+                TranslationEngineMode.Gemini => "Gemini",
+                TranslationEngineMode.LocalLlm => "LocalLlm",
+                _ => DefaultTranslationEngine
+            };
         }
 
         /// <summary>

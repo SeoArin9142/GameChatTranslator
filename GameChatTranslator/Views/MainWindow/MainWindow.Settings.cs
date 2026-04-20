@@ -72,6 +72,11 @@ namespace GameTranslator
                 ini.Write("GeminiModel", SettingsService.DefaultGeminiModel);
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("TranslationEngine")))
+            {
+                ini.Write("TranslationEngine", SettingsService.DefaultTranslationEngine);
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmEndpoint")))
             {
                 ini.Write("LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint);
@@ -173,6 +178,23 @@ namespace GameTranslator
         private string ReadGeminiModel()
         {
             return settingsService.NormalizeGeminiModel(ini.Read("GeminiModel"));
+        }
+
+        /// <summary>
+        /// 시작 시 사용할 기본 번역 엔진을 config.ini에서 읽습니다.
+        /// 값이 잘못됐으면 Google로 되돌립니다.
+        /// </summary>
+        private TranslationEngineMode ReadTranslationEngineMode()
+        {
+            return settingsService.NormalizeTranslationEngineMode(ini.Read("TranslationEngine"));
+        }
+
+        /// <summary>
+        /// 현재 선택한 번역 엔진을 config.ini에 저장해 다음 실행에서도 유지합니다.
+        /// </summary>
+        private void SaveTranslationEngineMode()
+        {
+            ini.Write("TranslationEngine", settingsService.GetTranslationEngineTag(currentTranslationEngineMode));
         }
 
         /// <summary>

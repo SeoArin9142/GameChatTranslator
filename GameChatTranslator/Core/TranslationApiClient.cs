@@ -193,11 +193,99 @@ namespace GameTranslator
             return LocalLlmTranslateApiResult.Succeeded(parsedText);
         }
 
+        /// <summary>
+        /// LM Studio/OpenAI 호환 서버의 /v1/models 엔드포인트를 조회해 서버 연결과 모델 ID 존재 여부를 확인합니다.
+        /// <paramref name="chatCompletionsEndpoint"/>는 사용자가 입력한 /v1/chat/completions 주소,
+        /// <paramref name="modelName"/>은 설정창에 입력한 모델 ID입니다.
+        /// </summary>
+        public async Task<LocalLlmConnectionTestResult> TestLocalLlmConnectionAsync(
+            string chatCompletionsEndpoint,
+            string modelName,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(chatCompletionsEndpoint))
+            {
+                return LocalLlmConnectionTestResult.Failed(null, "", "Local LLM endpoint가 비어 있습니다.");
+            }
+
+            if (string.IsNullOrWhiteSpace(modelName))
+            {
+                return LocalLlmConnectionTestResult.Failed(null, "", "Local LLM model이 비어 있습니다.");
+            }
+
+            string modelsEndpoint = BuildLocalLlmModelsEndpoint(chatCompletionsEndpoint);
+            if (string.IsNullOrWhiteSpace(modelsEndpoint))
+            {
+                return LocalLlmConnectionTestResult.Failed(null, "", "Local LLM endpoint 형식이 올바르지 않습니다.");
+            }
+
+            using HttpResponseMessage response = await _httpClient.GetAsync(modelsEndpoint, cancellationToken);
+            string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return LocalLlmConnectionTestResult.Failed((int)response.StatusCode, modelsEndpoint, responseJson);
+            }
+
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(responseJson);
+                if (!document.RootElement.TryGetProperty("data", out JsonElement dataElement) ||
+                    dataElement.ValueKind != JsonValueKind.Array)
+                {
+                    return LocalLlmConnectionTestResult.Failed(null, modelsEndpoint, "data 배열이 없습니다.");
+                }
+
+                List<string> models = dataElement
+                    .EnumerateArray()
+                    .Select(ReadOpenAiModelId)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .ToList();
+
+                bool modelFound = models.Any(model => model.Equals(modelName.Trim(), StringComparison.OrdinalIgnoreCase));
+                return LocalLlmConnectionTestResult.Succeeded(modelsEndpoint, models, modelFound);
+            }
+            catch (Exception ex)
+            {
+                return LocalLlmConnectionTestResult.Failed(null, modelsEndpoint, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// chat completions endpoint에서 같은 서버의 /v1/models endpoint를 계산합니다.
+        /// </summary>
+        public string BuildLocalLlmModelsEndpoint(string chatCompletionsEndpoint)
+        {
+            if (!Uri.TryCreate(chatCompletionsEndpoint?.Trim(), UriKind.Absolute, out Uri endpoint))
+            {
+                return "";
+            }
+
+            string path = endpoint.AbsolutePath.TrimEnd('/');
+            string modelsPath = path.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase)
+                ? path.Substring(0, path.Length - "/chat/completions".Length) + "/models"
+                : "/v1/models";
+
+            var builder = new UriBuilder(endpoint)
+            {
+                Path = modelsPath,
+                Query = ""
+            };
+            return builder.Uri.ToString();
+        }
+
         private static string ReadGeminiModelName(JsonElement modelElement)
         {
             if (!modelElement.TryGetProperty("name", out JsonElement nameElement)) return "";
             if (nameElement.ValueKind != JsonValueKind.String) return "";
             return (nameElement.GetString() ?? "").Replace("models/", "");
+        }
+
+        private static string ReadOpenAiModelId(JsonElement modelElement)
+        {
+            if (!modelElement.TryGetProperty("id", out JsonElement idElement)) return "";
+            if (idElement.ValueKind != JsonValueKind.String) return "";
+            return idElement.GetString() ?? "";
         }
     }
 
@@ -288,6 +376,46 @@ namespace GameTranslator
         public static LocalLlmTranslateApiResult Failed(int? statusCode, string errorMessage)
         {
             return new LocalLlmTranslateApiResult(false, "", statusCode, errorMessage);
+        }
+    }
+
+    /// <summary>
+    /// Local LLM 서버 연결 테스트 결과입니다.
+    /// IsSuccess는 /v1/models 조회 성공 여부이고, ModelFound는 설정한 모델 ID가 목록에 있는지 여부입니다.
+    /// </summary>
+    public sealed class LocalLlmConnectionTestResult
+    {
+        private LocalLlmConnectionTestResult(
+            bool isSuccess,
+            string modelsEndpoint,
+            IReadOnlyList<string> models,
+            bool modelFound,
+            int? statusCode,
+            string errorMessage)
+        {
+            IsSuccess = isSuccess;
+            ModelsEndpoint = modelsEndpoint ?? "";
+            Models = models;
+            ModelFound = modelFound;
+            StatusCode = statusCode;
+            ErrorMessage = errorMessage ?? "";
+        }
+
+        public bool IsSuccess { get; }
+        public string ModelsEndpoint { get; }
+        public IReadOnlyList<string> Models { get; }
+        public bool ModelFound { get; }
+        public int? StatusCode { get; }
+        public string ErrorMessage { get; }
+
+        public static LocalLlmConnectionTestResult Succeeded(string modelsEndpoint, IReadOnlyList<string> models, bool modelFound)
+        {
+            return new LocalLlmConnectionTestResult(true, modelsEndpoint, models ?? Array.Empty<string>(), modelFound, null, "");
+        }
+
+        public static LocalLlmConnectionTestResult Failed(int? statusCode, string modelsEndpoint, string errorMessage)
+        {
+            return new LocalLlmConnectionTestResult(false, modelsEndpoint, Array.Empty<string>(), false, statusCode, errorMessage);
         }
     }
 }
