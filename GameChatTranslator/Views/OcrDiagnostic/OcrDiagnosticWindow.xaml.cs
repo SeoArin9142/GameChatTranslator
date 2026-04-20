@@ -22,16 +22,18 @@ namespace GameTranslator
     {
         private readonly MainWindow mainWindow;
         private readonly OcrDiagnosticExporter diagnosticExporter = new OcrDiagnosticExporter();
+        private readonly string defaultExportDirectory;
         private OcrDiagnosticResult lastDiagnosticResult;
 
         /// <summary>
         /// OCR 진단 창을 생성합니다.
         /// <paramref name="mainWindow"/>는 현재 캡처 영역과 OCR 전처리/점수화 로직을 보유한 메인 창입니다.
         /// </summary>
-        public OcrDiagnosticWindow(MainWindow mainWindow)
+        public OcrDiagnosticWindow(MainWindow mainWindow, string defaultExportDirectory = null)
         {
             InitializeComponent();
             this.mainWindow = mainWindow;
+            this.defaultExportDirectory = defaultExportDirectory;
             UpdateSummaryHeader(null);
 
             Loaded += async (s, e) => await RunDiagnosticAsync();
@@ -96,6 +98,7 @@ namespace GameTranslator
                 Title = "OCR 진단 결과 저장",
                 Filter = "ZIP 파일 (*.zip)|*.zip",
                 FileName = diagnosticExporter.CreateDefaultFileName(lastDiagnosticResult.CapturedAt),
+                InitialDirectory = ResolveInitialExportDirectory(),
                 AddExtension = true,
                 DefaultExt = ".zip",
                 OverwritePrompt = true
@@ -139,6 +142,17 @@ namespace GameTranslator
                 WpfMessageBox.Show(this, $"OCR 진단 요약 복사에 실패했습니다.\n{ex.Message}", "OCR 진단 요약 복사 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
                 TxtStatus.Text = $"요약 복사 실패: {ex.Message}";
             }
+        }
+
+        private string ResolveInitialExportDirectory()
+        {
+            if (!string.IsNullOrWhiteSpace(defaultExportDirectory))
+            {
+                Directory.CreateDirectory(defaultExportDirectory);
+                return defaultExportDirectory;
+            }
+
+            return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
         /// <summary>

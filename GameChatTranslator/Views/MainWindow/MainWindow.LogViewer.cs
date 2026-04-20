@@ -16,7 +16,8 @@ namespace GameTranslator
         /// </summary>
         private string GetCurrentSessionLogFilePath()
         {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", sessionLogFileName);
+            string logDirectory = appDataPaths?.LogsDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            return Path.Combine(logDirectory, sessionLogFileName);
         }
 
         /// <summary>

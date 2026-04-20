@@ -31,14 +31,14 @@ namespace GameTranslator
     public partial class MainWindow
     {
         /// <summary>
-        /// 실행 폴더의 characters.txt를 읽어 번역 허용 캐릭터명 목록을 초기화합니다.
+        /// 사용자 데이터 폴더의 characters.txt를 우선 읽고, 없으면 실행 폴더의 기본 characters.txt를 읽어 번역 허용 캐릭터명 목록을 초기화합니다.
         /// 줄 앞이 #인 항목은 주석으로 취급하고, 나머지 이름은 OCR 결과 검증에 사용합니다.
         /// </summary>
         private void LoadCharacters()
         {
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "characters.txt");
+                string path = appDataPaths?.GetCharactersFilePath() ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "characters.txt");
                 if (File.Exists(path))
                 {
                     var lines = File.ReadAllLines(path);
@@ -54,6 +54,27 @@ namespace GameTranslator
                 }
             }
             catch (Exception ex) { AppendLog($"파일 로드 중 오류: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// 자동 업데이트 대비 사용자 데이터 저장 위치와 최초 마이그레이션 결과를 시작 로그에 남깁니다.
+        /// </summary>
+        private void AppendDataStorageStartupLog(AppDataMigrationSummary migrationSummary)
+        {
+            AppendLog($"사용자 데이터 폴더: {appDataPaths.RootDirectory}");
+            AppendLog($"설정 파일: {appDataPaths.ConfigFilePath}");
+
+            if (migrationSummary == null || !migrationSummary.HasChanges)
+            {
+                return;
+            }
+
+            AppendLog(
+                "기존 실행 폴더 사용자 파일을 새 데이터 폴더로 복사했습니다. " +
+                $"config={migrationSummary.ConfigCopied}, " +
+                $"characters={migrationSummary.CharactersCopied}, " +
+                $"logs={migrationSummary.LogFilesCopied}, " +
+                $"captures={migrationSummary.CaptureFilesCopied}");
         }
 
         /// <summary>

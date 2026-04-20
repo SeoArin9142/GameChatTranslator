@@ -158,7 +158,7 @@ namespace GameTranslator
         {
             try
             {
-                string captureDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Captures");
+                string captureDirPath = appDataPaths?.CapturesDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Captures");
                 if (!Directory.Exists(captureDirPath)) Directory.CreateDirectory(captureDirPath);
 
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");

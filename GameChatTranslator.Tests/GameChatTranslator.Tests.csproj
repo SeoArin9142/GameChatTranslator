@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../GameChatTranslator/Core/AppDataPaths.cs" Link="Core/AppDataPaths.cs" />
     <Compile Include="../GameChatTranslator/Core/ChatTextAnalyzer.cs" Link="Core/ChatTextAnalyzer.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrMaskProcessor.cs" Link="Core/OcrMaskProcessor.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrPerformanceReport.cs" Link="Core/OcrPerformanceReport.cs" />

@@ -35,7 +35,7 @@ namespace GameTranslator
         {
             try
             {
-                string logDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                string logDirPath = appDataPaths?.LogsDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
                 if (!Directory.Exists(logDirPath)) Directory.CreateDirectory(logDirPath);
 
                 // 🌟 수정: 매번 새로 만들지 않고, 켜질 때 고정된 파일명 사용
@@ -58,7 +58,7 @@ namespace GameTranslator
         {
             try
             {
-                string logDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                string logDirPath = appDataPaths?.LogsDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
                 if (!Directory.Exists(logDirPath)) Directory.CreateDirectory(logDirPath);
 
                 // 🌟 수정: 매번 새로 만들지 않고, 켜질 때 고정된 파일명 사용
