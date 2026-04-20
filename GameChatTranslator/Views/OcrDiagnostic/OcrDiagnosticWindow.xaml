@@ -11,39 +11,80 @@
         Foreground="White"
         ResizeMode="CanResize"
         Topmost="True">
-    <DockPanel Margin="10">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button x:Name="BtnRunDiagnostic"
-                    Content="현재 캡처 영역 진단"
-                    Padding="10,4"
-                    Margin="0,0,10,0"
-                    Background="#444"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    Click="BtnRunDiagnostic_Click"/>
+    <DockPanel Margin="12">
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <Button x:Name="BtnRunDiagnostic"
+                        Content="현재 캡처 영역 진단"
+                        Padding="12,5"
+                        Margin="0,0,10,0"
+                        Background="#444"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="BtnRunDiagnostic_Click"/>
+                <TextBlock x:Name="TxtStatus"
+                           VerticalAlignment="Center"
+                           Foreground="#8FE388"
+                           FontWeight="Bold"
+                           Text="진단 준비 완료"/>
+            </StackPanel>
+
             <Button x:Name="BtnSaveDiagnostic"
-                    Content="진단 결과 저장"
-                    Padding="10,4"
-                    Margin="0,0,10,0"
-                    Background="#444"
+                    Grid.Column="1"
+                    Content="진단 결과 ZIP 저장"
+                    Padding="12,5"
+                    Background="#3F5F7F"
                     Foreground="White"
                     BorderThickness="0"
                     Cursor="Hand"
                     IsEnabled="False"
                     Click="BtnSaveDiagnostic_Click"/>
-            <TextBlock x:Name="TxtStatus"
-                       VerticalAlignment="Center"
-                       Foreground="#8FE388"
-                       FontWeight="Bold"
-                       Text="진단 준비 완료"/>
-        </StackPanel>
+        </Grid>
 
         <TextBlock DockPanel.Dock="Top"
                    Text="현재 저장된 채팅 캡처 영역을 실제 번역과 같은 기준으로 분석합니다. 원본, 전처리, 크롭 이미지와 OCR 결과/점수를 비교하고, 결과 저장 버튼으로 ZIP 묶음을 만들 수 있습니다."
                    TextWrapping="Wrap"
                    Foreground="#CCC"
                    Margin="0,0,0,8"/>
+
+        <Border DockPanel.Dock="Top"
+                BorderBrush="#555"
+                BorderThickness="1"
+                Background="#252525"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="선택 후보" Foreground="#AAAAAA" FontSize="11"/>
+                    <TextBlock x:Name="TxtSelectedCandidate" Text="-" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <TextBlock Text="점수" Foreground="#AAAAAA" FontSize="11"/>
+                    <TextBlock x:Name="TxtSelectedScore" Text="-" Foreground="#FFD966" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Margin="12,0,0,0">
+                    <TextBlock Text="처리 시간" Foreground="#AAAAAA" FontSize="11"/>
+                    <TextBlock x:Name="TxtTotalTime" Text="-" Foreground="#8FE388" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                <StackPanel Grid.Column="3" Margin="12,0,0,0">
+                    <TextBlock Text="OCR 호출" Foreground="#AAAAAA" FontSize="11"/>
+                    <TextBlock x:Name="TxtOcrCalls" Text="-" Foreground="#9CDCFE" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+            </Grid>
+        </Border>
 
         <TabControl x:Name="TabDiagnostics"
                     Background="#222"

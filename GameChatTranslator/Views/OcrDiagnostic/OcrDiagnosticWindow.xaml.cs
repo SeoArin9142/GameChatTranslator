@@ -32,6 +32,7 @@ namespace GameTranslator
         {
             InitializeComponent();
             this.mainWindow = mainWindow;
+            UpdateSummaryHeader(null);
 
             Loaded += async (s, e) => await RunDiagnosticAsync();
         }
@@ -53,6 +54,7 @@ namespace GameTranslator
             BtnRunDiagnostic.IsEnabled = false;
             BtnSaveDiagnostic.IsEnabled = false;
             TxtStatus.Text = "OCR 진단 실행 중...";
+            UpdateSummaryHeader(null);
 
             try
             {
@@ -67,6 +69,7 @@ namespace GameTranslator
                 lastDiagnosticResult = null;
                 TabDiagnostics.Items.Clear();
                 TabDiagnostics.Items.Add(CreateTextTab("오류", ex.Message));
+                UpdateSummaryHeader(null);
                 TxtStatus.Text = $"실패: {ex.Message}";
             }
             finally
@@ -120,6 +123,7 @@ namespace GameTranslator
         private void RenderResult(OcrDiagnosticResult result)
         {
             TabDiagnostics.Items.Clear();
+            UpdateSummaryHeader(result);
             TabDiagnostics.Items.Add(CreateSummaryTab(result));
 
             foreach (OcrDiagnosticCandidate candidate in result.Candidates)
@@ -165,25 +169,124 @@ namespace GameTranslator
         /// </summary>
         private TabItem CreateCandidateTab(OcrDiagnosticCandidate candidate, bool selected)
         {
-            var root = new Grid();
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var root = new DockPanel();
+            FrameworkElement overview = CreateCandidateOverview(candidate, selected);
+            DockPanel.SetDock(overview, Dock.Top);
+            root.Children.Add(overview);
+
+            var contentGrid = new Grid();
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+            contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             var imagePanel = new StackPanel();
             imagePanel.Children.Add(CreateImageBlock("전처리 이미지", candidate.PreprocessedPng));
             imagePanel.Children.Add(CreateImageBlock("OCR 입력 크롭 이미지", candidate.CroppedPng));
             Grid.SetColumn(imagePanel, 0);
-            root.Children.Add(imagePanel);
+            contentGrid.Children.Add(imagePanel);
+
+            var detailGrid = new Grid();
+            detailGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            detailGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            detailGrid.Children.Add(new TextBlock
+            {
+                Text = "OCR 결과 / 점수 상세",
+                Foreground = MediaBrushes.White,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
 
             WpfTextBox details = CreateReadOnlyTextBox(BuildCandidateText(candidate, selected));
-            Grid.SetColumn(details, 1);
-            root.Children.Add(details);
+            Grid.SetRow(details, 1);
+            detailGrid.Children.Add(details);
+            Grid.SetColumn(detailGrid, 1);
+            contentGrid.Children.Add(detailGrid);
+
+            root.Children.Add(contentGrid);
 
             return new TabItem
             {
-                Header = selected ? $"{candidate.Name} 선택" : candidate.Name,
+                Header = selected ? $"★ {candidate.Name} ({candidate.Score})" : $"{candidate.Name} ({candidate.Score})",
                 Content = root
             };
+        }
+
+        /// <summary>
+        /// 선택 후보, 점수, 처리 시간, OCR 호출 수를 창 상단 요약 영역에 표시합니다.
+        /// </summary>
+        private void UpdateSummaryHeader(OcrDiagnosticResult result)
+        {
+            if (result == null)
+            {
+                TxtSelectedCandidate.Text = "-";
+                TxtSelectedScore.Text = "-";
+                TxtTotalTime.Text = "-";
+                TxtOcrCalls.Text = "-";
+                return;
+            }
+
+            TxtSelectedCandidate.Text = string.IsNullOrWhiteSpace(result.SelectedCandidateName) ? "-" : result.SelectedCandidateName;
+            TxtSelectedScore.Text = result.SelectedScore.ToString();
+            TxtTotalTime.Text = $"{result.TotalMs}ms";
+            TxtOcrCalls.Text = $"{result.OcrCallCount}회";
+        }
+
+        /// <summary>
+        /// 후보 탭 최상단에 후보명, 선택 여부, 점수, OCR 결과량을 요약해 보여주는 영역을 만듭니다.
+        /// </summary>
+        private FrameworkElement CreateCandidateOverview(OcrDiagnosticCandidate candidate, bool selected)
+        {
+            var border = new Border
+            {
+                BorderBrush = selected
+                    ? new SolidColorBrush(MediaColor.FromRgb(143, 227, 136))
+                    : new SolidColorBrush(MediaColor.FromRgb(85, 85, 85)),
+                BorderThickness = new Thickness(1),
+                Background = selected
+                    ? new SolidColorBrush(MediaColor.FromRgb(36, 54, 38))
+                    : new SolidColorBrush(MediaColor.FromRgb(37, 37, 37)),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.Children.Add(CreateMetricBlock("후보", candidate.Name, selected ? "#8FE388" : "#FFFFFF", 0));
+            grid.Children.Add(CreateMetricBlock("선택 여부", selected ? "선택됨" : "미선택", selected ? "#8FE388" : "#CCCCCC", 1));
+            grid.Children.Add(CreateMetricBlock("점수", candidate.Score.ToString(), "#FFD966", 2));
+            grid.Children.Add(CreateMetricBlock("결과량", $"병합 {candidate.MergedLines.Count}줄 / 언어 {candidate.Languages.Count}개", "#9CDCFE", 3));
+
+            border.Child = grid;
+            return border;
+        }
+
+        /// <summary>
+        /// 요약 영역에서 사용할 작은 제목/값 묶음을 만듭니다.
+        /// </summary>
+        private FrameworkElement CreateMetricBlock(string label, string value, string valueColor, int column)
+        {
+            var panel = new StackPanel { Margin = column == 0 ? new Thickness(0) : new Thickness(12, 0, 0, 0) };
+            panel.Children.Add(new TextBlock
+            {
+                Text = label,
+                Foreground = new SolidColorBrush(MediaColor.FromRgb(170, 170, 170)),
+                FontSize = 11
+            });
+            panel.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(value) ? "-" : value,
+                Foreground = (SolidColorBrush)new BrushConverter().ConvertFrom(valueColor),
+                FontWeight = FontWeights.Bold,
+                FontSize = 15,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            Grid.SetColumn(panel, column);
+            return panel;
         }
 
         /// <summary>
