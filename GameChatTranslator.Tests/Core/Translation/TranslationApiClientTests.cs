@@ -116,6 +116,83 @@ namespace GameChatTranslator.Tests
             Assert.Contains("bad model", result.ErrorMessage);
         }
 
+        [Fact]
+        public async Task TranslateWithLocalLlmAsync_PostsOpenAiCompatibleUtf8Request()
+        {
+            var handler = new StubHttpMessageHandler(async request =>
+            {
+                Assert.Equal(HttpMethod.Post, request.Method);
+                Assert.Equal("http://localhost:1234/v1/chat/completions", request.RequestUri.ToString());
+                Assert.Equal("application/json", request.Content.Headers.ContentType.MediaType);
+                Assert.Equal("utf-8", request.Content.Headers.ContentType.CharSet);
+
+                string payload = await request.Content.ReadAsStringAsync();
+                using JsonDocument document = JsonDocument.Parse(payload);
+                JsonElement root = document.RootElement;
+                Assert.Equal("qwen/qwen3.5-9b", root.GetProperty("model").GetString());
+                Assert.Equal(0.1, root.GetProperty("temperature").GetDouble());
+                Assert.Equal(120, root.GetProperty("max_tokens").GetInt32());
+
+                JsonElement messages = root.GetProperty("messages");
+                Assert.Contains("/no_think", messages[0].GetProperty("content").GetString());
+                Assert.Contains("Korean", messages[0].GetProperty("content").GetString());
+                Assert.Contains("猫可愛 0", messages[1].GetProperty("content").GetString());
+
+                return JsonResponse("{\"choices\":[{\"message\":{\"content\":\"고양이는 귀여워요.\"},\"finish_reason\":\"stop\"}]}");
+            });
+            TranslationApiClient client = CreateClient(handler);
+
+            LocalLlmTranslateApiResult result = await client.TranslateWithLocalLlmAsync(
+                "猫 可 愛 0",
+                "ko",
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b",
+                0.1,
+                120);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("고양이는 귀여워요.", result.Text);
+            Assert.Equal(1, handler.CallCount);
+        }
+
+        [Fact]
+        public async Task TranslateWithLocalLlmAsync_SkipsNonTranslatableContent()
+        {
+            var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP 호출이 없어야 합니다."));
+            TranslationApiClient client = CreateClient(handler);
+
+            LocalLlmTranslateApiResult result = await client.TranslateWithLocalLlmAsync(
+                "123 !!!",
+                "ko",
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b",
+                0.1,
+                120);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("", result.Text);
+            Assert.Equal(0, handler.CallCount);
+        }
+
+        [Fact]
+        public async Task TranslateWithLocalLlmAsync_ReturnsHttpFailure()
+        {
+            var handler = new StubHttpMessageHandler(_ => Task.FromResult(JsonResponse("{\"error\":\"server down\"}", HttpStatusCode.ServiceUnavailable)));
+            TranslationApiClient client = CreateClient(handler);
+
+            LocalLlmTranslateApiResult result = await client.TranslateWithLocalLlmAsync(
+                "hello",
+                "ko",
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b",
+                0.1,
+                120);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(503, result.StatusCode);
+            Assert.Contains("server down", result.ErrorMessage);
+        }
+
         private static TranslationApiClient CreateClient(HttpMessageHandler handler)
         {
             return new TranslationApiClient(

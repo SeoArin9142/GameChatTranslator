@@ -97,5 +97,23 @@ namespace GameChatTranslator.Tests
             Assert.Contains("伽好", prompt);
             Assert.Contains("Output ONLY the translation", prompt);
         }
+
+        [Fact]
+        public void BuildLocalLlmSystemPrompt_DisablesThinkingAndTargetsLanguage()
+        {
+            string prompt = _builder.BuildLocalLlmSystemPrompt("ko");
+
+            Assert.Contains("/no_think", prompt);
+            Assert.Contains("Korean", prompt);
+            Assert.Contains("Return only", prompt);
+        }
+
+        [Fact]
+        public void BuildLocalLlmUserPrompt_CleansOcrSpacing()
+        {
+            string prompt = _builder.BuildLocalLlmUserPrompt("猫 可 愛 0");
+
+            Assert.Equal("/no_think Input: 猫可愛 0", prompt);
+        }
     }
 }
