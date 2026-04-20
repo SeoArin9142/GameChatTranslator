@@ -16,7 +16,7 @@
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!
 
-[**👉 GameChatTranslator v1.0.13-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.13-alpha/GameChatTranslator_v1.0.13-alpha.zip)
+[**👉 GameChatTranslator v1.0.14-alpha 다운로드 받기**](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.14-alpha/GameChatTranslator_v1.0.14-alpha.zip)
 
 ---
 
@@ -114,6 +114,31 @@
 
 본 프로젝트는 **OpenAI Codex**, **Anthropic Claude**, **Google Gemini Pro**가 함께 만들어가는 초기 단계 프로젝트입니다. 스트리노바 유저분들의 소중한 피드백은 **Issues** 탭에 남겨주시면 개발에 큰 힘이 됩니다!
 
+## 업데이트 내역 (v.1.0.14-alpha)
+
+   이번 버전에서는 OCR 이미지 전처리 코드를 별도 클래스로 분리해 번역 화면 코드의 복잡도를 낮추고, 전처리 핵심 로직을 테스트 가능한 구조로 정리했습니다.
+
+   🧩 OCR 이미지 전처리 분리
+
+      Color, ColorThick, Adaptive 전처리 후보 이미지 생성 흐름을 OcrImagePreprocessor로 이동했습니다.
+
+      MainWindow는 전처리 세부 구현을 직접 들고 있지 않고, 전처리 서비스를 호출하는 구조로 정리했습니다.
+
+   🧪 마스크 처리 테스트 추가
+
+      색상 마스크, 적응형 이진화, 글자 굵기 보정, 고립 노이즈 제거 로직을 OcrMaskProcessor로 분리했습니다.
+
+      byte 픽셀/마스크 기반 단위 테스트를 추가해 로컬 및 GitHub Actions 환경에서 동일하게 검증할 수 있게 했습니다.
+
+   🧱 OCR 유지보수성 개선
+
+      OCR 후보 선택 정책(OcrService)과 이미지 전처리(OcrImagePreprocessor/OcrMaskProcessor)의 책임을 분리했습니다.
+
+      전체 단위 테스트 수가 158개로 늘어났습니다.
+
+<details>
+<summary>지난 업데이트 내역</summary>
+
 ## 업데이트 내역 (v.1.0.13-alpha)
 
    이번 버전에서는 환경설정창에서 조정하는 런타임 옵션의 허용 범위를 명확히 표시하고, 잘못된 값이 들어와도 안전한 범위로 자동 보정되도록 정리했습니다.
@@ -135,9 +160,6 @@
       SettingsValueNormalizer 테스트를 확장해 범위 밖 값, 빈 값, 숫자가 아닌 값까지 검증합니다.
 
       전체 단위 테스트 수가 152개로 늘어났습니다.
-
-<details>
-<summary>지난 업데이트 내역</summary>
 
 ## 업데이트 내역 (v.1.0.12-alpha)
 
