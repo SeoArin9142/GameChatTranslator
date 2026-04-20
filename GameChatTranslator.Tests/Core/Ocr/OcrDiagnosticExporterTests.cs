@@ -44,6 +44,35 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void BuildFullText_IncludesSummaryAndEveryCandidateDetail()
+        {
+            OcrDiagnosticResult result = CreateSampleResult();
+            result.Candidates.Add(new OcrDiagnosticCandidate
+            {
+                Name = "Adaptive",
+                Score = 11,
+                PreprocessedPng = new byte[] { 1 },
+                CroppedPng = new byte[] { 2 }
+            });
+
+            string text = _exporter.BuildFullText(result);
+
+            Assert.Contains("[OCR 진단 요약]", text);
+            Assert.Contains("선택 후보: Color", text);
+            Assert.Contains("[Color]", text);
+            Assert.Contains("선택 여부: YES", text);
+            Assert.Contains("[Adaptive]", text);
+            Assert.Contains("선택 여부: NO", text);
+            Assert.Contains("========================================", text);
+        }
+
+        [Fact]
+        public void BuildFullText_ThrowsForNullResult()
+        {
+            Assert.Throws<ArgumentNullException>(() => _exporter.BuildFullText(null));
+        }
+
+        [Fact]
         public void CreateDefaultFileName_UsesCaptureTimestamp()
         {
             string fileName = _exporter.CreateDefaultFileName(new DateTime(2026, 4, 20, 15, 30, 40));

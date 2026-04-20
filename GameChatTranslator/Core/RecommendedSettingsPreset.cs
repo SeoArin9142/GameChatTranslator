@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace GameTranslator
 {
@@ -77,6 +78,32 @@ namespace GameTranslator
         public bool SaveDebugImages { get; }
 
         /// <summary>
+        /// 현재 UI 값과 추천 프리셋 값을 비교해 사용자가 저장 전에 무엇이 바뀌는지 확인할 수 있는 문구를 만듭니다.
+        /// 입력값은 UI에서 읽은 현재 값이며, 허용 범위를 벗어난 값은 기존 설정 보정 규칙과 동일하게 정규화합니다.
+        /// </summary>
+        public string BuildDifferenceSummary(
+            int currentScaleFactor,
+            int currentThreshold,
+            int currentAutoTranslateInterval,
+            string currentResultDisplayMode,
+            int currentResultHistoryLimit,
+            bool currentSaveDebugImages)
+        {
+            var builder = new StringBuilder();
+
+            AppendDifference(builder, "OCR 배율", SettingsValueNormalizer.NormalizeScaleFactor(currentScaleFactor), ScaleFactor);
+            AppendDifference(builder, "이진화 기준", SettingsValueNormalizer.NormalizeThreshold(currentThreshold), Threshold);
+            AppendDifference(builder, "자동 번역 주기", SettingsValueNormalizer.NormalizeAutoTranslateInterval(currentAutoTranslateInterval), AutoTranslateInterval, "초");
+            AppendDifference(builder, "결과 표시 방식", NormalizeResultDisplayMode(currentResultDisplayMode), NormalizeResultDisplayMode(ResultDisplayMode));
+            AppendDifference(builder, "누적 표시 줄 수", SettingsValueNormalizer.NormalizeResultHistoryLimit(currentResultHistoryLimit), ResultHistoryLimit, "줄");
+            AppendDifference(builder, "디버그 이미지 저장", currentSaveDebugImages ? "ON" : "OFF", SaveDebugImages ? "ON" : "OFF");
+
+            return builder.Length == 0
+                ? "현재 고급 설정과 동일합니다."
+                : builder.ToString().TrimEnd();
+        }
+
+        /// <summary>
         /// UI에 노출할 내장 추천 프리셋 목록을 반환합니다.
         /// </summary>
         public static IReadOnlyList<RecommendedSettingsPreset> GetAll()
@@ -93,6 +120,19 @@ namespace GameTranslator
             if (string.IsNullOrWhiteSpace(id)) return null;
 
             return Presets.FirstOrDefault(preset => preset.Id.Equals(id.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string NormalizeResultDisplayMode(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? SettingsService.DefaultResultDisplayMode : value.Trim();
+        }
+
+        private static void AppendDifference<T>(StringBuilder builder, string label, T currentValue, T recommendedValue, string suffix = "")
+        {
+            if (EqualityComparer<T>.Default.Equals(currentValue, recommendedValue)) return;
+
+            string unit = string.IsNullOrWhiteSpace(suffix) ? "" : suffix;
+            builder.AppendLine($"- {label}: {currentValue}{unit} → {recommendedValue}{unit}");
         }
     }
 }
