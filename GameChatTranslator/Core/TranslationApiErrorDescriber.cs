@@ -182,7 +182,7 @@ namespace GameTranslator
                 403 => $"{actionName} 권한이 없습니다. API 키 권한, 프로젝트 사용 설정, 결제/지역 제한을 확인해 주세요.",
                 404 => $"{actionName} 대상 모델을 찾지 못했습니다. GeminiModel 설정값을 확인해 주세요.",
                 429 => $"{actionName} 할당량 또는 호출 제한에 걸렸습니다. 잠시 후 다시 시도하거나 API 사용량을 확인해 주세요.",
-                500 or 502 or 503 or 504 => $"{actionName} 서버 오류가 발생했습니다. Google API 상태를 확인하고 잠시 후 다시 시도해 주세요.",
+                500 or 502 or 503 or 504 => $"{actionName} 서버 오류가 발생했습니다. Gemini 서버가 혼잡하거나 일시적으로 응답하지 않습니다. 잠시 후 다시 시도하거나 Google 번역을 사용해 주세요.",
                 null => $"{actionName} 실패 원인을 특정하지 못했습니다. API 키, 모델명, 네트워크 상태를 확인해 주세요.",
                 _ => $"{actionName} 실패가 발생했습니다. HTTP {statusCode.Value} 응답 내용을 확인해 주세요."
             };

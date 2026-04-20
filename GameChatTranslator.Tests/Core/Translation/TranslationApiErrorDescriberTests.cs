@@ -51,6 +51,21 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void DescribeGeminiTranslateFailure_ExplainsGeminiServerDemandWithoutGoogleApiStatus()
+        {
+            GeminiTranslateApiResult result = GeminiTranslateApiResult.Failed(
+                503,
+                "{\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand\",\"status\":\"UNAVAILABLE\"}}");
+
+            string message = _describer.DescribeGeminiTranslateFailure(result, "gemini-2.5-flash");
+
+            Assert.Contains("Gemini 서버가 혼잡", message);
+            Assert.Contains("Google 번역을 사용", message);
+            Assert.Contains("503 / UNAVAILABLE / This model is currently experiencing high demand", message);
+            Assert.DoesNotContain("Google API 상태", message);
+        }
+
+        [Fact]
         public void DescribeGeminiEmptyResponse_IncludesModelAndFallbackHint()
         {
             string message = _describer.DescribeGeminiEmptyResponse("gemini-test");
