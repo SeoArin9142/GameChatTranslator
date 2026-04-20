@@ -55,14 +55,35 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 앱 내부 게임 언어 코드를 Google Translate API의 sl 파라미터 언어 코드로 변환합니다.
+        /// <paramref name="sourceLanguageCode"/>는 OCR에 사용한 게임 원문 언어 코드입니다.
+        /// 알 수 없는 값은 Google 자동 감지로 되돌려 잘못된 sl 값 전송을 피합니다.
+        /// </summary>
+        public string GetGoogleTranslateSourceLanguageCode(string sourceLanguageCode)
+        {
+            string normalized = GetGoogleTranslateLanguageCode(sourceLanguageCode ?? "");
+            return normalized switch
+            {
+                "ko" => "ko",
+                "en" => "en",
+                "ja" => "ja",
+                "ru" => "ru",
+                "zh-CN" => "zh-CN",
+                _ => "auto"
+            };
+        }
+
+        /// <summary>
         /// Google Translate 비공식 엔드포인트 호출 URL을 생성합니다.
         /// <paramref name="cleanedText"/>는 CleanGoogleTranslateInput을 통과한 문자열,
+        /// <paramref name="sourceLanguageCode"/>는 앱 내부 게임 원문 언어 코드,
         /// <paramref name="targetLanguageCode"/>는 앱 내부 목표 언어 코드입니다.
         /// </summary>
-        public string BuildGoogleTranslateUrl(string cleanedText, string targetLanguageCode)
+        public string BuildGoogleTranslateUrl(string cleanedText, string sourceLanguageCode, string targetLanguageCode)
         {
+            string sourceApiLang = GetGoogleTranslateSourceLanguageCode(sourceLanguageCode);
             string targetApiLang = GetGoogleTranslateLanguageCode(targetLanguageCode);
-            return $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={targetApiLang}&dt=t&q={Uri.EscapeDataString(cleanedText ?? "")}";
+            return $"https://translate.googleapis.com/translate_a/single?client=gtx&sl={sourceApiLang}&tl={targetApiLang}&dt=t&q={Uri.EscapeDataString(cleanedText ?? "")}";
         }
 
         /// <summary>

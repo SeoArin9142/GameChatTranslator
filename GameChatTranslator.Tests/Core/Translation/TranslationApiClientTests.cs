@@ -18,13 +18,14 @@ namespace GameChatTranslator.Tests
             {
                 Assert.Equal(HttpMethod.Get, request.Method);
                 Assert.Contains("translate.googleapis.com", request.RequestUri.ToString());
+                Assert.Contains("sl=en", request.RequestUri.Query);
                 Assert.Contains("tl=ko", request.RequestUri.Query);
                 Assert.Contains("hello", WebUtility.UrlDecode(request.RequestUri.Query));
                 return Task.FromResult(JsonResponse("[[[\"안녕\",\"hello\",null,null,3]],null,\"en\"]"));
             });
             TranslationApiClient client = CreateClient(handler);
 
-            string result = await client.TranslateWithGoogleAsync("[미셸] 12:34 hello@@@", "ko");
+            string result = await client.TranslateWithGoogleAsync("[미셸] 12:34 hello@@@", "en-US", "ko");
 
             Assert.Equal("안녕", result);
             Assert.Equal(1, handler.CallCount);
@@ -36,7 +37,7 @@ namespace GameChatTranslator.Tests
             var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("HTTP 호출이 없어야 합니다."));
             TranslationApiClient client = CreateClient(handler);
 
-            string result = await client.TranslateWithGoogleAsync("123 !!!", "ko");
+            string result = await client.TranslateWithGoogleAsync("123 !!!", "en-US", "ko");
 
             Assert.Equal("", result);
             Assert.Equal(0, handler.CallCount);

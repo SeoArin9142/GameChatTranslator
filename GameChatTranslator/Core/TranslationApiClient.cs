@@ -47,17 +47,18 @@ namespace GameTranslator
         /// <summary>
         /// Google Translate 비공식 무료 엔드포인트를 1회 호출합니다.
         /// <paramref name="text"/>는 OCR 후처리 문장이고,
+        /// <paramref name="sourceLanguageCode"/>는 ko/en-US/zh-Hans-CN 같은 앱 내부 게임 원문 언어 코드,
         /// <paramref name="targetLanguageCode"/>는 ko/en-US/zh-Hans-CN 같은 앱 내부 목표 언어 코드입니다.
         /// 반환값은 파싱된 번역문이며, 의미 없는 입력이면 빈 문자열입니다.
         /// </summary>
-        public async Task<string> TranslateWithGoogleAsync(string text, string targetLanguageCode)
+        public async Task<string> TranslateWithGoogleAsync(string text, string sourceLanguageCode, string targetLanguageCode)
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
 
             string cleaned = _promptBuilder.CleanGoogleTranslateInput(text);
             if (!_promptBuilder.HasTranslatableContent(cleaned)) return "";
 
-            string url = _promptBuilder.BuildGoogleTranslateUrl(cleaned, targetLanguageCode);
+            string url = _promptBuilder.BuildGoogleTranslateUrl(cleaned, sourceLanguageCode, targetLanguageCode);
             string responseJson = await _httpClient.GetStringAsync(url);
             return _resultParser.ParseGoogleTranslateResponse(responseJson);
         }

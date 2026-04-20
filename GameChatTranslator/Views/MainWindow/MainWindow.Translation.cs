@@ -467,7 +467,7 @@ namespace GameTranslator
                             if (geminiResolution.RequiresGoogleFallback)
                             {
                                 translateStopwatch.Restart();
-                                string googleFallback = await CallGoogleAPI(finalContent, targetLang);
+                                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
                                 translateStopwatch.Stop();
                                 performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                                 translationResult = translationService.ResolveGoogleAttempt(googleFallback, true).FinalResult;
@@ -480,7 +480,7 @@ namespace GameTranslator
                         else
                         {
                             Stopwatch translateStopwatch = Stopwatch.StartNew();
-                            string googleTranslated = await CallGoogleAPI(finalContent, targetLang);
+                            string googleTranslated = await CallGoogleAPI(finalContent, gameLang, targetLang);
                             translateStopwatch.Stop();
                             performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                             translationResult = translationService.ResolveGoogleAttempt(googleTranslated, false).FinalResult;
@@ -767,10 +767,11 @@ namespace GameTranslator
         /// <summary>
         /// Google Translate 비공식 무료 엔드포인트를 호출해 문자열을 목표 언어로 번역합니다.
         /// <paramref name="text"/>는 번역할 OCR 후처리 문장이고,
+        /// <paramref name="sourceLang"/>은 게임 원문 언어 코드입니다.
         /// <paramref name="tLang"/>은 목표 언어 코드입니다.
         /// 반환값은 번역문이며 실패하거나 의미 없는 입력이면 빈 문자열일 수 있습니다.
         /// </summary>
-        private async Task<string> CallGoogleAPI(string text, string tLang)
+        private async Task<string> CallGoogleAPI(string text, string sourceLang, string tLang)
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
 
@@ -787,7 +788,7 @@ namespace GameTranslator
             {
                 try
                 {
-                    result = await translationApiClient.TranslateWithGoogleAsync(text, tLang);
+                    result = await translationApiClient.TranslateWithGoogleAsync(text, sourceLang, tLang);
                     if (string.IsNullOrEmpty(result)) throw new Exception("Google 번역 응답 파싱 실패");
                     break;
                 }
