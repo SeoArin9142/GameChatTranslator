@@ -138,6 +138,59 @@ namespace GameTranslator
             return GeminiTranslateApiResult.Succeeded(parsedText);
         }
 
+        /// <summary>
+        /// LM Studio/OpenAI 호환 chat completions 엔드포인트를 1회 호출합니다.
+        /// <paramref name="endpoint"/>는 예: http://localhost:1234/v1/chat/completions,
+        /// <paramref name="modelName"/>은 LM Studio에서 로드된 모델 ID입니다.
+        /// </summary>
+        public async Task<LocalLlmTranslateApiResult> TranslateWithLocalLlmAsync(
+            string text,
+            string targetLanguageCode,
+            string endpoint,
+            string modelName,
+            double temperature,
+            int maxTokens)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return LocalLlmTranslateApiResult.Succeeded("");
+            if (string.IsNullOrWhiteSpace(endpoint)) return LocalLlmTranslateApiResult.Failed(null, "Local LLM endpoint가 비어 있습니다.");
+            if (string.IsNullOrWhiteSpace(modelName)) return LocalLlmTranslateApiResult.Failed(null, "Local LLM model이 비어 있습니다.");
+
+            string cleaned = _promptBuilder.CleanGoogleTranslateInput(text);
+            if (!_promptBuilder.HasTranslatableContent(cleaned)) return LocalLlmTranslateApiResult.Succeeded("");
+
+            string userPrompt = _promptBuilder.BuildLocalLlmUserPrompt(text);
+
+            var requestBody = new
+            {
+                model = modelName,
+                messages = new[]
+                {
+                    new { role = "system", content = _promptBuilder.BuildLocalLlmSystemPrompt(targetLanguageCode) },
+                    new { role = "user", content = userPrompt }
+                },
+                temperature,
+                max_tokens = maxTokens
+            };
+
+            string jsonPayload = JsonSerializer.Serialize(requestBody);
+            using var content = new ByteArrayContent(Encoding.UTF8.GetBytes(jsonPayload));
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
+            {
+                CharSet = "utf-8"
+            };
+
+            using HttpResponseMessage response = await _httpClient.PostAsync(endpoint, content);
+            string responseJson = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return LocalLlmTranslateApiResult.Failed((int)response.StatusCode, responseJson);
+            }
+
+            string parsedText = _resultParser.ParseOpenAiChatCompletionResponse(responseJson);
+            return LocalLlmTranslateApiResult.Succeeded(parsedText);
+        }
+
         private static string ReadGeminiModelName(JsonElement modelElement)
         {
             if (!modelElement.TryGetProperty("name", out JsonElement nameElement)) return "";
@@ -203,6 +256,36 @@ namespace GameTranslator
         public static GeminiTranslateApiResult Failed(int? statusCode, string errorMessage)
         {
             return new GeminiTranslateApiResult(false, "", statusCode, errorMessage);
+        }
+    }
+
+    /// <summary>
+    /// Local LLM 번역 API 호출 결과입니다.
+    /// IsSuccess가 false이면 StatusCode/ErrorMessage를 로그에 남기고 Google fallback을 시도할 수 있습니다.
+    /// </summary>
+    public sealed class LocalLlmTranslateApiResult
+    {
+        private LocalLlmTranslateApiResult(bool isSuccess, string text, int? statusCode, string errorMessage)
+        {
+            IsSuccess = isSuccess;
+            Text = text ?? "";
+            StatusCode = statusCode;
+            ErrorMessage = errorMessage ?? "";
+        }
+
+        public bool IsSuccess { get; }
+        public string Text { get; }
+        public int? StatusCode { get; }
+        public string ErrorMessage { get; }
+
+        public static LocalLlmTranslateApiResult Succeeded(string text)
+        {
+            return new LocalLlmTranslateApiResult(true, text, null, "");
+        }
+
+        public static LocalLlmTranslateApiResult Failed(int? statusCode, string errorMessage)
+        {
+            return new LocalLlmTranslateApiResult(false, "", statusCode, errorMessage);
         }
     }
 }

@@ -37,6 +37,26 @@ namespace GameChatTranslator.Tests
             Assert.Equal("번역 결과", result);
         }
 
+        [Fact]
+        public void ParseOpenAiChatCompletionResponse_ExtractsMessageContent()
+        {
+            string json = "{\"choices\":[{\"message\":{\"content\":\"고양이는 귀여워요.\"},\"finish_reason\":\"stop\"}]}";
+
+            string result = _parser.ParseOpenAiChatCompletionResponse(json);
+
+            Assert.Equal("고양이는 귀여워요.", result);
+        }
+
+        [Fact]
+        public void ParseOpenAiChatCompletionResponse_RemovesThinkBlock()
+        {
+            string json = "{\"choices\":[{\"message\":{\"content\":\"<think>reasoning</think>고양이는 귀여워요.\"}}]}";
+
+            string result = _parser.ParseOpenAiChatCompletionResponse(json);
+
+            Assert.Equal("고양이는 귀여워요.", result);
+        }
+
         [Theory]
         [InlineData("")]
         [InlineData(null)]
