@@ -53,6 +53,7 @@ namespace GameTranslator
             isAutoTranslating = autoTranslateMode != AutoTranslateMode.Off;
             ResetTranslationCache($"자동 번역 모드 변경: {GetAutoTranslateModeLabel()}");
             UpdateYellowHotkeyGuideText();
+            ShowAutoModeStatus();
             AppendLog($"자동 번역 모드: {GetAutoTranslateModeLabel()}");
 
             if (isAutoTranslating)

@@ -13,8 +13,27 @@
     <Border x:Name="MainBorder" Background="#CC1E1E1E" CornerRadius="10" BorderThickness="2" BorderBrush="#55FFFFFF">
         <StackPanel Margin="15">
             <!-- 단축키와 현재 자동 번역 모드를 표시하는 상단 안내 영역입니다. MainWindow.Hotkeys.cs에서 동적으로 갱신합니다. -->
-            <TextBlock Text="[Ctrl+7] 이동/잠금  [Ctrl+8] 영역설정  [Ctrl+9] 번역  [Ctrl+6] 복사"
-                       TextWrapping="Wrap" Foreground="#FFCC00" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10" Height="50"/>
+            <TextBlock x:Name="TxtHotkeyGuide"
+                       Text="[Ctrl+7] 이동  [Ctrl+8] 영역  [Ctrl+9] 번역  [Ctrl+0] 자동"
+                       TextWrapping="Wrap"
+                       Foreground="#FFCC00"
+                       FontSize="11"
+                       FontWeight="Bold"
+                       LineHeight="16"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,6"/>
+
+            <!-- 자동 번역 모드 전환 시 현재 상태를 잠깐 강조 표시합니다. 단축키 안내가 길어져도 전환 상태를 놓치지 않게 분리했습니다. -->
+            <TextBlock x:Name="TxtAutoModeStatus"
+                       TextWrapping="Wrap"
+                       Foreground="#7CFF7C"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,8"
+                       Visibility="Collapsed"/>
 
             <!-- API 오류가 발생했을 때 게임 화면을 크게 가리지 않는 짧은 안내만 잠시 표시합니다. 상세 원인은 로그창에 남깁니다. -->
             <TextBlock x:Name="TxtApiStatus"
