@@ -11,6 +11,7 @@ namespace GameTranslator
     {
         private const string TranslatableLetterPattern = @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]";
         private const string SingleCharacterAllowPattern = @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$";
+        private const string EastAsianNoSpacePattern = @"(?<=[ぁ-んァ-ヶ一-龥])\s+(?=[ぁ-んァ-ヶ一-龥])";
 
         /// <summary>
         /// Google Translate API에 보내기 전 OCR 노이즈와 불필요한 기호를 제거합니다.
@@ -25,6 +26,7 @@ namespace GameTranslator
             cleaned = Regex.Replace(cleaned, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]", "");
             cleaned = Regex.Replace(cleaned, @"([\-\=\.\/_])\1+", "$1");
             cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+            cleaned = Regex.Replace(cleaned, EastAsianNoSpacePattern, "");
             return cleaned;
         }
 

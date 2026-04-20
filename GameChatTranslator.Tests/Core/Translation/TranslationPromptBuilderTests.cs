@@ -15,6 +15,22 @@ namespace GameChatTranslator.Tests
             Assert.Equal("미셸 hello - world", cleaned);
         }
 
+        [Fact]
+        public void CleanGoogleTranslateInput_JoinsEastAsianCharactersSplitByOcrSpaces()
+        {
+            string cleaned = _builder.CleanGoogleTranslateInput("猫 可 愛");
+
+            Assert.Equal("猫可愛", cleaned);
+        }
+
+        [Fact]
+        public void CleanGoogleTranslateInput_KeepsKoreanWordSpaces()
+        {
+            string cleaned = _builder.CleanGoogleTranslateInput("나는 고양이 좋아");
+
+            Assert.Equal("나는 고양이 좋아", cleaned);
+        }
+
         [Theory]
         [InlineData("hello", true)]
         [InlineData("안", true)]
