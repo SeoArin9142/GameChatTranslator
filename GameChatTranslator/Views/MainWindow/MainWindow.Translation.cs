@@ -6,7 +6,6 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,7 +21,6 @@ using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
 using ColorConverter = System.Windows.Media.ColorConverter;
 using OcrResultCandidate = GameTranslator.OcrCandidate<System.Collections.Generic.Dictionary<string, Windows.Media.Ocr.OcrResult>>;
-using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace GameTranslator
 {
@@ -164,24 +162,6 @@ namespace GameTranslator
         {
             lastRawTextCombined = "";
             AppendLog($"재번역 캐시 초기화: {reason}");
-        }
-
-        /// <summary>
-        /// 전처리된 OCR 입력 이미지를 이름과 함께 관리하는 disposable 모델입니다.
-        /// Bitmap은 unmanaged 리소스를 포함하므로 사용 후 Dispose로 해제합니다.
-        /// </summary>
-        private class PreprocessedOcrImage : IDisposable
-        {
-            public string Name;
-            public Bitmap Bitmap;
-
-            /// <summary>
-            /// 전처리 이미지 Bitmap 리소스를 해제합니다.
-            /// </summary>
-            public void Dispose()
-            {
-                Bitmap?.Dispose();
-            }
         }
 
         /// <summary>
@@ -552,7 +532,7 @@ namespace GameTranslator
         {
             OcrResultCandidate bestCandidate = null;
             Stopwatch preprocessStopwatch = Stopwatch.StartNew();
-            List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds);
+            List<PreprocessedOcrImage> preprocessedImages = ocrImagePreprocessor.CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds);
             preprocessStopwatch.Stop();
             performanceStats.PreprocessMs += preprocessStopwatch.ElapsedMilliseconds;
             performanceStats.PreprocessCandidateCount += preprocessedImages.Count;
@@ -612,297 +592,6 @@ namespace GameTranslator
             }
 
             return bestCandidate;
-        }
-
-        /// <summary>
-        /// 요청된 전처리 후보 종류만 생성해 OCR 입력 Bitmap 목록을 만듭니다.
-        /// <paramref name="source"/>는 확대된 원본 캡처 이미지,
-        /// <paramref name="threshold"/>는 색상/밝기 판단 기준값,
-        /// <paramref name="preprocessKinds"/>는 만들 전처리 후보 종류 목록입니다.
-        /// 반환값의 Bitmap은 호출자가 Dispose해야 합니다.
-        /// </summary>
-        private List<PreprocessedOcrImage> CreatePreprocessedOcrImages(Bitmap source, int threshold, params OcrPreprocessKind[] preprocessKinds)
-        {
-            int width = source.Width;
-            int height = source.Height;
-            byte[] pixels = ReadBitmapPixels(source, out int stride);
-
-            if (preprocessKinds == null || preprocessKinds.Length == 0)
-            {
-                preprocessKinds = new[] { OcrPreprocessKind.Color, OcrPreprocessKind.ColorThick, OcrPreprocessKind.Adaptive };
-            }
-
-            byte[] colorMask = null;
-            var images = new List<PreprocessedOcrImage>();
-
-            foreach (OcrPreprocessKind kind in preprocessKinds.Distinct())
-            {
-                if (kind == OcrPreprocessKind.Color)
-                {
-                    colorMask ??= CreateColorMask(pixels, stride, width, height, threshold);
-                    images.Add(new PreprocessedOcrImage { Name = "Color", Bitmap = CreateBitmapFromMask(colorMask, width, height) });
-                }
-                else if (kind == OcrPreprocessKind.ColorThick)
-                {
-                    colorMask ??= CreateColorMask(pixels, stride, width, height, threshold);
-                    byte[] colorThickMask = DilateMask(colorMask, width, height);
-                    images.Add(new PreprocessedOcrImage { Name = "ColorThick", Bitmap = CreateBitmapFromMask(colorThickMask, width, height) });
-                }
-                else if (kind == OcrPreprocessKind.Adaptive)
-                {
-                    byte[] adaptiveMask = CreateAdaptiveThresholdMask(pixels, stride, width, height, threshold);
-                    byte[] adaptiveCleanMask = DilateMask(RemoveIsolatedWhitePixels(adaptiveMask, width, height), width, height);
-                    images.Add(new PreprocessedOcrImage { Name = "Adaptive", Bitmap = CreateBitmapFromMask(adaptiveCleanMask, width, height) });
-                }
-            }
-
-            return images;
-        }
-
-        /// <summary>
-        /// Bitmap의 픽셀 데이터를 32bpp ARGB byte 배열로 복사합니다.
-        /// <paramref name="source"/>는 읽을 Bitmap,
-        /// <paramref name="stride"/>는 반환되는 한 행의 byte 길이입니다.
-        /// 반환 배열은 B,G,R,A 순서의 픽셀 데이터를 담습니다.
-        /// </summary>
-        private byte[] ReadBitmapPixels(Bitmap source, out int stride)
-        {
-            BitmapData data = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-            try
-            {
-                stride = Math.Abs(data.Stride);
-                byte[] pixels = new byte[stride * source.Height];
-                Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
-                return pixels;
-            }
-            finally
-            {
-                source.UnlockBits(data);
-            }
-        }
-
-        /// <summary>
-        /// 흰색 채팅 글자와 노란색 캐릭터명을 보존하는 기본 색상 마스크를 생성합니다.
-        /// <paramref name="pixels"/>는 ReadBitmapPixels로 읽은 원본 픽셀 배열,
-        /// <paramref name="stride"/>는 한 행의 byte 길이,
-        /// <paramref name="width"/>와 <paramref name="height"/>는 이미지 크기,
-        /// <paramref name="threshold"/>는 밝기 판단 기준입니다.
-        /// 반환값은 흰 픽셀 255, 배경 0으로 구성된 1채널 마스크입니다.
-        /// </summary>
-        private byte[] CreateColorMask(byte[] pixels, int stride, int width, int height, int threshold)
-        {
-            byte[] mask = new byte[width * height];
-
-            for (int y = 0; y < height; y++)
-            {
-                int rowOffset = y * stride;
-                int maskOffset = y * width;
-
-                for (int x = 0; x < width; x++)
-                {
-                    int i = rowOffset + x * 4;
-                    byte b = pixels[i], g = pixels[i + 1], r = pixels[i + 2];
-
-                    int max = Math.Max(r, Math.Max(g, b));
-                    int min = Math.Min(r, Math.Min(g, b));
-                    int diff = max - min;
-
-                    // 흰 채팅 글자: 밝고 채도가 낮은 픽셀을 우선 보존합니다.
-                    bool isWhite = max > threshold &&
-                                   min > Math.Max(0, threshold - 18) &&
-                                   (diff < 42 || (max > 0 && diff * 100 / max < 24));
-
-                    // 노란 닉네임: RGB 조건에 채도 조건을 추가해 밝은 배경과 구분합니다.
-                    bool isYellow = r > threshold &&
-                                    g > Math.Max(0, threshold - 45) &&
-                                    b < 125 &&
-                                    r + g > b * 3 &&
-                                    Math.Abs(r - g) < 95;
-
-                    mask[maskOffset + x] = (isWhite || isYellow) ? (byte)255 : (byte)0;
-                }
-            }
-
-            return mask;
-        }
-
-        /// <summary>
-        /// 주변 밝기 평균과 현재 픽셀 밝기를 비교해 배경 변화에 강한 적응형 이진화 마스크를 만듭니다.
-        /// <paramref name="pixels"/>는 원본 픽셀 배열,
-        /// <paramref name="stride"/>는 한 행의 byte 길이,
-        /// <paramref name="width"/>와 <paramref name="height"/>는 이미지 크기,
-        /// <paramref name="threshold"/>는 최소 밝기 기준입니다.
-        /// </summary>
-        private byte[] CreateAdaptiveThresholdMask(byte[] pixels, int stride, int width, int height, int threshold)
-        {
-            byte[] gray = new byte[width * height];
-            long[] integral = new long[(width + 1) * (height + 1)];
-
-            for (int y = 0; y < height; y++)
-            {
-                long rowSum = 0;
-                int rowOffset = y * stride;
-
-                for (int x = 0; x < width; x++)
-                {
-                    int i = rowOffset + x * 4;
-                    int value = (pixels[i + 2] * 299 + pixels[i + 1] * 587 + pixels[i] * 114) / 1000;
-                    gray[y * width + x] = (byte)value;
-                    rowSum += value;
-                    integral[(y + 1) * (width + 1) + x + 1] = integral[y * (width + 1) + x + 1] + rowSum;
-                }
-            }
-
-            byte[] mask = new byte[width * height];
-            int radius = Math.Max(10, Math.Min(28, Math.Min(width, height) / 24));
-            int offset = 16;
-            int minAbsolute = Math.Max(70, threshold - 42);
-
-            for (int y = 0; y < height; y++)
-            {
-                int y1 = Math.Max(0, y - radius);
-                int y2 = Math.Min(height - 1, y + radius);
-
-                for (int x = 0; x < width; x++)
-                {
-                    int x1 = Math.Max(0, x - radius);
-                    int x2 = Math.Min(width - 1, x + radius);
-
-                    int area = (x2 - x1 + 1) * (y2 - y1 + 1);
-                    long sum = integral[(y2 + 1) * (width + 1) + x2 + 1]
-                               - integral[y1 * (width + 1) + x2 + 1]
-                               - integral[(y2 + 1) * (width + 1) + x1]
-                               + integral[y1 * (width + 1) + x1];
-
-                    int localAverage = (int)(sum / area);
-                    int current = gray[y * width + x];
-
-                    mask[y * width + x] = current >= minAbsolute && current > localAverage + offset ? (byte)255 : (byte)0;
-                }
-            }
-
-            return mask;
-        }
-
-        /// <summary>
-        /// 흰색 픽셀 주변 1픽셀 영역을 확장해 얇은 글자를 굵게 보정합니다.
-        /// <paramref name="mask"/>는 0/255로 구성된 입력 마스크,
-        /// <paramref name="width"/>와 <paramref name="height"/>는 마스크 크기입니다.
-        /// 반환값은 글자가 한 픽셀 정도 두꺼워진 새 마스크입니다.
-        /// </summary>
-        private byte[] DilateMask(byte[] mask, int width, int height)
-        {
-            byte[] result = new byte[mask.Length];
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    bool hasWhite = false;
-
-                    for (int dy = -1; dy <= 1 && !hasWhite; dy++)
-                    {
-                        int yy = y + dy;
-                        if (yy < 0 || yy >= height) continue;
-
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            int xx = x + dx;
-                            if (xx < 0 || xx >= width) continue;
-
-                            if (mask[yy * width + xx] == 255)
-                            {
-                                hasWhite = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    result[y * width + x] = hasWhite ? (byte)255 : (byte)0;
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// 주변 흰색 픽셀이 거의 없는 고립 노이즈 픽셀을 제거합니다.
-        /// <paramref name="mask"/>는 0/255로 구성된 입력 마스크,
-        /// <paramref name="width"/>와 <paramref name="height"/>는 마스크 크기입니다.
-        /// </summary>
-        private byte[] RemoveIsolatedWhitePixels(byte[] mask, int width, int height)
-        {
-            byte[] result = new byte[mask.Length];
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    int index = y * width + x;
-                    if (mask[index] == 0) continue;
-
-                    int neighbors = 0;
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        int yy = y + dy;
-                        if (yy < 0 || yy >= height) continue;
-
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            if (dx == 0 && dy == 0) continue;
-
-                            int xx = x + dx;
-                            if (xx < 0 || xx >= width) continue;
-                            if (mask[yy * width + xx] == 255) neighbors++;
-                        }
-                    }
-
-                    result[index] = neighbors >= 2 ? (byte)255 : (byte)0;
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// 0/255 마스크를 Windows OCR이 읽을 수 있는 32bpp ARGB Bitmap으로 변환합니다.
-        /// <paramref name="mask"/>는 width*height 길이의 1채널 마스크,
-        /// <paramref name="width"/>와 <paramref name="height"/>는 생성할 Bitmap 크기입니다.
-        /// </summary>
-        private Bitmap CreateBitmapFromMask(byte[] mask, int width, int height)
-        {
-            Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            BitmapData data = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-
-            try
-            {
-                int stride = Math.Abs(data.Stride);
-                byte[] pixels = new byte[stride * height];
-
-                for (int y = 0; y < height; y++)
-                {
-                    int rowOffset = y * stride;
-                    int maskOffset = y * width;
-
-                    for (int x = 0; x < width; x++)
-                    {
-                        byte value = mask[maskOffset + x];
-                        int i = rowOffset + x * 4;
-                        pixels[i] = value;
-                        pixels[i + 1] = value;
-                        pixels[i + 2] = value;
-                        pixels[i + 3] = 255;
-                    }
-                }
-
-                Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
-            }
-            finally
-            {
-                bitmap.UnlockBits(data);
-            }
-
-            return bitmap;
         }
 
         /// <summary>

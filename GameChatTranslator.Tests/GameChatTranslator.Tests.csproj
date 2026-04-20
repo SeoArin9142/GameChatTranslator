@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Compile Include="../GameChatTranslator/Core/ChatTextAnalyzer.cs" Link="Core/ChatTextAnalyzer.cs" />
+    <Compile Include="../GameChatTranslator/Core/OcrMaskProcessor.cs" Link="Core/OcrMaskProcessor.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrService.cs" Link="Core/OcrService.cs" />
     <Compile Include="../GameChatTranslator/Core/SettingsService.cs" Link="Core/SettingsService.cs" />
     <Compile Include="../GameChatTranslator/Core/SettingsValueNormalizer.cs" Link="Core/SettingsValueNormalizer.cs" />
