@@ -66,6 +66,7 @@ namespace GameTranslator
         private readonly TranslationPromptBuilder translationPromptBuilder = new TranslationPromptBuilder();
         private readonly TranslationResultParser translationResultParser = new TranslationResultParser();
         private readonly TranslationService translationService = new TranslationService();
+        private readonly TranslationApiClient translationApiClient;
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
         private LogViewerWindow logViewerWindow;
@@ -94,6 +95,7 @@ namespace GameTranslator
             LoadCharacters();
 
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            translationApiClient = new TranslationApiClient(httpClient, translationPromptBuilder, translationResultParser);
 
             string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
             ini = new IniFile(iniPath);

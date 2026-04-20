@@ -738,8 +738,7 @@ namespace GameTranslator
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
 
-            string cleaned = translationPromptBuilder.CleanGoogleTranslateInput(text);
-            if (!translationPromptBuilder.HasTranslatableContent(cleaned)) return "";
+            if (!translationApiClient.CanTranslateWithGoogle(text)) return "";
 
             int retryCount = 3;
             string result = "";
@@ -751,9 +750,7 @@ namespace GameTranslator
             {
                 try
                 {
-                    string url = translationPromptBuilder.BuildGoogleTranslateUrl(cleaned, tLang);
-                    var res = await httpClient.GetStringAsync(url);
-                    result = translationResultParser.ParseGoogleTranslateResponse(res);
+                    result = await translationApiClient.TranslateWithGoogleAsync(text, tLang);
                     if (string.IsNullOrEmpty(result)) throw new Exception("Google 번역 응답 파싱 실패");
                     break;
                 }
@@ -773,24 +770,22 @@ namespace GameTranslator
         /// </summary>
         private async Task ListAvailableGeminiModels(string apiKey)
         {
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
             try
             {
-                var response = await httpClient.GetAsync(url);
-                if (response.IsSuccessStatusCode)
+                GeminiModelListApiResult result = await translationApiClient.ListGeminiModelsAsync(apiKey);
+                if (result.IsSuccess)
                 {
-                    string resJson = await response.Content.ReadAsStringAsync();
-                    using var doc = System.Text.Json.JsonDocument.Parse(resJson);
-
-                    var models = doc.RootElement.GetProperty("models")
-                                    .EnumerateArray()
-                                    .Select(m => m.GetProperty("name").GetString().Replace("models/", ""))
-                                    .ToList();
-
-                    string modelList = string.Join(", ", models);
+                    string modelList = string.Join(", ", result.Models);
                     AppendLog($"사용 가능한 제미나이 모델 목록: {modelList}");
                 }
-                else AppendLog($"제미나이 모델 목록 가져오기 실패 (HTTP {(int)response.StatusCode})");
+                else if (result.StatusCode.HasValue)
+                {
+                    AppendLog($"제미나이 모델 목록 가져오기 실패 (HTTP {result.StatusCode.Value})");
+                }
+                else
+                {
+                    AppendLog($"모델 목록 확인 중 오류 발생: {result.ErrorMessage}");
+                }
             }
             catch (Exception ex) { AppendLog($"모델 목록 확인 중 오류 발생: {ex.Message}"); }
         }
@@ -805,28 +800,20 @@ namespace GameTranslator
         private async Task<string> CallGeminiAPI(string text, string tLang, string apiKey)
         {
             string modelName = ReadGeminiModel();
-            string url = $"https://generativelanguage.googleapis.com/v1/models/{modelName}:generateContent?key={apiKey}";
-            string prompt = translationPromptBuilder.BuildGeminiPrompt(text, tLang);
-
-            var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
-            string jsonPayload = System.Text.Json.JsonSerializer.Serialize(requestBody);
 
             int retryCount = 2;
             while (retryCount > 0)
             {
                 try
                 {
-                    using var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
-                    using var response = await httpClient.PostAsync(url, content);
-                    if (!response.IsSuccessStatusCode)
+                    GeminiTranslateApiResult result = await translationApiClient.TranslateWithGeminiAsync(text, tLang, apiKey, modelName);
+                    if (!result.IsSuccess)
                     {
-                        string errorDetail = await response.Content.ReadAsStringAsync();
-                        AppendLog($"[Gemini API 오류] 모델({modelName}) 호출 실패: {errorDetail}");
+                        AppendLog($"[Gemini API 오류] 모델({modelName}) 호출 실패: {result.ErrorMessage}");
                         throw new Exception("Gemini 호출 실패");
                     }
 
-                    string resJson = await response.Content.ReadAsStringAsync();
-                    string parsedText = translationResultParser.ParseGeminiTranslateResponse(resJson);
+                    string parsedText = result.Text;
                     if (string.IsNullOrWhiteSpace(parsedText)) throw new Exception("Gemini 응답 파싱 실패");
                     return parsedText;
                 }
