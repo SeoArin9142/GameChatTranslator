@@ -20,7 +20,7 @@ namespace GameTranslator
         {
             if (ocrDiagnosticWindow == null)
             {
-                ocrDiagnosticWindow = new OcrDiagnosticWindow(this);
+                ocrDiagnosticWindow = new OcrDiagnosticWindow(this, appDataPaths?.OcrDiagnosticsDirectory);
                 ocrDiagnosticWindow.Closed += (s, e) => ocrDiagnosticWindow = null;
             }
 

@@ -71,6 +71,7 @@ namespace GameTranslator
         private readonly TranslationService translationService = new TranslationService();
         private readonly TranslationApiErrorDescriber translationApiErrorDescriber = new TranslationApiErrorDescriber();
         private readonly TranslationApiClient translationApiClient;
+        private AppDataPaths appDataPaths;
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
         private LogViewerWindow logViewerWindow;
@@ -95,16 +96,18 @@ namespace GameTranslator
             // 🌟 [추가] 켜진 시간을 기준으로 로그 파일명 고정 (예: log_20260419_1635.txt)
             // 초(ss)까지 넣고 싶으시면 yyyyMMdd_HHmmss 로 변경하시면 됩니다.
             sessionLogFileName = $"log_{DateTime.Now:yyyyMMdd_HHmm}.txt";
+            appDataPaths = new AppDataPaths();
+            AppDataMigrationSummary migrationSummary = appDataPaths.MigrateLegacyFiles();
 
             LoadCharacters();
 
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
             translationApiClient = new TranslationApiClient(httpClient, translationPromptBuilder, translationResultParser);
 
-            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
-            ini = new IniFile(iniPath);
+            ini = new IniFile(appDataPaths.ConfigFilePath);
 
             EnsureDefaultSettings();
+            AppendDataStorageStartupLog(migrationSummary);
 
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";

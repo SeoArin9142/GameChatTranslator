@@ -47,7 +47,7 @@ namespace GameTranslator
 
         /// <summary>
         /// [설정 가져오기] 버튼 클릭 시 선택한 ini 파일을 현재 config.ini 위치로 복사하고 UI를 다시 읽습니다.
-        /// 덮어쓰기 전 기존 config.ini는 config.backup_yyyyMMdd_HHmmss.ini 이름으로 실행 폴더에 보관합니다.
+        /// 덮어쓰기 전 기존 config.ini는 config.backup_yyyyMMdd_HHmmss.ini 이름으로 사용자 데이터 폴더에 보관합니다.
         /// </summary>
         private void BtnImportSettings_Click(object sender, System.Windows.RoutedEventArgs e)
         {
@@ -92,7 +92,7 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// 현재 config.ini가 있으면 실행 폴더에 백업 사본을 만들고 경로를 반환합니다.
+        /// 현재 config.ini가 있으면 사용자 데이터 폴더에 백업 사본을 만들고 경로를 반환합니다.
         /// 파일이 아직 없으면 빈 문자열을 반환합니다.
         /// </summary>
         private string CreateConfigBackupIfExists()

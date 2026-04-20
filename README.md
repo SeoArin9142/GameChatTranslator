@@ -27,6 +27,12 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 6. 게임에서 `Ctrl + 8`로 채팅 캡처 영역을 지정합니다.
 7. `Ctrl + 9`로 1회 번역하거나, `Ctrl + 0`으로 자동 번역 모드를 켭니다.
 
+첫 실행 후 생성되는 `config.ini`, `logs`, `Captures`, OCR 진단 저장 기본 위치는 아래와 같습니다.
+
+```text
+%LocalAppData%\GameChatTranslator\
+```
+
 ## 주요 기능
 
 | 분류 | 기능 |
@@ -159,6 +165,29 @@ qwen/qwen3.5-9b
 ```
 
 - 환경설정창의 **Local LLM 연결 테스트** 버튼은 chat completions 주소를 기준으로 `/v1/models`를 조회해 서버 연결과 모델 ID 존재 여부를 확인합니다.
+
+## 사용자 데이터 저장 위치
+
+자동 업데이트 준비를 위해 실행 파일 폴더와 사용자 데이터 폴더를 분리했습니다.
+
+```text
+실행 파일 / 배포 파일
+- GameChatTranslator.exe
+- LangInstall.bat
+- readme.txt
+- 기본 characters.txt
+
+사용자 데이터
+- %LocalAppData%\GameChatTranslator\config.ini
+- %LocalAppData%\GameChatTranslator\logs\
+- %LocalAppData%\GameChatTranslator\Captures\
+- %LocalAppData%\GameChatTranslator\OcrDiagnostics\
+- %LocalAppData%\GameChatTranslator\characters.txt
+```
+
+- 기존 ZIP 배포 버전에서 실행 폴더에 `config.ini`, `logs`, `Captures`, `characters.txt`가 있었다면 첫 실행 시 새 위치로 자동 복사합니다.
+- 이후 설정 변경, 로그 기록, 디버그 캡처 저장은 모두 `%LocalAppData%\GameChatTranslator` 아래를 사용합니다.
+- `characters.txt`를 직접 수정해 쓰는 경우에는 사용자 데이터 폴더 쪽 파일을 수정하면 됩니다.
 - 로컬 PC에서 실행되므로 외부 API 비용은 없지만, 모델 로드 용량과 GPU/CPU 자원을 사용합니다.
 
 ## 기본 단축키
@@ -268,7 +297,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | Local LLM 실패 | LM Studio 서버 ON, endpoint, model ID, 연결 테스트 결과 확인 |
 | 버튼 클릭이 안 됨 | 오버레이 클릭 관통 상태일 수 있음. `Ctrl + 7`로 이동/잠금 해제 |
 | 단축키 안내가 안 보임 | `Ctrl + F10`으로 단축키 안내 표시 |
-| 설정이 꼬임 | 설정 가져오기 전 자동 백업 파일 확인, 필요 시 config.ini 삭제 후 재설정 |
+| 설정이 꼬임 | 설정 가져오기 전 자동 백업 파일 확인, 필요 시 `%LocalAppData%\\GameChatTranslator\\config.ini` 삭제 후 재설정 |
 
 ## 개발 / 검증 환경
 
