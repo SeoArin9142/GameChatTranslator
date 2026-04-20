@@ -22,6 +22,8 @@
                        Foreground="#FF9E64"
                        FontSize="12"
                        FontWeight="Bold"
+                       LineHeight="17"
+                       TextAlignment="Center"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,8"
                        Visibility="Collapsed"/>

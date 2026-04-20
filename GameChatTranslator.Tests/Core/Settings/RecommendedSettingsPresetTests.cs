@@ -61,6 +61,43 @@ namespace GameChatTranslator.Tests
             Assert.True(preset.SaveDebugImages);
         }
 
+        [Fact]
+        public void BuildDifferenceSummary_ListsOnlyChangedRecommendedValues()
+        {
+            RecommendedSettingsPreset preset = RecommendedSettingsPreset.FindById("fast");
+
+            string summary = preset.BuildDifferenceSummary(
+                currentScaleFactor: 3,
+                currentThreshold: 120,
+                currentAutoTranslateInterval: 5,
+                currentResultDisplayMode: "History",
+                currentResultHistoryLimit: 10,
+                currentSaveDebugImages: true);
+
+            Assert.Contains("OCR 배율: 3 → 2", summary);
+            Assert.Contains("자동 번역 주기: 5초 → 2초", summary);
+            Assert.Contains("결과 표시 방식: History → Latest", summary);
+            Assert.Contains("누적 표시 줄 수: 10줄 → 5줄", summary);
+            Assert.Contains("디버그 이미지 저장: ON → OFF", summary);
+            Assert.DoesNotContain("이진화 기준", summary);
+        }
+
+        [Fact]
+        public void BuildDifferenceSummary_ReturnsNoChangeMessageWhenValuesMatch()
+        {
+            RecommendedSettingsPreset preset = RecommendedSettingsPreset.FindById("accurate");
+
+            string summary = preset.BuildDifferenceSummary(
+                currentScaleFactor: 4,
+                currentThreshold: 115,
+                currentAutoTranslateInterval: 5,
+                currentResultDisplayMode: "History",
+                currentResultHistoryLimit: 10,
+                currentSaveDebugImages: false);
+
+            Assert.Equal("현재 고급 설정과 동일합니다.", summary);
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]

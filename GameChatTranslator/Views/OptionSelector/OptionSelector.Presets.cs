@@ -179,9 +179,10 @@ namespace GameTranslator
                 return;
             }
 
+            string differenceSummary = BuildRecommendedPresetDifference(preset);
             ApplyRecommendedPreset(preset);
             MessageBox.Show(
-                $"'{preset.DisplayName}' 추천 프리셋 값을 입력칸에 반영했습니다.\n저장하려면 [저장 및 게임 시작] 또는 [프리셋 저장]을 눌러주세요.",
+                $"'{preset.DisplayName}' 추천 프리셋 값을 입력칸에 반영했습니다.\n\n변경 예정값:\n{differenceSummary}\n\n저장하려면 [저장 및 게임 시작]을 눌러주세요. 사용자 프리셋으로 저장하려면 프리셋 이름을 직접 입력한 뒤 [프리셋 저장]을 눌러주세요.",
                 "추천 프리셋 적용",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -199,8 +200,26 @@ namespace GameTranslator
             SetComboByTag(ComboResultDisplayMode, preset.ResultDisplayMode);
             TxtResultHistoryLimit.Text = preset.ResultHistoryLimit.ToString();
             CheckSaveDebugImages.IsChecked = preset.SaveDebugImages;
-            TxtPresetName.Text = preset.DisplayName;
+            if (TxtRecommendedPresetStatus != null)
+            {
+                TxtRecommendedPresetStatus.Text = $"최근 적용: {preset.DisplayName} 추천 프리셋. 저장 전까지 입력칸에만 반영됩니다.";
+            }
             RefreshAdvancedSettingValidationStatus();
+        }
+
+        /// <summary>
+        /// 추천 프리셋 적용 전 현재 UI 값과 추천값의 차이를 계산합니다.
+        /// MessageBox와 상태 문구에서 사용해 추천 프리셋과 사용자 저장 프리셋의 역할을 혼동하지 않게 합니다.
+        /// </summary>
+        private string BuildRecommendedPresetDifference(RecommendedSettingsPreset preset)
+        {
+            return preset.BuildDifferenceSummary(
+                SettingsValueNormalizer.NormalizeScaleFactor(GetSelectedTag(ComboScale, SettingsValueNormalizer.DefaultScaleFactor.ToString())),
+                SettingsValueNormalizer.NormalizeThreshold(TxtThreshold.Text),
+                SettingsValueNormalizer.NormalizeAutoTranslateInterval(TxtInterval.Text),
+                GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode),
+                SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit.Text),
+                CheckSaveDebugImages?.IsChecked == true);
         }
 
         /// <summary>

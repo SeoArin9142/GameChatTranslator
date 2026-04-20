@@ -40,11 +40,14 @@
                     <TextBlock Text="1. 설정 관리" Style="{StaticResource SectionTitleStyle}"/>
                     <TextBlock Text="프리셋, 설정 백업, 업데이트, 로그창처럼 프로그램 운영에 필요한 항목입니다." Style="{StaticResource SectionHintStyle}"/>
 
-                    <!-- 프리셋 영역: 현재 UI 설정을 이름별로 저장/불러오기/삭제합니다. API 키는 저장하지 않습니다. -->
-                    <GroupBox Header="설정 프리셋 (Preset)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+                    <!-- 프리셋 영역: 사용자 저장 프리셋과 내장 추천 프리셋을 명확히 구분합니다. API 키는 저장하지 않습니다. -->
+                    <GroupBox Header="사용자 프리셋 / 내장 추천 프리셋" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
-                            <TextBlock Text="현재 설정을 이름별로 저장하고 다시 불러올 수 있습니다. API 키는 프리셋에 저장하지 않습니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
-                            <TextBlock Text="추천 프리셋은 고급 설정 값을 입력칸에만 채웁니다. 실제 적용은 [저장 및 게임 시작]을 눌러야 합니다."
+                            <TextBlock Text="내장 추천 프리셋"
+                                       FontWeight="Bold"
+                                       Foreground="#8FE388"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="저사양/빠름/정확도 버튼은 OCR 고급 설정 입력칸만 바꾸며 사용자 프리셋 목록에는 저장하지 않습니다. 적용 전 변경 예정값을 안내합니다."
                                        TextWrapping="Wrap"
                                        FontSize="11"
                                        Margin="0,0,0,6"
@@ -81,6 +84,20 @@
                                         Click="BtnApplyRecommendedPreset_Click"
                                         ToolTip="Scale 4 / Threshold 115 / 누적 표시 10줄"/>
                             </WrapPanel>
+                            <TextBlock x:Name="TxtRecommendedPresetStatus"
+                                       Text="추천 프리셋을 누르면 현재값 → 추천값 차이를 표시합니다."
+                                       TextWrapping="Wrap"
+                                       FontSize="11"
+                                       Margin="0,0,0,10"
+                                       Foreground="#CCC"/>
+                            <TextBlock Text="사용자 프리셋"
+                                       FontWeight="Bold"
+                                       Foreground="#8FE388"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="현재 설정을 이름별로 저장하고 다시 불러올 수 있습니다. API 키는 프리셋에 저장하지 않습니다."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"
+                                       Foreground="#CCC"/>
                             <ComboBox x:Name="ComboPreset" Height="24" Margin="0,0,0,8" Background="#333" Foreground="Black" SelectionChanged="ComboPreset_SelectionChanged"/>
                             <TextBox x:Name="TxtPresetName" Height="26" Margin="0,0,0,8" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="저장할 프리셋 이름"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

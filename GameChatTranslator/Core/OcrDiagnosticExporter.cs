@@ -85,6 +85,28 @@ namespace GameTranslator
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 클립보드 공유용 OCR 진단 전체 텍스트를 생성합니다.
+        /// summary.txt와 후보별 details.txt 내용을 한 번에 붙여넣을 수 있게 이어 붙입니다.
+        /// </summary>
+        public string BuildFullText(OcrDiagnosticResult result)
+        {
+            if (result == null) throw new ArgumentNullException(nameof(result));
+
+            var builder = new StringBuilder();
+            builder.AppendLine(BuildSummaryText(result).TrimEnd());
+
+            foreach (OcrDiagnosticCandidate candidate in result.Candidates)
+            {
+                bool selected = candidate.Name == result.SelectedCandidateName;
+                builder.AppendLine();
+                builder.AppendLine("========================================");
+                builder.AppendLine(BuildCandidateText(candidate, selected).TrimEnd());
+            }
+
+            return builder.ToString().TrimEnd();
+        }
+
         private static void AppendMetadata(StringBuilder builder, OcrDiagnosticMetadata metadata)
         {
             if (metadata == null) return;

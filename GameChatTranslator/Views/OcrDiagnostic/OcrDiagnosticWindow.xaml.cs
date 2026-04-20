@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -53,8 +52,7 @@ namespace GameTranslator
         private async System.Threading.Tasks.Task RunDiagnosticAsync()
         {
             BtnRunDiagnostic.IsEnabled = false;
-            BtnSaveDiagnostic.IsEnabled = false;
-            BtnCopyDiagnostic.IsEnabled = false;
+            SetResultActionButtonsEnabled(false);
             TxtStatus.Text = "OCR 진단 실행 중...";
             UpdateSummaryHeader(null);
 
@@ -63,16 +61,15 @@ namespace GameTranslator
                 OcrDiagnosticResult result = await mainWindow.RunOcrDiagnosticAsync();
                 RenderResult(result);
                 lastDiagnosticResult = result;
-                BtnSaveDiagnostic.IsEnabled = true;
-                BtnCopyDiagnostic.IsEnabled = true;
-                TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms";
+                SetResultActionButtonsEnabled(true);
+                TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms / 요약·전체 복사 또는 ZIP 저장 가능";
             }
             catch (Exception ex)
             {
                 lastDiagnosticResult = null;
                 TabDiagnostics.Items.Clear();
                 TabDiagnostics.Items.Add(CreateTextTab("오류", ex.Message));
-                BtnCopyDiagnostic.IsEnabled = false;
+                SetResultActionButtonsEnabled(false);
                 UpdateSummaryHeader(null);
                 TxtStatus.Text = $"실패: {ex.Message}";
             }
@@ -121,6 +118,30 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// OCR 진단 요약만 클립보드에 복사합니다.
+        /// 후보별 긴 원문 없이 설정/선택 후보/처리 시간만 빠르게 공유할 때 사용합니다.
+        /// </summary>
+        private void BtnCopySummary_Click(object sender, RoutedEventArgs e)
+        {
+            if (lastDiagnosticResult == null)
+            {
+                WpfMessageBox.Show(this, "복사할 OCR 진단 결과가 없습니다. 먼저 진단을 실행해 주세요.", "OCR 진단 요약 복사", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                System.Windows.Clipboard.SetText(diagnosticExporter.BuildSummaryText(lastDiagnosticResult).TrimEnd());
+                TxtStatus.Text = "진단 요약을 클립보드에 복사했습니다.";
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show(this, $"OCR 진단 요약 복사에 실패했습니다.\n{ex.Message}", "OCR 진단 요약 복사 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
+                TxtStatus.Text = $"요약 복사 실패: {ex.Message}";
+            }
+        }
+
+        /// <summary>
         /// 현재 OCR 진단 결과의 요약과 후보별 OCR 텍스트를 클립보드에 복사합니다.
         /// ZIP 파일 저장 없이 이슈나 채팅에 빠르게 붙여넣을 때 사용합니다.
         /// </summary>
@@ -134,8 +155,8 @@ namespace GameTranslator
 
             try
             {
-                System.Windows.Clipboard.SetText(BuildDiagnosticCopyText(lastDiagnosticResult));
-                TxtStatus.Text = "진단 텍스트를 클립보드에 복사했습니다.";
+                System.Windows.Clipboard.SetText(diagnosticExporter.BuildFullText(lastDiagnosticResult));
+                TxtStatus.Text = "진단 전체 텍스트를 클립보드에 복사했습니다.";
             }
             catch (Exception ex)
             {
@@ -181,15 +202,103 @@ namespace GameTranslator
             Grid.SetColumn(imagePanel, 0);
             root.Children.Add(imagePanel);
 
+            var summaryPanel = new DockPanel();
+            FrameworkElement comparisonBlock = CreateCandidateComparisonBlock(result);
+            DockPanel.SetDock(comparisonBlock, Dock.Top);
+            summaryPanel.Children.Add(comparisonBlock);
+
             WpfTextBox summary = CreateReadOnlyTextBox(BuildSummaryText(result));
-            Grid.SetColumn(summary, 1);
-            root.Children.Add(summary);
+            summaryPanel.Children.Add(summary);
+            Grid.SetColumn(summaryPanel, 1);
+            root.Children.Add(summaryPanel);
 
             return new TabItem
             {
                 Header = "요약",
                 Content = root
             };
+        }
+
+        /// <summary>
+        /// 요약 탭에서 후보별 점수와 결과량을 표 형태로 비교하는 영역을 만듭니다.
+        /// ZIP/클립보드 텍스트를 열지 않아도 어떤 후보가 선택됐는지 빠르게 파악할 수 있게 합니다.
+        /// </summary>
+        private FrameworkElement CreateCandidateComparisonBlock(OcrDiagnosticResult result)
+        {
+            var border = new Border
+            {
+                BorderBrush = new SolidColorBrush(MediaColor.FromRgb(85, 85, 85)),
+                BorderThickness = new Thickness(1),
+                Background = new SolidColorBrush(MediaColor.FromRgb(37, 37, 37)),
+                Padding = new Thickness(8),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var panel = new StackPanel();
+            panel.Children.Add(new TextBlock
+            {
+                Text = "후보 비교",
+                Foreground = MediaBrushes.White,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.8, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+
+            AddComparisonRow(grid, 0, "후보", "선택", "점수", "결과량", header: true);
+
+            int row = 1;
+            foreach (OcrDiagnosticCandidate candidate in result.Candidates)
+            {
+                bool selected = candidate.Name == result.SelectedCandidateName;
+                AddComparisonRow(
+                    grid,
+                    row++,
+                    candidate.Name,
+                    selected ? "선택" : "-",
+                    candidate.Score.ToString(),
+                    $"병합 {candidate.MergedLines.Count} / 언어 {candidate.Languages.Count}",
+                    header: false,
+                    selectedRow: selected);
+            }
+
+            panel.Children.Add(grid);
+            border.Child = panel;
+            return border;
+        }
+
+        private void AddComparisonRow(Grid grid, int rowIndex, string candidate, string selected, string score, string resultCount, bool header, bool selectedRow = false)
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            AddComparisonCell(grid, rowIndex, 0, candidate, header, selectedRow);
+            AddComparisonCell(grid, rowIndex, 1, selected, header, selectedRow);
+            AddComparisonCell(grid, rowIndex, 2, score, header, selectedRow);
+            AddComparisonCell(grid, rowIndex, 3, resultCount, header, selectedRow);
+        }
+
+        private void AddComparisonCell(Grid grid, int rowIndex, int columnIndex, string text, bool header, bool selectedRow)
+        {
+            var block = new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(text) ? "-" : text,
+                Foreground = header
+                    ? new SolidColorBrush(MediaColor.FromRgb(170, 170, 170))
+                    : selectedRow
+                        ? new SolidColorBrush(MediaColor.FromRgb(143, 227, 136))
+                        : new SolidColorBrush(MediaColor.FromRgb(230, 230, 230)),
+                FontWeight = header || selectedRow ? FontWeights.Bold : FontWeights.Normal,
+                FontSize = header ? 11 : 12,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(columnIndex == 0 ? 0 : 8, rowIndex == 0 ? 0 : 4, 0, 0)
+            };
+
+            Grid.SetRow(block, rowIndex);
+            Grid.SetColumn(block, columnIndex);
+            grid.Children.Add(block);
         }
 
         /// <summary>
@@ -409,24 +518,11 @@ namespace GameTranslator
             return diagnosticExporter.BuildCandidateText(candidate, selected);
         }
 
-        /// <summary>
-        /// 클립보드 복사용 OCR 진단 텍스트를 만듭니다.
-        /// ZIP summary/details.txt와 같은 내용을 한 번에 붙여넣을 수 있도록 요약과 모든 후보 상세를 이어 붙입니다.
-        /// </summary>
-        private string BuildDiagnosticCopyText(OcrDiagnosticResult result)
+        private void SetResultActionButtonsEnabled(bool enabled)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine(diagnosticExporter.BuildSummaryText(result).TrimEnd());
-
-            foreach (OcrDiagnosticCandidate candidate in result.Candidates)
-            {
-                bool selected = candidate.Name == result.SelectedCandidateName;
-                builder.AppendLine();
-                builder.AppendLine("========================================");
-                builder.AppendLine(diagnosticExporter.BuildCandidateText(candidate, selected).TrimEnd());
-            }
-
-            return builder.ToString().TrimEnd();
+            BtnCopySummary.IsEnabled = enabled;
+            BtnCopyDiagnostic.IsEnabled = enabled;
+            BtnSaveDiagnostic.IsEnabled = enabled;
         }
 
         /// <summary>
