@@ -44,6 +44,43 @@
                     <GroupBox Header="설정 프리셋 (Preset)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="현재 설정을 이름별로 저장하고 다시 불러올 수 있습니다. API 키는 프리셋에 저장하지 않습니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
+                            <TextBlock Text="추천 프리셋은 고급 설정 값을 입력칸에만 채웁니다. 실제 적용은 [저장 및 게임 시작]을 눌러야 합니다."
+                                       TextWrapping="Wrap"
+                                       FontSize="11"
+                                       Margin="0,0,0,6"
+                                       Foreground="#AFAFAF"/>
+                            <WrapPanel Margin="0,0,0,8">
+                                <Button Content="저사양"
+                                        Tag="low-spec"
+                                        Padding="8,2"
+                                        Margin="0,0,6,6"
+                                        Background="#444"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="BtnApplyRecommendedPreset_Click"
+                                        ToolTip="Scale 1 / Threshold 125 / 자동 번역 8초"/>
+                                <Button Content="빠름"
+                                        Tag="fast"
+                                        Padding="8,2"
+                                        Margin="0,0,6,6"
+                                        Background="#444"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="BtnApplyRecommendedPreset_Click"
+                                        ToolTip="Scale 2 / Threshold 120 / 자동 번역 2초"/>
+                                <Button Content="정확도"
+                                        Tag="accurate"
+                                        Padding="8,2"
+                                        Margin="0,0,6,6"
+                                        Background="#444"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="BtnApplyRecommendedPreset_Click"
+                                        ToolTip="Scale 4 / Threshold 115 / 누적 표시 10줄"/>
+                            </WrapPanel>
                             <ComboBox x:Name="ComboPreset" Height="24" Margin="0,0,0,8" Background="#333" Foreground="Black" SelectionChanged="ComboPreset_SelectionChanged"/>
                             <TextBox x:Name="TxtPresetName" Height="26" Margin="0,0,0,8" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="저장할 프리셋 이름"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

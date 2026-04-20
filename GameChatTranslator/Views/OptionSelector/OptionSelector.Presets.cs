@@ -166,6 +166,44 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// [저사양]/[빠름]/[정확도] 추천 프리셋 버튼을 눌렀을 때 고급 설정 입력칸만 추천값으로 채웁니다.
+        /// config.ini에는 즉시 저장하지 않으므로 사용자가 저장 버튼을 눌러야 실제 실행 설정으로 반영됩니다.
+        /// </summary>
+        private void BtnApplyRecommendedPreset_Click(object sender, RoutedEventArgs e)
+        {
+            string presetId = (sender as System.Windows.Controls.Button)?.Tag?.ToString();
+            RecommendedSettingsPreset preset = RecommendedSettingsPreset.FindById(presetId);
+            if (preset == null)
+            {
+                MessageBox.Show("알 수 없는 추천 프리셋입니다.", "추천 프리셋", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            ApplyRecommendedPreset(preset);
+            MessageBox.Show(
+                $"'{preset.DisplayName}' 추천 프리셋 값을 입력칸에 반영했습니다.\n저장하려면 [저장 및 게임 시작] 또는 [프리셋 저장]을 눌러주세요.",
+                "추천 프리셋 적용",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// 추천 프리셋 값을 UI에 적용합니다.
+        /// 언어, API 키, 단축키, 캡처 영역은 사용자의 기존 값을 유지하고 OCR/표시 관련 고급 설정만 바꿉니다.
+        /// </summary>
+        private void ApplyRecommendedPreset(RecommendedSettingsPreset preset)
+        {
+            SetComboByTag(ComboScale, preset.ScaleFactor.ToString());
+            TxtThreshold.Text = preset.Threshold.ToString();
+            TxtInterval.Text = preset.AutoTranslateInterval.ToString();
+            SetComboByTag(ComboResultDisplayMode, preset.ResultDisplayMode);
+            TxtResultHistoryLimit.Text = preset.ResultHistoryLimit.ToString();
+            CheckSaveDebugImages.IsChecked = preset.SaveDebugImages;
+            TxtPresetName.Text = preset.DisplayName;
+            RefreshAdvancedSettingValidationStatus();
+        }
+
+        /// <summary>
         /// 선택한 프리셋 값을 환경설정 UI에 불러옵니다.
         /// <paramref name="sender"/>는 불러오기 버튼이고,
         /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.

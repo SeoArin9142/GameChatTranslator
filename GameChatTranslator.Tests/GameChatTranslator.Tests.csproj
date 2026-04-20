@@ -24,6 +24,7 @@
     <Compile Include="../GameChatTranslator/Models/OcrDiagnosticModels.cs" Link="Models/OcrDiagnosticModels.cs" />
     <Compile Include="../GameChatTranslator/Core/SettingsService.cs" Link="Core/SettingsService.cs" />
     <Compile Include="../GameChatTranslator/Core/SettingsValueNormalizer.cs" Link="Core/SettingsValueNormalizer.cs" />
+    <Compile Include="../GameChatTranslator/Core/RecommendedSettingsPreset.cs" Link="Core/RecommendedSettingsPreset.cs" />
     <Compile Include="../GameChatTranslator/Core/TranslationPromptBuilder.cs" Link="Core/TranslationPromptBuilder.cs" />
     <Compile Include="../GameChatTranslator/Core/TranslationResultParser.cs" Link="Core/TranslationResultParser.cs" />
     <Compile Include="../GameChatTranslator/Core/TranslationService.cs" Link="Core/TranslationService.cs" />
