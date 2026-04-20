@@ -766,6 +766,7 @@ namespace GameTranslator
             if (string.IsNullOrEmpty(result) && lastException != null)
             {
                 AppendLog(translationApiErrorDescriber.DescribeGoogleFailure(lastException));
+                ShowTranslationApiStatus(translationApiErrorDescriber.DescribeShortGoogleFailure(lastException));
             }
 
             return result;
@@ -811,6 +812,7 @@ namespace GameTranslator
 
             int retryCount = 2;
             string lastFailureMessage = "";
+            string lastShortFailureMessage = "";
             while (retryCount > 0)
             {
                 try
@@ -819,6 +821,7 @@ namespace GameTranslator
                     if (!result.IsSuccess)
                     {
                         lastFailureMessage = translationApiErrorDescriber.DescribeGeminiTranslateFailure(result, modelName);
+                        lastShortFailureMessage = translationApiErrorDescriber.DescribeShortGeminiTranslateFailure(result);
                         throw new Exception(lastFailureMessage);
                     }
 
@@ -826,6 +829,7 @@ namespace GameTranslator
                     if (string.IsNullOrWhiteSpace(parsedText))
                     {
                         lastFailureMessage = translationApiErrorDescriber.DescribeGeminiEmptyResponse(modelName);
+                        lastShortFailureMessage = translationApiErrorDescriber.DescribeShortGeminiEmptyResponse();
                         throw new Exception(lastFailureMessage);
                     }
                     return parsedText;
@@ -836,6 +840,10 @@ namespace GameTranslator
                     {
                         lastFailureMessage = translationApiErrorDescriber.DescribeGeminiException(ex, modelName);
                     }
+                    if (string.IsNullOrWhiteSpace(lastShortFailureMessage))
+                    {
+                        lastShortFailureMessage = translationApiErrorDescriber.DescribeShortGeminiException(ex);
+                    }
 
                     retryCount--;
                     await Task.Delay(300);
@@ -845,6 +853,7 @@ namespace GameTranslator
             if (!string.IsNullOrWhiteSpace(lastFailureMessage))
             {
                 AppendLog(lastFailureMessage + " Google 무료 번역으로 전환합니다.");
+                ShowTranslationApiStatus(lastShortFailureMessage);
             }
 
             return "";

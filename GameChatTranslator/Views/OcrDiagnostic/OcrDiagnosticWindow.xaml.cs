@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -53,6 +54,7 @@ namespace GameTranslator
         {
             BtnRunDiagnostic.IsEnabled = false;
             BtnSaveDiagnostic.IsEnabled = false;
+            BtnCopyDiagnostic.IsEnabled = false;
             TxtStatus.Text = "OCR 진단 실행 중...";
             UpdateSummaryHeader(null);
 
@@ -62,6 +64,7 @@ namespace GameTranslator
                 RenderResult(result);
                 lastDiagnosticResult = result;
                 BtnSaveDiagnostic.IsEnabled = true;
+                BtnCopyDiagnostic.IsEnabled = true;
                 TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms";
             }
             catch (Exception ex)
@@ -69,6 +72,7 @@ namespace GameTranslator
                 lastDiagnosticResult = null;
                 TabDiagnostics.Items.Clear();
                 TabDiagnostics.Items.Add(CreateTextTab("오류", ex.Message));
+                BtnCopyDiagnostic.IsEnabled = false;
                 UpdateSummaryHeader(null);
                 TxtStatus.Text = $"실패: {ex.Message}";
             }
@@ -113,6 +117,30 @@ namespace GameTranslator
             {
                 WpfMessageBox.Show(this, $"OCR 진단 결과 저장에 실패했습니다.\n{ex.Message}", "OCR 진단 결과 저장 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
                 TxtStatus.Text = $"저장 실패: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 현재 OCR 진단 결과의 요약과 후보별 OCR 텍스트를 클립보드에 복사합니다.
+        /// ZIP 파일 저장 없이 이슈나 채팅에 빠르게 붙여넣을 때 사용합니다.
+        /// </summary>
+        private void BtnCopyDiagnostic_Click(object sender, RoutedEventArgs e)
+        {
+            if (lastDiagnosticResult == null)
+            {
+                WpfMessageBox.Show(this, "복사할 OCR 진단 결과가 없습니다. 먼저 진단을 실행해 주세요.", "OCR 진단 결과 복사", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                System.Windows.Clipboard.SetText(BuildDiagnosticCopyText(lastDiagnosticResult));
+                TxtStatus.Text = "진단 텍스트를 클립보드에 복사했습니다.";
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show(this, $"OCR 진단 결과 복사에 실패했습니다.\n{ex.Message}", "OCR 진단 결과 복사 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
+                TxtStatus.Text = $"복사 실패: {ex.Message}";
             }
         }
 
@@ -379,6 +407,26 @@ namespace GameTranslator
         private string BuildCandidateText(OcrDiagnosticCandidate candidate, bool selected)
         {
             return diagnosticExporter.BuildCandidateText(candidate, selected);
+        }
+
+        /// <summary>
+        /// 클립보드 복사용 OCR 진단 텍스트를 만듭니다.
+        /// ZIP summary/details.txt와 같은 내용을 한 번에 붙여넣을 수 있도록 요약과 모든 후보 상세를 이어 붙입니다.
+        /// </summary>
+        private string BuildDiagnosticCopyText(OcrDiagnosticResult result)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine(diagnosticExporter.BuildSummaryText(result).TrimEnd());
+
+            foreach (OcrDiagnosticCandidate candidate in result.Candidates)
+            {
+                bool selected = candidate.Name == result.SelectedCandidateName;
+                builder.AppendLine();
+                builder.AppendLine("========================================");
+                builder.AppendLine(diagnosticExporter.BuildCandidateText(candidate, selected).TrimEnd());
+            }
+
+            return builder.ToString().TrimEnd();
         }
 
         /// <summary>
