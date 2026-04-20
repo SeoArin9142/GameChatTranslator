@@ -131,5 +131,46 @@ namespace GameChatTranslator.Tests
         {
             Assert.Equal("Gemini 응답 오류: Google 전환", _describer.DescribeShortGeminiEmptyResponse());
         }
+
+        [Fact]
+        public void DescribeLocalLlmTranslateFailure_IncludesEndpointAndModelGuidance()
+        {
+            LocalLlmTranslateApiResult result = LocalLlmTranslateApiResult.Failed(
+                404,
+                "{\"error\":{\"message\":\"model not found\",\"status\":\"NOT_FOUND\"}}");
+
+            string message = _describer.DescribeLocalLlmTranslateFailure(
+                result,
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b");
+
+            Assert.Contains("qwen/qwen3.5-9b", message);
+            Assert.Contains("localhost:1234", message);
+            Assert.Contains("모델 ID", message);
+            Assert.Contains("NOT_FOUND / model not found", message);
+        }
+
+        [Fact]
+        public void DescribeLocalLlmException_IncludesServerGuidance()
+        {
+            string message = _describer.DescribeLocalLlmException(
+                new TimeoutException("10초 안에 응답하지 않았습니다."),
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b");
+
+            Assert.Contains("LM Studio Local Server", message);
+            Assert.Contains("qwen/qwen3.5-9b", message);
+            Assert.Contains("10초 안에 응답하지 않았습니다", message);
+        }
+
+        [Fact]
+        public void DescribeShortLocalLlmTranslateFailure_ReturnsOverlayFriendlyMessage()
+        {
+            LocalLlmTranslateApiResult result = LocalLlmTranslateApiResult.Failed(404, "not found");
+
+            string message = _describer.DescribeShortLocalLlmTranslateFailure(result);
+
+            Assert.Equal("Local LLM endpoint/model 확인", message);
+        }
     }
 }

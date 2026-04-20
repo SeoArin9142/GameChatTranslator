@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GameTranslator
@@ -149,7 +150,8 @@ namespace GameTranslator
             string endpoint,
             string modelName,
             double temperature,
-            int maxTokens)
+            int maxTokens,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(text)) return LocalLlmTranslateApiResult.Succeeded("");
             if (string.IsNullOrWhiteSpace(endpoint)) return LocalLlmTranslateApiResult.Failed(null, "Local LLM endpoint가 비어 있습니다.");
@@ -179,8 +181,8 @@ namespace GameTranslator
                 CharSet = "utf-8"
             };
 
-            using HttpResponseMessage response = await _httpClient.PostAsync(endpoint, content);
-            string responseJson = await response.Content.ReadAsStringAsync();
+            using HttpResponseMessage response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
+            string responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {

@@ -12,9 +12,16 @@ namespace GameTranslator
         /// 번역할 문장과 현재 엔진 상태를 바탕으로 첫 실행 경로를 결정합니다.
         /// <paramref name="text"/>는 최종 OCR 후처리 문장,
         /// <paramref name="targetLanguageCode"/>는 ko, en-US 같은 목표 언어 코드,
-        /// <paramref name="canUseGemini"/>는 Gemini 엔진이 켜져 있고 API 키도 있는 상태인지 여부입니다.
+        /// <paramref name="engineMode"/>는 사용자가 선택한 번역 엔진,
+        /// <paramref name="canUseGemini"/>는 Gemini 엔진이 켜져 있고 API 키도 있는 상태인지 여부,
+        /// <paramref name="canUseLocalLlm"/>은 Local LLM 설정값이 호출 가능한 상태인지 여부입니다.
         /// </summary>
-        public TranslationPlan CreatePlan(string text, string targetLanguageCode, bool canUseGemini)
+        public TranslationPlan CreatePlan(
+            string text,
+            string targetLanguageCode,
+            TranslationEngineMode engineMode,
+            bool canUseGemini,
+            bool canUseLocalLlm)
         {
             string normalizedText = text ?? "";
 
@@ -30,7 +37,27 @@ namespace GameTranslator
                     new TranslationDecisionResult(normalizedText, "Skip", true, false));
             }
 
-            return new TranslationPlan(canUseGemini ? TranslationRequestKind.Gemini : TranslationRequestKind.Google, null);
+            TranslationRequestKind requestKind = engineMode switch
+            {
+                TranslationEngineMode.Gemini when canUseGemini => TranslationRequestKind.Gemini,
+                TranslationEngineMode.LocalLlm when canUseLocalLlm => TranslationRequestKind.LocalLlm,
+                _ => TranslationRequestKind.Google
+            };
+
+            return new TranslationPlan(requestKind, null);
+        }
+
+        /// <summary>
+        /// 구버전 호출부 호환용 래퍼입니다. Gemini 사용 여부만 받으면 기존 Google/Gemini 2단계 정책으로 동작합니다.
+        /// </summary>
+        public TranslationPlan CreatePlan(string text, string targetLanguageCode, bool canUseGemini)
+        {
+            return CreatePlan(
+                text,
+                targetLanguageCode,
+                canUseGemini ? TranslationEngineMode.Gemini : TranslationEngineMode.Google,
+                canUseGemini,
+                false);
         }
 
         /// <summary>
@@ -57,12 +84,35 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// Local LLM 호출 결과를 최종 번역 결과 또는 Google fallback 요청으로 해석합니다.
+        /// 로컬 서버가 꺼져 있거나 응답이 비어 있으면 Google fallback을 요청합니다.
+        /// </summary>
+        public TranslationAttemptResolution ResolveLocalLlmAttempt(string localLlmResult, string modelName)
+        {
+            if (ShouldFallbackToGoogle(localLlmResult))
+            {
+                return TranslationAttemptResolution.RequestGoogleFallback();
+            }
+
+            return TranslationAttemptResolution.Final(CreateLocalLlmResult(localLlmResult, modelName));
+        }
+
+        /// <summary>
         /// Google API 호출 결과를 최종 번역 결과로 해석합니다.
         /// <paramref name="isFallback"/>이 true이면 Gemini 실패 후 Google로 전환된 결과임을 출력문과 엔진명에 반영합니다.
         /// </summary>
         public TranslationAttemptResolution ResolveGoogleAttempt(string googleResult, bool isFallback)
         {
-            return TranslationAttemptResolution.Final(CreateGoogleResult(googleResult, isFallback));
+            return ResolveGoogleAttempt(googleResult, isFallback, "Gemini");
+        }
+
+        /// <summary>
+        /// Google API 호출 결과를 최종 번역 결과로 해석합니다.
+        /// <paramref name="fallbackSourceEngine"/>은 fallback이 발생한 원래 엔진명입니다. 예: Gemini, Local LLM.
+        /// </summary>
+        public TranslationAttemptResolution ResolveGoogleAttempt(string googleResult, bool isFallback, string fallbackSourceEngine)
+        {
+            return TranslationAttemptResolution.Final(CreateGoogleResult(googleResult, isFallback, fallbackSourceEngine));
         }
 
         /// <summary>
@@ -76,16 +126,36 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 성공한 Local LLM 번역 결과를 UI/로그에 사용할 공통 결과 모델로 변환합니다.
+        /// <paramref name="localLlmResult"/>는 로컬 OpenAI 호환 엔드포인트 응답에서 추출한 번역문,
+        /// <paramref name="modelName"/>은 LM Studio에서 로드된 모델명입니다.
+        /// </summary>
+        public TranslationDecisionResult CreateLocalLlmResult(string localLlmResult, string modelName)
+        {
+            return new TranslationDecisionResult(localLlmResult ?? "", $"Local LLM {modelName}", false, false);
+        }
+
+        /// <summary>
         /// Google 번역 결과를 UI/로그에 사용할 공통 결과 모델로 변환합니다.
         /// <paramref name="googleResult"/>는 Google 응답에서 추출한 번역문,
         /// <paramref name="isFallback"/>은 Gemini 실패 후 fallback으로 호출한 결과인지 여부입니다.
         /// </summary>
         public TranslationDecisionResult CreateGoogleResult(string googleResult, bool isFallback)
         {
+            return CreateGoogleResult(googleResult, isFallback, "Gemini");
+        }
+
+        /// <summary>
+        /// Google 번역 결과를 UI/로그에 사용할 공통 결과 모델로 변환합니다.
+        /// fallback이면 원래 실패한 엔진명을 접두어에 포함합니다.
+        /// </summary>
+        public TranslationDecisionResult CreateGoogleResult(string googleResult, bool isFallback, string fallbackSourceEngine)
+        {
             string translatedText = googleResult ?? "";
             if (isFallback)
             {
-                translatedText = "[Gemini 에러 - 구글 전환됨] " + translatedText;
+                string source = string.IsNullOrWhiteSpace(fallbackSourceEngine) ? "이전 엔진" : fallbackSourceEngine.Trim();
+                translatedText = $"[{source} 에러 - 구글 전환됨] " + translatedText;
             }
 
             return new TranslationDecisionResult(
@@ -130,7 +200,19 @@ namespace GameTranslator
     {
         None,
         Google,
-        Gemini
+        Gemini,
+        LocalLlm
+    }
+
+    /// <summary>
+    /// 사용자가 선택한 번역 엔진입니다.
+    /// Google은 무료 웹 번역, Gemini는 Google AI Studio API, LocalLlm은 LM Studio/OpenAI 호환 로컬 서버를 의미합니다.
+    /// </summary>
+    public enum TranslationEngineMode
+    {
+        Google,
+        Gemini,
+        LocalLlm
     }
 
     /// <summary>
