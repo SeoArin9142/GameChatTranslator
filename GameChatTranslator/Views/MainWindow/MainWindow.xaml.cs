@@ -45,8 +45,8 @@ namespace GameTranslator
         private string gameLang = "ko";
         private string targetLang = "ko";
 
-        private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog;
-        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog;
+        private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog, modOcrDiag;
+        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog, keyOcrDiag;
 
         private bool useGeminiEngine = false; // 🌟 [추가] 현재 제미나이를 사용 중인지 상태 저장
 

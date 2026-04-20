@@ -58,7 +58,8 @@ namespace GameTranslator
                 CapturedAt = DateTime.Now,
                 Threshold = threshold,
                 ScaleFactor = scaleFactor,
-                CaptureArea = GetCapturePixelArea()
+                CaptureArea = GetCapturePixelArea(),
+                Metadata = BuildOcrDiagnosticMetadata()
             };
 
             Stopwatch totalStopwatch = Stopwatch.StartNew();
@@ -218,6 +219,66 @@ namespace GameTranslator
             {
                 gameChatCaptureArea = ConvertDisplayAreaToPixels(gameChatArea);
             }
+        }
+
+        /// <summary>
+        /// OCR 진단 ZIP에 포함할 앱 버전, 언어 설정, OCR 모드, 언어팩 상태를 문자열 모델로 만듭니다.
+        /// Exporter가 WinRT/Assembly/IniFile에 의존하지 않도록 MainWindow에서 현재 런타임 값을 채워 전달합니다.
+        /// </summary>
+        private OcrDiagnosticMetadata BuildOcrDiagnosticMetadata()
+        {
+            var metadata = new OcrDiagnosticMetadata
+            {
+                AppVersion = CurrentAppVersion,
+                GameLanguage = gameLang,
+                TargetLanguage = targetLang,
+                AutoTranslateMode = GetAutoTranslateModeLabel(),
+                DiagnosticProcessingMode = GetOcrProcessingModeLabel(OcrProcessingMode.Accurate),
+                SaveDebugImages = settingsService.IsEnabled(ini.Read("SaveDebugImages")) ? "true" : "false",
+                ResultDisplayMode = ini.Read("ResultDisplayMode") ?? SettingsService.DefaultResultDisplayMode,
+                ResultHistoryLimit = SettingsValueNormalizer.NormalizeResultHistoryLimit(ini.Read("ResultHistoryLimit")),
+                CaptureDisplayArea = FormatRectangle(gameChatArea),
+                CapturePixelArea = FormatRectangle(GetCapturePixelArea())
+            };
+
+            foreach (string status in BuildOcrLanguageStatusLines())
+            {
+                metadata.OcrLanguageStatuses.Add(status);
+            }
+
+            return metadata;
+        }
+
+        /// <summary>
+        /// 시작 시 생성된 OCR 엔진 목록을 기준으로 언어팩 설치 상태 문자열을 만듭니다.
+        /// 여기서는 WinRT 엔진 생성을 다시 시도하지 않아 OCR 진단 저장 과정의 부작용을 피합니다.
+        /// </summary>
+        private IEnumerable<string> BuildOcrLanguageStatusLines()
+        {
+            var targets = new (string Label, string Tag)[]
+            {
+                ("한국어", "ko"),
+                ("영어", "en-US"),
+                ("중국어 간체", "zh-Hans-CN"),
+                ("일본어", "ja"),
+                ("러시아어", "ru")
+            };
+
+            foreach ((string label, string tag) in targets)
+            {
+                string status = ocrEngines.ContainsKey(tag) ? "설치됨" : "미설치";
+                yield return $"{label} ({tag}) : {status}";
+            }
+        }
+
+        private string FormatRectangle(Rectangle rectangle)
+        {
+            if (rectangle == Rectangle.Empty || rectangle.Width <= 0 || rectangle.Height <= 0)
+            {
+                return "없음";
+            }
+
+            return $"X={rectangle.X}, Y={rectangle.Y}, W={rectangle.Width}, H={rectangle.Height}";
         }
 
         /// <summary>

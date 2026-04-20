@@ -25,7 +25,27 @@ namespace GameTranslator
         public long ScoringMs { get; set; }
         public long TotalMs { get; set; }
         public int OcrCallCount { get; set; }
+        public OcrDiagnosticMetadata Metadata { get; set; } = new OcrDiagnosticMetadata();
         public List<OcrDiagnosticCandidate> Candidates { get; } = new List<OcrDiagnosticCandidate>();
+    }
+
+    /// <summary>
+    /// OCR 진단 ZIP을 공유했을 때 재현 환경을 파악하기 위한 설정/환경 요약입니다.
+    /// WinRT, Assembly, IniFile 같은 런타임 의존 객체는 직접 참조하지 않고 호출부에서 문자열 값으로 채워 전달합니다.
+    /// </summary>
+    public class OcrDiagnosticMetadata
+    {
+        public string AppVersion { get; set; } = "";
+        public string GameLanguage { get; set; } = "";
+        public string TargetLanguage { get; set; } = "";
+        public string AutoTranslateMode { get; set; } = "";
+        public string DiagnosticProcessingMode { get; set; } = "";
+        public string SaveDebugImages { get; set; } = "";
+        public string ResultDisplayMode { get; set; } = "";
+        public int ResultHistoryLimit { get; set; }
+        public string CaptureDisplayArea { get; set; } = "";
+        public string CapturePixelArea { get; set; } = "";
+        public List<string> OcrLanguageStatuses { get; } = new List<string>();
     }
 
     /// <summary>

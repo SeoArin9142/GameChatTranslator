@@ -43,6 +43,7 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_COPY_RESULT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_LOG_VIEWER);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_OCR_DIAGNOSTIC);
 
             hotkeyWarningMessage = "";
             var failedHotkeys = new List<string>();
@@ -55,6 +56,7 @@ namespace GameTranslator
             string toggleHotkey = settingsService.NormalizeHotkey(ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
             string copyHotkey = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
             string logHotkey = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
+            string ocrDiagnosticHotkey = settingsService.NormalizeHotkey(ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
 
             ParseHotkey(moveHotkey, out modMove, out keyMove);
             ParseHotkey(areaHotkey, out modArea, out keyArea);
@@ -63,6 +65,7 @@ namespace GameTranslator
             ParseHotkey(toggleHotkey, out modToggle, out keyToggle);
             ParseHotkey(copyHotkey, out modCopy, out keyCopy);
             ParseHotkey(logHotkey, out modLog, out keyLog);
+            ParseHotkey(ocrDiagnosticHotkey, out modOcrDiag, out keyOcrDiag);
 
             RegisterHotKeyOrWarn(ID_HOTKEY_MOVE_LOCK, modMove, keyMove, "이동/잠금", moveHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_AREA_SELECT, modArea, keyArea, "영역 설정", areaHotkey, failedHotkeys);
@@ -71,6 +74,7 @@ namespace GameTranslator
             RegisterHotKeyOrWarn(ID_HOTKEY_TOGGLE_ENGINE, modToggle, keyToggle, "엔진 전환", toggleHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_COPY_RESULT, modCopy, keyCopy, "번역 복사", copyHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_LOG_VIEWER, modLog, keyLog, "로그창", logHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_OCR_DIAGNOSTIC, modOcrDiag, keyOcrDiag, "OCR 진단", ocrDiagnosticHotkey, failedHotkeys);
 
             if (failedHotkeys.Count > 0)
             {
@@ -132,10 +136,11 @@ namespace GameTranslator
             string tg = settingsService.NormalizeHotkey(ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
             string copy = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
             string log = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
+            string diag = settingsService.NormalizeHotkey(ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
 
             // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = useGeminiEngine ? "Gemini" : "Google";
-            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{copy}] 복사\n[{au}] 자동모드  [{tg}] {engineStr} 전환  [{log}] 로그";
+            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{copy}] 복사  [{diag}] 진단\n[{au}] 자동  [{tg}] {engineStr}  [{log}] 로그";
 
             foreach (var tb in FindVisualChildren<TextBlock>(this))
             {
@@ -219,6 +224,7 @@ namespace GameTranslator
                     case ID_HOTKEY_TOGGLE_ENGINE: ToggleEngine(); handled = true; break;
                     case ID_HOTKEY_COPY_RESULT: CopyLastTranslationToClipboard(); handled = true; break;
                     case ID_HOTKEY_LOG_VIEWER: ToggleLogViewerWindow(); handled = true; break;
+                    case ID_HOTKEY_OCR_DIAGNOSTIC: ShowOcrDiagnosticWindow(); handled = true; break;
                 }
             }
             return IntPtr.Zero;

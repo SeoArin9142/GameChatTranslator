@@ -22,6 +22,12 @@ namespace GameChatTranslator.Tests
             Assert.Contains("Threshold: 120", summary);
             Assert.Contains("Total: 70ms", summary);
             Assert.Contains("- Color: 123", summary);
+            Assert.Contains("앱 버전: v.test", summary);
+            Assert.Contains("게임 언어: ko", summary);
+            Assert.Contains("현재 자동 OCR 모드: 자동", summary);
+            Assert.Contains("표시 좌표 CaptureX/Y/W/H: X=1, Y=2, W=30, H=40", summary);
+            Assert.Contains("물리 픽셀 CapturePixelX/Y/W/H: X=10, Y=20, W=300, H=120", summary);
+            Assert.Contains("- 영어 (en-US) : 설치됨", summary);
         }
 
         [Fact]
@@ -88,8 +94,24 @@ namespace GameChatTranslator.Tests
                 OcrMs = 14,
                 ScoringMs = 15,
                 TotalMs = 70,
-                OcrCallCount = 2
+                OcrCallCount = 2,
+                Metadata = new OcrDiagnosticMetadata
+                {
+                    AppVersion = "v.test",
+                    GameLanguage = "ko",
+                    TargetLanguage = "en-US",
+                    AutoTranslateMode = "자동",
+                    DiagnosticProcessingMode = "정확",
+                    SaveDebugImages = "false",
+                    ResultDisplayMode = "History",
+                    ResultHistoryLimit = 5,
+                    CaptureDisplayArea = "X=1, Y=2, W=30, H=40",
+                    CapturePixelArea = "X=10, Y=20, W=300, H=120"
+                }
             };
+            result.Metadata.OcrLanguageStatuses.Add("한국어 (ko) : 설치됨");
+            result.Metadata.OcrLanguageStatuses.Add("영어 (en-US) : 설치됨");
+            result.Metadata.OcrLanguageStatuses.Add("일본어 (ja) : 미설치");
 
             var candidate = new OcrDiagnosticCandidate
             {
