@@ -28,6 +28,7 @@
     <Compile Include="../GameChatTranslator/Core/TranslationResultParser.cs" Link="Core/TranslationResultParser.cs" />
     <Compile Include="../GameChatTranslator/Core/TranslationService.cs" Link="Core/TranslationService.cs" />
     <Compile Include="../GameChatTranslator/Core/TranslationApiClient.cs" Link="Core/TranslationApiClient.cs" />
+    <Compile Include="../GameChatTranslator/Core/TranslationApiErrorDescriber.cs" Link="Core/TranslationApiErrorDescriber.cs" />
   </ItemGroup>
 
 </Project>

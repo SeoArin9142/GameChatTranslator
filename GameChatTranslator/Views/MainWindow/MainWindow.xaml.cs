@@ -66,6 +66,7 @@ namespace GameTranslator
         private readonly TranslationPromptBuilder translationPromptBuilder = new TranslationPromptBuilder();
         private readonly TranslationResultParser translationResultParser = new TranslationResultParser();
         private readonly TranslationService translationService = new TranslationService();
+        private readonly TranslationApiErrorDescriber translationApiErrorDescriber = new TranslationApiErrorDescriber();
         private readonly TranslationApiClient translationApiClient;
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;

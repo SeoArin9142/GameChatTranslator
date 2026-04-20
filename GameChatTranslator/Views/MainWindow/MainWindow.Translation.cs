@@ -742,6 +742,7 @@ namespace GameTranslator
 
             int retryCount = 3;
             string result = "";
+            Exception lastException = null;
 
             httpClient.DefaultRequestHeaders.Clear();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
@@ -754,12 +755,19 @@ namespace GameTranslator
                     if (string.IsNullOrEmpty(result)) throw new Exception("Google 번역 응답 파싱 실패");
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    lastException = ex;
                     retryCount--;
                     await Task.Delay(300);
                 }
             }
+
+            if (string.IsNullOrEmpty(result) && lastException != null)
+            {
+                AppendLog(translationApiErrorDescriber.DescribeGoogleFailure(lastException));
+            }
+
             return result;
         }
 
@@ -780,14 +788,14 @@ namespace GameTranslator
                 }
                 else if (result.StatusCode.HasValue)
                 {
-                    AppendLog($"제미나이 모델 목록 가져오기 실패 (HTTP {result.StatusCode.Value})");
+                    AppendLog(translationApiErrorDescriber.DescribeGeminiModelListFailure(result));
                 }
                 else
                 {
-                    AppendLog($"모델 목록 확인 중 오류 발생: {result.ErrorMessage}");
+                    AppendLog(translationApiErrorDescriber.DescribeGeminiModelListFailure(result));
                 }
             }
-            catch (Exception ex) { AppendLog($"모델 목록 확인 중 오류 발생: {ex.Message}"); }
+            catch (Exception ex) { AppendLog(translationApiErrorDescriber.DescribeGeminiModelListException(ex)); }
         }
 
         /// <summary>
@@ -802,6 +810,7 @@ namespace GameTranslator
             string modelName = ReadGeminiModel();
 
             int retryCount = 2;
+            string lastFailureMessage = "";
             while (retryCount > 0)
             {
                 try
@@ -809,20 +818,35 @@ namespace GameTranslator
                     GeminiTranslateApiResult result = await translationApiClient.TranslateWithGeminiAsync(text, tLang, apiKey, modelName);
                     if (!result.IsSuccess)
                     {
-                        AppendLog($"[Gemini API 오류] 모델({modelName}) 호출 실패: {result.ErrorMessage}");
-                        throw new Exception("Gemini 호출 실패");
+                        lastFailureMessage = translationApiErrorDescriber.DescribeGeminiTranslateFailure(result, modelName);
+                        throw new Exception(lastFailureMessage);
                     }
 
                     string parsedText = result.Text;
-                    if (string.IsNullOrWhiteSpace(parsedText)) throw new Exception("Gemini 응답 파싱 실패");
+                    if (string.IsNullOrWhiteSpace(parsedText))
+                    {
+                        lastFailureMessage = translationApiErrorDescriber.DescribeGeminiEmptyResponse(modelName);
+                        throw new Exception(lastFailureMessage);
+                    }
                     return parsedText;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    if (string.IsNullOrWhiteSpace(lastFailureMessage))
+                    {
+                        lastFailureMessage = translationApiErrorDescriber.DescribeGeminiException(ex, modelName);
+                    }
+
                     retryCount--;
                     await Task.Delay(300);
                 }
             }
+
+            if (!string.IsNullOrWhiteSpace(lastFailureMessage))
+            {
+                AppendLog(lastFailureMessage + " Google 무료 번역으로 전환합니다.");
+            }
+
             return "";
         }
     }
