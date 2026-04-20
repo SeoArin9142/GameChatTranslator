@@ -77,6 +77,7 @@ namespace GameTranslator
             TxtKeyToggle.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
             TxtKeyCopy.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_CopyResult"), defaults.CopyResult);
             TxtKeyLog.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_LogViewer"), defaults.LogViewer);
+            TxtKeyOcrDiagnostic.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -247,6 +248,7 @@ namespace GameTranslator
             TxtKeyToggle.Text = defaults.ToggleEngine;
             TxtKeyCopy.Text = defaults.CopyResult;
             TxtKeyLog.Text = defaults.LogViewer;
+            TxtKeyOcrDiagnostic.Text = defaults.OcrDiagnostic;
         }
 
         /// <summary>
@@ -302,6 +304,7 @@ namespace GameTranslator
             _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
             _ini.Write("Key_CopyResult", TxtKeyCopy.Text);
             _ini.Write("Key_LogViewer", TxtKeyLog.Text);
+            _ini.Write("Key_OcrDiagnostic", TxtKeyOcrDiagnostic.Text);
 
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(GetSelectedTag(ComboScale, SettingsValueNormalizer.DefaultScaleFactor.ToString()));
             _ini.Write("ScaleFactor", scaleFactor.ToString());

@@ -18,6 +18,7 @@ namespace GameTranslator
         public const string DefaultKeyToggleEngine = "Ctrl+-";
         public const string DefaultKeyCopyResult = "Ctrl+6";
         public const string DefaultKeyLogViewer = "Ctrl+=";
+        public const string DefaultKeyOcrDiagnostic = "Ctrl+5";
 
         /// <summary>
         /// Gemini API 키를 선택합니다.
@@ -107,7 +108,8 @@ namespace GameTranslator
                 DefaultKeyAutoTranslate,
                 DefaultKeyToggleEngine,
                 DefaultKeyCopyResult,
-                DefaultKeyLogViewer);
+                DefaultKeyLogViewer,
+                DefaultKeyOcrDiagnostic);
         }
     }
 
@@ -139,7 +141,8 @@ namespace GameTranslator
             string autoTranslate,
             string toggleEngine,
             string copyResult,
-            string logViewer)
+            string logViewer,
+            string ocrDiagnostic)
         {
             MoveLock = moveLock;
             AreaSelect = areaSelect;
@@ -148,6 +151,7 @@ namespace GameTranslator
             ToggleEngine = toggleEngine;
             CopyResult = copyResult;
             LogViewer = logViewer;
+            OcrDiagnostic = ocrDiagnostic;
         }
 
         public string MoveLock { get; }
@@ -157,5 +161,6 @@ namespace GameTranslator
         public string ToggleEngine { get; }
         public string CopyResult { get; }
         public string LogViewer { get; }
+        public string OcrDiagnostic { get; }
     }
 }

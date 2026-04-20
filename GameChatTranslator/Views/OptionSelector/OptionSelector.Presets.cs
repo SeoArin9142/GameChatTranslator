@@ -238,6 +238,7 @@ namespace GameTranslator
             _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text, section);
             _ini.Write("Key_CopyResult", TxtKeyCopy.Text, section);
             _ini.Write("Key_LogViewer", TxtKeyLog.Text, section);
+            _ini.Write("Key_OcrDiagnostic", TxtKeyOcrDiagnostic.Text, section);
 
             foreach (string key in PresetSettingKeys)
             {
@@ -276,6 +277,7 @@ namespace GameTranslator
             TxtKeyToggle.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_ToggleEngine", defaults.ToggleEngine), defaults.ToggleEngine);
             TxtKeyCopy.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_CopyResult", defaults.CopyResult), defaults.CopyResult);
             TxtKeyLog.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_LogViewer", defaults.LogViewer), defaults.LogViewer);
+            TxtKeyOcrDiagnostic.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_OcrDiagnostic", defaults.OcrDiagnostic), defaults.OcrDiagnostic);
 
             foreach (string key in PresetSettingKeys)
             {

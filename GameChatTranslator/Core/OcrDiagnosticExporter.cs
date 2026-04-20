@@ -59,6 +59,7 @@ namespace GameTranslator
             builder.AppendLine($"캡처 영역: X={result.CaptureArea.X}, Y={result.CaptureArea.Y}, W={result.CaptureArea.Width}, H={result.CaptureArea.Height}");
             builder.AppendLine($"Threshold: {result.Threshold}");
             builder.AppendLine($"ScaleFactor: {result.ScaleFactor}");
+            AppendMetadata(builder, result.Metadata);
             builder.AppendLine();
             builder.AppendLine("[선택 결과]");
             builder.AppendLine($"선택 후보: {result.SelectedCandidateName}");
@@ -82,6 +83,37 @@ namespace GameTranslator
             }
 
             return builder.ToString();
+        }
+
+        private static void AppendMetadata(StringBuilder builder, OcrDiagnosticMetadata metadata)
+        {
+            if (metadata == null) return;
+
+            builder.AppendLine();
+            builder.AppendLine("[환경 설정]");
+            builder.AppendLine($"앱 버전: {EmptyToDash(metadata.AppVersion)}");
+            builder.AppendLine($"게임 언어: {EmptyToDash(metadata.GameLanguage)}");
+            builder.AppendLine($"번역 언어: {EmptyToDash(metadata.TargetLanguage)}");
+            builder.AppendLine($"현재 자동 OCR 모드: {EmptyToDash(metadata.AutoTranslateMode)}");
+            builder.AppendLine($"진단 OCR 모드: {EmptyToDash(metadata.DiagnosticProcessingMode)}");
+            builder.AppendLine($"디버그 이미지 저장: {EmptyToDash(metadata.SaveDebugImages)}");
+            builder.AppendLine($"결과 표시 방식: {EmptyToDash(metadata.ResultDisplayMode)}");
+            builder.AppendLine($"누적 표시 줄 수: {metadata.ResultHistoryLimit}");
+            builder.AppendLine($"표시 좌표 CaptureX/Y/W/H: {EmptyToDash(metadata.CaptureDisplayArea)}");
+            builder.AppendLine($"물리 픽셀 CapturePixelX/Y/W/H: {EmptyToDash(metadata.CapturePixelArea)}");
+            builder.AppendLine();
+            builder.AppendLine("[OCR 언어팩 상태]");
+
+            if (metadata.OcrLanguageStatuses.Count == 0)
+            {
+                builder.AppendLine("정보 없음");
+                return;
+            }
+
+            foreach (string status in metadata.OcrLanguageStatuses)
+            {
+                builder.AppendLine("- " + status);
+            }
         }
 
         /// <summary>
@@ -152,6 +184,11 @@ namespace GameTranslator
             }
 
             return value.Replace(' ', '_');
+        }
+
+        private static string EmptyToDash(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
         }
     }
 }

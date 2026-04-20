@@ -107,6 +107,11 @@ namespace GameTranslator
                 ini.Write("Key_LogViewer", SettingsService.DefaultKeyLogViewer);
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_OcrDiagnostic")))
+            {
+                ini.Write("Key_OcrDiagnostic", SettingsService.DefaultKeyOcrDiagnostic);
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("ResultDisplayMode")))
             {
                 ini.Write("ResultDisplayMode", SettingsService.DefaultResultDisplayMode);

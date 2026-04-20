@@ -105,6 +105,7 @@ namespace GameChatTranslator.Tests
             Assert.Equal("Ctrl+-", hotkeys.ToggleEngine);
             Assert.Equal("Ctrl+6", hotkeys.CopyResult);
             Assert.Equal("Ctrl+=", hotkeys.LogViewer);
+            Assert.Equal("Ctrl+5", hotkeys.OcrDiagnostic);
         }
 
         [Fact]
