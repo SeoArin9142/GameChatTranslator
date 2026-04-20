@@ -12,6 +12,24 @@
 
 ![실행 화면](./GameChatTranslator/assets/screenshot.jpg)
 
+## 🧪 개발 / 검증 환경
+
+아래 환경은 현재 개발자가 빌드, 게시, 실사용 테스트에 사용한 기준 시스템입니다. 시스템 전체 원본 정보는 `GameChatTranslator/assets/CPU_Z_INFO.txt`, `GameChatTranslator/assets/Dxdiag_Info.txt`에 보관되어 있으며, README에는 공개 가능한 주요 사양만 정리했습니다.
+
+| 항목 | 사양 |
+|:---|:---|
+| OS | Windows 11 Pro 64-bit, Build 26200 |
+| 개발 도구 | Visual Studio 2026 Community |
+| 대상 런타임 | .NET 8 / WPF / Windows Forms |
+| CPU | AMD Ryzen 7 7800X3D, 8코어 16스레드 |
+| 메모리 | DDR5 96GB |
+| GPU | NVIDIA GeForce RTX 4080 SUPER, VRAM 16GB |
+| DirectX | DirectX 12 |
+| 주 모니터 | 2560 x 1440, 180Hz |
+| 보조 모니터 | 1920 x 1080, 240Hz |
+
+> 참고: 위 사양은 개발/검증 기준 환경이며, 프로그램 실행 최소 사양을 의미하지 않습니다. CPU-Z/DxDiag 원본에는 PC 이름, 장치 식별자 등 민감할 수 있는 항목이 포함될 수 있으므로 README에는 요약 정보만 노출합니다.
+
 ## 📥 다운로드 (Download)
 
 최신 버전의 실행 파일을 아래 링크에서 다운로드하세요!

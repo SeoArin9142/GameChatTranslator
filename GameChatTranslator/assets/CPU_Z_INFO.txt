@@ -4975,7 +4975,7 @@ PCI extended capability
 PCI extended capability
 	Caps class		Device Serial Number
 	Caps offset		0x168
-	Serial (EUI-64)		1000000-684CE000
+	Serial (EUI-64)		REDACTED
 PCI extended capability
 	Caps class		0x17
 	Caps offset		0x178
@@ -6122,8 +6122,8 @@ DMI System Information
 	manufacturer		ASUS
 	product			System Product Name
 	version			System Version
-	serial			System Serial Number
-	UUID			{7E37FD1B-232D-94E5-29CA-E89C2578DAF8}
+	serial			REDACTED
+	UUID			{REDACTED}
 	SKU			SKU
 	family			To be filled by O.E.M.
 
@@ -6131,7 +6131,7 @@ DMI Baseboard
 	vendor			ASUSTeK COMPUTER INC.
 	model			TUF GAMING X670E-PLUS WIFI
 	revision		Rev 1.xx
-	serial			230926986400086
+	serial			REDACTED
 
 DMI System Enclosure		
 	manufacturer		Default string
@@ -6181,7 +6181,7 @@ DMI Memory Device
 	type			unknown
 	manufacturer		Unknown
 	part number		Unknown
-	serial number		Unknown
+	serial number		REDACTED
 	manufacturer id		0x0
 	product id		0x0
 DMI data	
@@ -6203,7 +6203,7 @@ DMI Memory Device
 	speed			5600 MHz
 	manufacturer		Corsair
 	part number		CMK96GX5M2B5600C40
-	serial number		00000000
+	serial number		REDACTED
 	voltage			1.100000
 	manufacturer id		0x9E02
 	product id		0x0
@@ -6222,7 +6222,7 @@ DMI Memory Device
 	type			unknown
 	manufacturer		Unknown
 	part number		Unknown
-	serial number		Unknown
+	serial number		REDACTED
 	manufacturer id		0x0
 	product id		0x0
 DMI data	
@@ -6244,7 +6244,7 @@ DMI Memory Device
 	speed			5600 MHz
 	manufacturer		Corsair
 	part number		CMK96GX5M2B5600C40
-	serial number		00000000
+	serial number		REDACTED
 	voltage			1.100000
 	manufacturer id		0x9E02
 	product id		0x0
@@ -6463,10 +6463,10 @@ Storage
 -------------------------------------------------------------------------
 
 Drive	0/0/-1/-1
-	Device Path		\\?\scsi#disk&ven_nvme&prod_shpp41-2000gm#5&2d230738&0&000000#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}
+	Device Path		REDACTED
 	Name			SHPP41-2000GM
 	Revision		51060A20
-	Serial			SNCCN58691020CU3O
+	Serial			REDACTED
 	Capacity		1863.0 GB
 	Type			Fixed, SSD
 	Bus Type		NVMe (17)
@@ -6476,10 +6476,10 @@ Drive	0/0/-1/-1
 	Volume			c:\, 1862.1 GBytes (73.0 percent available)
 
 Drive	1/1/-1/-1
-	Device Path		\\?\scsi#disk&ven_nvme&prod_predator_ssd_gm7#5&1e072dd1&0&000000#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}
+	Device Path		REDACTED
 	Name			Predator SSD GM7000 2TB
 	Revision		3.A.J.CR
-	Serial			PSBG53460102046
+	Serial			REDACTED
 	Capacity		1907.7 GB
 	Type			Fixed, SSD
 	Bus Type		NVMe (17)
@@ -6608,7 +6608,7 @@ Monitor 0
 Monitor 1	
 	Model			LG ULTRAGEAR (LG Electronics (GoldStar))
 	ID			GSM776F
-	Serial			107NTFA4Z291
+	Serial			REDACTED
 	Manufacturing Date	Week 7, Year 2021
 	Size			31.5 inches
 	Max Resolution		0 x 0 @ 0 Hz

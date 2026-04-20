@@ -2,8 +2,8 @@
 System Information
 ------------------
       Time of this report: 4/20/2026, 13:27:49
-             Machine name: SEOARIN
-               Machine Id: {F0E76CD9-42BD-42E9-888B-938ED6D3B466}
+             Machine name: REDACTED
+               Machine Id: REDACTED
          Operating System: Windows 11 Pro 64-bit (10.0, Build 26200) (26100.ge_release.240331-1435)
                  Language: Korean (Regional Setting: Korean)
       System Manufacturer: ASUS
@@ -64,7 +64,7 @@ Display Devices
            Chip type: NVIDIA GeForce RTX 4080 SUPER
             DAC type: Integrated RAMDAC
          Device Type: Full Device (POST)
-          Device Key: Enum\PCI\VEN_10DE&DEV_2702&SUBSYS_51171462&REV_A1
+          Device Key: REDACTED
        Device Status: 0180200A [DN_DRIVER_LOADED|DN_STARTED|DN_DISABLEABLE|DN_NT_ENUMERATOR|DN_NT_DRIVER] 
  Device Problem Code: No Problem
  Driver Problem Code: Unknown
@@ -79,7 +79,7 @@ Display Devices
    Display Luminance: Min Luminance = 0.022200, Max Luminance = 400.000000, MaxFullFrameLuminance = 282.855499
         Monitor Name: Generic PnP Monitor
        Monitor Model: HDMI1
-          Monitor Id: JRY2700
+          Monitor Id: REDACTED
          Native Mode: 1920 x 1080(p) (60.000Hz)
          Output Type: HDMI
 Monitor Capabilities: HDR Supported (BT2020RGB BT2020YCC Eotf2084Supported )
@@ -111,12 +111,12 @@ Display Pixel Format: DISPLAYCONFIG_PIXELFORMAT_32BPP
     Driver Date/Size: 2026-04-13 오전 9:00:00, 815944 bytes
          WHQL Logo'd: Yes
      WHQL Date Stamp: Unknown
-   Device Identifier: {D7B71E3E-6442-11CF-4752-18710EC2ED35}
+   Device Identifier: REDACTED
            Vendor ID: 0x10DE
            Device ID: 0x2702
            SubSys ID: 0x51171462
          Revision ID: 0x00A1
-  Driver Strong Name: oem123.inf:0f066de36a6539c9:Section024:32.0.15.9621:pci\ven_10de&dev_2702&subsys_51171462
+  Driver Strong Name: REDACTED
       Adapter Family: Unknown
       Rank Of Driver: 00CF0001
          Video Accel: 
@@ -226,7 +226,7 @@ Display Pixel Format: DISPLAYCONFIG_PIXELFORMAT_32BPP
            Chip type: NVIDIA GeForce RTX 4080 SUPER
             DAC type: Integrated RAMDAC
          Device Type: Full Device (POST)
-          Device Key: Enum\PCI\VEN_10DE&DEV_2702&SUBSYS_51171462&REV_A1
+          Device Key: REDACTED
        Device Status: 0180200A [DN_DRIVER_LOADED|DN_STARTED|DN_DISABLEABLE|DN_NT_ENUMERATOR|DN_NT_DRIVER] 
  Device Problem Code: No Problem
  Driver Problem Code: Unknown
@@ -241,7 +241,7 @@ Display Pixel Format: DISPLAYCONFIG_PIXELFORMAT_32BPP
    Display Luminance: Min Luminance = 0.249600, Max Luminance = 351.276398, MaxFullFrameLuminance = 351.276398
         Monitor Name: Generic PnP Monitor
        Monitor Model: LG ULTRAGEAR
-          Monitor Id: GSM776F
+          Monitor Id: REDACTED
          Native Mode: 2560 x 1440(p) (143.973Hz)
          Output Type: Displayport External
 Monitor Capabilities: HDR Supported (BT2020RGB BT2020YCC Eotf2084Supported )
@@ -273,12 +273,12 @@ Display Pixel Format: DISPLAYCONFIG_PIXELFORMAT_NONGDI
     Driver Date/Size: 2026-04-13 오전 9:00:00, 815944 bytes
          WHQL Logo'd: Yes
      WHQL Date Stamp: Unknown
-   Device Identifier: {D7B71E3E-6442-11CF-4752-18710EC2ED35}
+   Device Identifier: REDACTED
            Vendor ID: 0x10DE
            Device ID: 0x2702
            SubSys ID: 0x51171462
          Revision ID: 0x00A1
-  Driver Strong Name: oem123.inf:0f066de36a6539c9:Section024:32.0.15.9621:pci\ven_10de&dev_2702&subsys_51171462
+  Driver Strong Name: REDACTED
       Adapter Family: Unknown
       Rank Of Driver: 00CF0001
          Video Accel: 
@@ -342,7 +342,7 @@ Display Pixel Format: DISPLAYCONFIG_PIXELFORMAT_NONGDI
            Chip type: AMD Radeon Graphics Processor (0x164E)
             DAC type: Internal DAC(400MHz)
          Device Type: Full Device
-          Device Key: Enum\PCI\VEN_1002&DEV_164E&SUBSYS_88771043&REV_CB
+          Device Key: REDACTED
        Device Status: 0180200A [DN_DRIVER_LOADED|DN_STARTED|DN_DISABLEABLE|DN_NT_ENUMERATOR|DN_NT_DRIVER] 
  Device Problem Code: No Problem
  Driver Problem Code: Unknown
@@ -378,12 +378,12 @@ Display Pixel Format: DISPLAYCONFIG_PIXELFORMAT_NONGDI
     Driver Date/Size: 2024-01-11 오전 9:00:00, 50085888 bytes
          WHQL Logo'd: Yes
      WHQL Date Stamp: Unknown
-   Device Identifier: Unknown
+   Device Identifier: REDACTED
            Vendor ID: 0x1002
            Device ID: 0x164E
            SubSys ID: 0x88771043
          Revision ID: 0x00CB
-  Driver Strong Name: oem53.inf:cb0ae414c35bf3b1:ati2mtag_Raphael:31.0.24002.92:PCI\VEN_1002&DEV_164E&SUBSYS_88771043&REV_CB
+  Driver Strong Name: REDACTED
       Adapter Family: Unknown
       Rank Of Driver: 00CF0000
          Video Accel: Unknown
@@ -433,7 +433,7 @@ Sound Devices
             Description: HDMI1(NVIDIA High Definition Audio)
  Default Sound Playback: No
  Default Voice Playback: No
-            Hardware ID: HDAUDIO\FUNC_01&VEN_10DE&DEV_00A4&SUBSYS_14625117&REV_1001
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -458,7 +458,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: LG ULTRAGEAR(NVIDIA High Definition Audio)
  Default Sound Playback: No
  Default Voice Playback: Yes
-            Hardware ID: HDAUDIO\FUNC_01&VEN_10DE&DEV_00A4&SUBSYS_14625117&REV_1001
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -483,7 +483,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: VoiceMeeter Aux Input(VB-Audio VoiceMeeter AUX VAIO)
  Default Sound Playback: Yes
  Default Voice Playback: No
-            Hardware ID: VBAudioVMAUXVAIO
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -508,7 +508,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: VoiceMeeter Input(VB-Audio VoiceMeeter VAIO)
  Default Sound Playback: No
  Default Voice Playback: No
-            Hardware ID: VBAudioVMVAIO
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -533,7 +533,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: 스피커(4- Logitech PRO X Wireless Gaming Headset)
  Default Sound Playback: No
  Default Voice Playback: No
-            Hardware ID: USB\VID_046D&PID_0ABA&REV_0100&MI_00
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -558,7 +558,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: 스피커(Sound BlasterX G5)
  Default Sound Playback: No
  Default Voice Playback: No
-            Hardware ID: USB\VID_041E&PID_3243&REV_1000&MI_00
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -583,7 +583,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: 스피커(Steam Streaming Microphone)
  Default Sound Playback: No
  Default Voice Playback: No
-            Hardware ID: ROOT\SteamStreamingMicrophone
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -608,7 +608,7 @@ Sensaura(tm) ZoomFX(tm): No
             Description: 스피커(Steam Streaming Speakers)
  Default Sound Playback: No
  Default Voice Playback: No
-            Hardware ID: ROOT\SteamStreamingSpeakers
+            Hardware ID: REDACTED
         Manufacturer ID: N/A
              Product ID: N/A
                    Type: N/A
@@ -957,40 +957,40 @@ File System: NTFS
 System Devices
 --------------
      Name: PCI Express 루트 포트
-Device ID: PCI\VEN_1022&DEV_14DB&SUBSYS_88771043&REV_00\3&11583659&0&12
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 루트 포트
-Device ID: PCI\VEN_1022&DEV_14DB&SUBSYS_88771043&REV_00\3&11583659&0&11
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 루트 포트
-Device ID: PCI\VEN_1022&DEV_14DB&SUBSYS_88771043&REV_00\3&11583659&0&0A
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 루트 포트
-Device ID: PCI\VEN_1022&DEV_14DB&SUBSYS_88771043&REV_00\3&11583659&0&09
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: AMD USB 2.0 확장 가능한 호스트 컨트롤러 - 1.20(Microsoft)
-Device ID: PCI\VEN_1022&DEV_15B8&SUBSYS_88771043&REV_00\4&89701DF&0&0043
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\USBXHCI.SYS, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 726432 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\UMDF\UsbXhciCompanion.dll, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 179168 bytes
 
      Name: Standard NVM Express Controller
-Device ID: PCI\VEN_1C5C&DEV_1959&SUBSYS_19591C5C&REV_00\4&2EC11BF&0&000A
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\stornvme.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 316872 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\5&26BE588C&0&200011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E7&SUBSYS_00000000&REV_00\3&11583659&0&C7
+Device ID: REDACTED
    Driver: n/a
 
      Name: AMD Radeon(TM) Graphics
-Device ID: PCI\VEN_1002&DEV_164E&SUBSYS_88771043&REV_CB\4&1EBE6A9C&0&0041
+Device ID: REDACTED
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\u0400644.inf_amd64_9691c8ee1bbfcbb7\B399690\ativvaxy_vcn3.dat, 2/27/2024 02:27:10, 582000 bytes
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\u0400644.inf_amd64_9691c8ee1bbfcbb7\B399690\ativvaxy_vcn3_1.dat, 2/27/2024 02:27:10, 574128 bytes
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\u0400644.inf_amd64_9691c8ee1bbfcbb7\B399690\ativvaxy_vcn4.dat, 2/27/2024 02:27:10, 383824 bytes
@@ -1137,105 +1137,105 @@ Device ID: PCI\VEN_1002&DEV_164E&SUBSYS_88771043&REV_CB\4&1EBE6A9C&0&0041
    Driver: C:\WINDOWS\system32\AMD\amdkmpfd\amdkmpfd.ctz, 2/27/2024 02:26:56, 11174 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\7&3B4D2EF3&0&0000400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\7&3B4D2EF3&0&2800400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: High Definition Audio 컨트롤러
-Device ID: PCI\VEN_10DE&DEV_22BB&SUBSYS_51171462&REV_A1\4&1BABDF5B&0&0109
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\hdaudbus.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:48, 204800 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\drmk.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 122880 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\portcls.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 479232 bytes
 
      Name: AMD USB 3.10 확장 가능한 호스트 컨트롤러 - 1.10(Microsoft)
-Device ID: PCI\VEN_1022&DEV_43F7&SUBSYS_11421B21&REV_01\6&2AF91C3C&0&00600011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\USBXHCI.SYS, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 726432 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\UMDF\UsbXhciCompanion.dll, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 179168 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14DA&SUBSYS_00000000&REV_00\3&11583659&0&40
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14DA&SUBSYS_00000000&REV_00\3&11583659&0&20
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14DA&SUBSYS_00000000&REV_00\3&11583659&0&18
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14DA&SUBSYS_00000000&REV_00\3&11583659&0&10
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14DA&SUBSYS_00000000&REV_00\3&11583659&0&08
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\5&26BE588C&0&000011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E2&SUBSYS_00000000&REV_00\3&11583659&0&C2
+Device ID: REDACTED
    Driver: n/a
 
      Name: AMD SMBus
-Device ID: PCI\VEN_1022&DEV_790B&SUBSYS_88771043&REV_71\3&11583659&0&A0
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14D8&SUBSYS_88771043&REV_00\3&11583659&0&00
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E5&SUBSYS_00000000&REV_00\3&11583659&0&C5
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI Express 업스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F4&SUBSYS_33281B21&REV_01\4&383DA6B1&0&0011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\7&3B4D2EF3&0&4000400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: 표준 SATA AHCI 컨트롤러
-Device ID: PCI\VEN_1022&DEV_43F6&SUBSYS_10621B21&REV_01\8&1C3AEBB9&0&006800400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\storahci.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 234912 bytes
 
      Name: PCI 표준 ISA 브리지
-Device ID: PCI\VEN_1022&DEV_790E&SUBSYS_88771043&REV_51\3&11583659&0&A3
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\msisadrv.sys, 10.00.26100.1150 (English), 10/21/2024 09:39:16, 58672 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\7&3B4D2EF3&0&6800400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: 표준 SATA AHCI 컨트롤러
-Device ID: PCI\VEN_1022&DEV_43F6&SUBSYS_10621B21&REV_01\6&37563465&0&00680011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\storahci.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 234912 bytes
 
      Name: AMD USB 3.10 확장 가능한 호스트 컨트롤러 - 1.20(Microsoft)
-Device ID: PCI\VEN_1022&DEV_15B6&SUBSYS_88771043&REV_00\4&1EBE6A9C&0&0341
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\USBXHCI.SYS, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 726432 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\UMDF\UsbXhciCompanion.dll, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 179168 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E0&SUBSYS_00000000&REV_00\3&11583659&0&C0
+Device ID: REDACTED
    Driver: n/a
 
      Name: High Definition Audio 컨트롤러
-Device ID: PCI\VEN_1022&DEV_15E3&SUBSYS_886D1043&REV_00\4&1EBE6A9C&0&0641
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\hdaudbus.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:48, 204800 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\drmk.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 122880 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\portcls.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 479232 bytes
 
      Name: NVIDIA GeForce RTX 4080 SUPER
-Device ID: PCI\VEN_10DE&DEV_2702&SUBSYS_51171462&REV_A1\4&1BABDF5B&0&0009
+Device ID: REDACTED
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\nvmdi.inf_amd64_75ed48406e90dcf7\NVWMI\nvPerfProvider.man, 4/14/2026 06:30:59, 14175 bytes
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\nvmdi.inf_amd64_75ed48406e90dcf7\NVWMI\nvWmi.mof, 4/14/2026 06:30:59, 148903 bytes
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\nvmdi.inf_amd64_75ed48406e90dcf7\NVWMI\nvWmi64.exe, 2.36.0000.0000 (English), 4/14/2026 22:30:14, 4568776 bytes
@@ -1465,85 +1465,85 @@ Device ID: PCI\VEN_10DE&DEV_2702&SUBSYS_51171462&REV_A1\4&1BABDF5B&0&0009
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\nvmdi.inf_amd64_75ed48406e90dcf7\NvTelemetry64.dll, 14.03.0060.0000 (English), 4/14/2026 22:30:14, 4466240 bytes
 
      Name: AMD USB 3.20 확장 가능한 호스트 컨트롤러 - 1.10(Microsoft)
-Device ID: PCI\VEN_1022&DEV_43F7&SUBSYS_11421B21&REV_01\8&14937218&0&006000400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\USBXHCI.SYS, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 726432 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\UMDF\UsbXhciCompanion.dll, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 179168 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\5&26BE588C&0&680011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E3&SUBSYS_00000000&REV_00\3&11583659&0&C3
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI Express 업스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F4&SUBSYS_33281B21&REV_01\6&1FAE92CE&0&00400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: 네트워크 컨트롤러
-Device ID: PCI\VEN_14C3&DEV_0616&SUBSYS_E0CD105B&REV_00\8&68E174E&0&002800400011
+Device ID: REDACTED
    Driver: n/a
 
      Name: Realtek Gaming 2.5GbE Family Controller
-Device ID: PCI\VEN_10EC&DEV_8125&SUBSYS_87D71043&REV_05\01000000684CE00000
+Device ID: REDACTED
    Driver: C:\WINDOWS\System32\DriverStore\FileRepository\rt25cx21x64.inf_amd64_8e61b4ea25373168\rt25cx21x64.sys, 1125.21.0903.2024 (Korean), 10/21/2024 09:16:34, 887776 bytes
 
      Name: Standard NVM Express Controller
-Device ID: PCI\VEN_1DBE&DEV_5236&SUBSYS_52361DBE&REV_01\4&2583F60C&0&0012
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\stornvme.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 316872 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\5&26BE588C&0&600011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E6&SUBSYS_00000000&REV_00\3&11583659&0&C6
+Device ID: REDACTED
    Driver: n/a
 
      Name: AMD USB 3.10 확장 가능한 호스트 컨트롤러 - 1.20(Microsoft)
-Device ID: PCI\VEN_1022&DEV_15B7&SUBSYS_88771043&REV_00\4&1EBE6A9C&0&0441
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\USBXHCI.SYS, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 726432 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\UMDF\UsbXhciCompanion.dll, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 179168 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\7&3B4D2EF3&0&2000400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 루트 포트
-Device ID: PCI\VEN_1022&DEV_14DD&SUBSYS_88771043&REV_00\3&11583659&0&43
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI Express 루트 포트
-Device ID: PCI\VEN_1022&DEV_14DD&SUBSYS_88771043&REV_00\3&11583659&0&41
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: AMD PSP 11.0 Device
-Device ID: PCI\VEN_1022&DEV_1649&SUBSYS_88771043&REV_00\4&1EBE6A9C&0&0241
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\amdpsp.sys, 5.39.0000.0000 (English), 3/14/2025 04:30:12, 60224 bytes
    Driver: C:\WINDOWS\system32\amdtee_api.dll, 5.39.0000.0000 (English), 3/14/2025 04:30:14, 526144 bytes
    Driver: C:\WINDOWS\SysWOW64\amdtee_api.dll, 5.39.0000.0000 (English), 3/14/2025 04:30:14, 397656 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E1&SUBSYS_00000000&REV_00\3&11583659&0&C1
+Device ID: REDACTED
    Driver: n/a
 
      Name: High Definition Audio Bus
-Device ID: PCI\VEN_1002&DEV_1640&SUBSYS_88771043&REV_00\4&1EBE6A9C&0&0141
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\hdaudbus.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:48, 204800 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\drmk.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 122880 bytes
    Driver: C:\WINDOWS\system32\DRIVERS\portcls.sys, 10.00.26100.7920 (English), 3/11/2026 18:53:49, 479232 bytes
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\5&26BE588C&0&400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
      Name: PCI 표준 호스트 CPU 브리지
-Device ID: PCI\VEN_1022&DEV_14E4&SUBSYS_00000000&REV_00\3&11583659&0&C4
+Device ID: REDACTED
    Driver: n/a
 
      Name: PCI Express 다운스트림 스위치 포트
-Device ID: PCI\VEN_1022&DEV_43F5&SUBSYS_33281B21&REV_01\7&3B4D2EF3&0&6000400011
+Device ID: REDACTED
    Driver: C:\WINDOWS\system32\DRIVERS\pci.sys, 10.00.26100.7920 (Korean), 3/11/2026 18:53:49, 611784 bytes
 
 ------------------
