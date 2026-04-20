@@ -108,6 +108,7 @@ namespace GameTranslator
             if (TxtThreshold != null) TxtThreshold.Text = SettingsValueNormalizer.NormalizeThreshold(_ini.Read("Threshold")).ToString();
             if (TxtInterval != null) TxtInterval.Text = SettingsValueNormalizer.NormalizeAutoTranslateInterval(_ini.Read("AutoTranslateInterval")).ToString();
             if (ComboResultDisplayMode != null) SetComboByTag(ComboResultDisplayMode, _ini.Read("ResultDisplayMode") ?? SettingsService.DefaultResultDisplayMode);
+            ApplyTranslationContentMode(_settingsService.NormalizeTranslationContentMode(_ini.Read("TranslationContentMode")));
             if (ComboTranslationEngine != null)
             {
                 TranslationEngineMode engineMode = _settingsService.NormalizeTranslationEngineMode(_ini.Read("TranslationEngine"));
@@ -158,6 +159,29 @@ namespace GameTranslator
                 }
             }
             if (combo.SelectedItem == null && combo.Items.Count > 0) combo.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// 저장된 번역기 방식 설정을 라디오 버튼 상태에 반영합니다.
+        /// Strinova는 캐릭터명 검증 기반, ETC는 OCR 전체 번역 기반입니다.
+        /// </summary>
+        private void ApplyTranslationContentMode(TranslationContentMode contentMode)
+        {
+            if (RadioTranslationContentEtc == null || RadioTranslationContentStrinova == null) return;
+
+            RadioTranslationContentEtc.IsChecked = contentMode == TranslationContentMode.Etc;
+            RadioTranslationContentStrinova.IsChecked = contentMode != TranslationContentMode.Etc;
+        }
+
+        /// <summary>
+        /// 라디오 버튼에서 선택한 번역기 방식을 config.ini에 저장할 문자열로 반환합니다.
+        /// </summary>
+        private string GetSelectedTranslationContentModeTag()
+        {
+            return _settingsService.GetTranslationContentModeTag(
+                RadioTranslationContentEtc?.IsChecked == true
+                    ? TranslationContentMode.Etc
+                    : TranslationContentMode.Strinova);
         }
 
         /// <summary>
@@ -341,6 +365,7 @@ namespace GameTranslator
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
             _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");
+            _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag());
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine));
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
 

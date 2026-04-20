@@ -304,6 +304,7 @@ namespace GameTranslator
 
             int threshold = SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold"));
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor"));
+            TranslationContentMode contentMode = ReadTranslationContentMode();
 
             try
             {
@@ -346,7 +347,7 @@ namespace GameTranslator
                 }
 
                 // 3. 모드별 후보 전략으로 OCR을 수행하고 가장 점수가 높은 후보를 선택합니다.
-                OcrResultCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, performanceStats);
+                OcrResultCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
 
                 if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0)
                 {
@@ -372,196 +373,100 @@ namespace GameTranslator
 
                 BeginTranslationResultUpdate();
 
-                // 4. OCR에서 검증된 채팅 줄만 번역하고 UI/클립보드/로그에 반영합니다.
-                foreach (var chatLine in mergedLines)
+                // 4. 설정한 번역 대상 방식에 맞게 Strinova 채팅 또는 OCR 전체 텍스트를 번역합니다.
+                if (contentMode == TranslationContentMode.Etc)
                 {
-                    string krRawText = chatLine.Text.Trim();
-                    string usedEngine = "None";
-
-                    AppendLog("DEBUG", $"OCR 원본: {krRawText}", "System");
-
-                    if (!ChatTextAnalyzer.ContainsReadableLetter(krRawText))
+                    await TranslateEtcOcrContentAsync(mergedLines, performanceStats);
+                }
+                else
+                {
+                    foreach (var chatLine in mergedLines)
                     {
-                        AppendLog("DEBUG", "글자 없음으로 스킵", "System");
-                        performanceStats.SkippedLineCount++;
-                        continue;
-                    }
+                        string krRawText = chatLine.Text.Trim();
 
-                    if (!ChatTextAnalyzer.TryParseChatLine(krRawText, out ChatTextAnalyzer.ChatLine parsedChatLine))
-                    {
-                        AppendLog("DEBUG", "정규식(strictMatch) 불일치로 스킵됨", "System");
-                        performanceStats.SkippedLineCount++;
-                        continue;
-                    }
+                        AppendLog("DEBUG", $"OCR 원본: {krRawText}", "System");
 
-                    string characterNameOnly = parsedChatLine.CharacterName;
-
-                    if (!characterNames.Contains(characterNameOnly))
-                    {
-                        AppendLog("DEBUG", $"리스트에 없는 이름이라 스킵됨: {characterNameOnly}", "System");
-                        performanceStats.SkippedLineCount++;
-                        continue;
-                    }
-
-                    string characterNameGold = parsedChatLine.CharacterLabel;
-                    string bestMessage = parsedChatLine.Message;
-                    int bestScore = -1;
-
-                    double mTop = chatLine.Top - 5;
-                    double mBot = chatLine.Bottom + 5;
-
-                    foreach (var kvp in ocrResults)
-                    {
-                        var linesInBand = kvp.Value.Lines
-                            .Where(l => l.Words.Count > 0 && l.Words.Any(w => w.BoundingRect.Bottom > mTop && w.BoundingRect.Top < mBot))
-                            .OrderBy(l => l.Words.First().BoundingRect.Left);
-
-                        if (linesInBand.Any())
+                        if (!ChatTextAnalyzer.ContainsReadableLetter(krRawText))
                         {
-                            string fullText = string.Join(" ", linesInBand.Select(l => l.Text.Trim()));
-                            string msgOnly = fullText;
+                            AppendLog("DEBUG", "글자 없음으로 스킵", "System");
+                            performanceStats.SkippedLineCount++;
+                            continue;
+                        }
 
-                            int subCIdx = fullText.LastIndexOfAny(new char[] { ':', ';', '：', '!' });
-                            if (subCIdx != -1)
-                            {
-                                msgOnly = fullText.Substring(subCIdx + 1).Trim();
-                            }
-                            else
-                            {
-                                int brIdx = fullText.LastIndexOfAny(new char[] { ']', ')' });
-                                if (brIdx != -1) msgOnly = fullText.Substring(brIdx + 1).Trim();
-                                else msgOnly = "";
-                            }
+                        if (!ChatTextAnalyzer.TryParseChatLine(krRawText, out ChatTextAnalyzer.ChatLine parsedChatLine))
+                        {
+                            AppendLog("DEBUG", "정규식(strictMatch) 불일치로 스킵됨", "System");
+                            performanceStats.SkippedLineCount++;
+                            continue;
+                        }
 
-                            int score = msgOnly.Length;
-                            if (kvp.Key == "zh-Hans-CN" && Regex.IsMatch(msgOnly, @"[\u4e00-\u9fa5]")) score += 40000;
-                            else if (kvp.Key == "en-US" && Regex.IsMatch(msgOnly, @"[a-zA-Z]{2,}")) score += 30000;
-                            else if (kvp.Key == "ja" && Regex.IsMatch(msgOnly, @"[ぁ-んァ-ヶ]")) score += 20000;
-                            else if (kvp.Key == "ru" && Regex.IsMatch(msgOnly, @"[а-яА-ЯёЁ]")) score += 10000;
+                        string characterNameOnly = parsedChatLine.CharacterName;
 
-                            if (score > bestScore)
+                        if (!characterNames.Contains(characterNameOnly))
+                        {
+                            AppendLog("DEBUG", $"리스트에 없는 이름이라 스킵됨: {characterNameOnly}", "System");
+                            performanceStats.SkippedLineCount++;
+                            continue;
+                        }
+
+                        string characterNameGold = parsedChatLine.CharacterLabel;
+                        string bestMessage = parsedChatLine.Message;
+                        int bestScore = -1;
+
+                        double mTop = chatLine.Top - 5;
+                        double mBot = chatLine.Bottom + 5;
+
+                        foreach (var kvp in ocrResults)
+                        {
+                            var linesInBand = kvp.Value.Lines
+                                .Where(l => l.Words.Count > 0 && l.Words.Any(w => w.BoundingRect.Bottom > mTop && w.BoundingRect.Top < mBot))
+                                .OrderBy(l => l.Words.First().BoundingRect.Left);
+
+                            if (linesInBand.Any())
                             {
-                                bestScore = score;
-                                bestMessage = msgOnly;
+                                string fullText = string.Join(" ", linesInBand.Select(l => l.Text.Trim()));
+                                string msgOnly = fullText;
+
+                                int subCIdx = fullText.LastIndexOfAny(new char[] { ':', ';', '：', '!' });
+                                if (subCIdx != -1)
+                                {
+                                    msgOnly = fullText.Substring(subCIdx + 1).Trim();
+                                }
+                                else
+                                {
+                                    int brIdx = fullText.LastIndexOfAny(new char[] { ']', ')' });
+                                    if (brIdx != -1) msgOnly = fullText.Substring(brIdx + 1).Trim();
+                                    else msgOnly = "";
+                                }
+
+                                int score = msgOnly.Length;
+                                if (kvp.Key == "zh-Hans-CN" && Regex.IsMatch(msgOnly, @"[\u4e00-\u9fa5]")) score += 40000;
+                                else if (kvp.Key == "en-US" && Regex.IsMatch(msgOnly, @"[a-zA-Z]{2,}")) score += 30000;
+                                else if (kvp.Key == "ja" && Regex.IsMatch(msgOnly, @"[ぁ-んァ-ヶ]")) score += 20000;
+                                else if (kvp.Key == "ru" && Regex.IsMatch(msgOnly, @"[а-яА-ЯёЁ]")) score += 10000;
+
+                                if (score > bestScore)
+                                {
+                                    bestScore = score;
+                                    bestMessage = msgOnly;
+                                }
                             }
                         }
-                    }
 
-                    string finalContent = bestMessage.Trim();
-                    string geminiKey = ReadGeminiKey();
-                    bool willUseGemini = currentTranslationEngineMode == TranslationEngineMode.Gemini &&
-                        !string.IsNullOrWhiteSpace(geminiKey);
-                    bool willUseLocalLlm = currentTranslationEngineMode == TranslationEngineMode.LocalLlm;
-
-                    if (currentTranslationEngineMode == TranslationEngineMode.Google)
-                    {
-                        if (Regex.IsMatch(finalContent, @"[\u4e00-\u9fa5]") && Regex.IsMatch(finalContent, @"[ぁ-んァ-ヶ]"))
-                            finalContent = Regex.Replace(finalContent, @"[ぁ-んァ-ヶ]", "");
-
-                        finalContent = Regex.Replace(finalContent, @"^[0-9\W_]+", "");
-                        finalContent = Regex.Replace(finalContent, @"[イ尓カ幺哓ロト昌号i]", "").Trim();
-                    }
-
-                    if (string.IsNullOrWhiteSpace(finalContent))
-                    {
-                        performanceStats.SkippedLineCount++;
-                        continue;
-                    }
-
-                    // 🌟 [1글자 채팅 예외처리 포함]
-                    if (finalContent.Length == 1)
-                    {
-                        if (Regex.IsMatch(finalContent, @"^[イ尓カ幺哓ロト昌号iI0-9\W_]$"))
+                        string finalContent = PrepareFinalTranslationContent(bestMessage);
+                        if (!ShouldTranslateFinalContent(finalContent))
                         {
                             performanceStats.SkippedLineCount++;
                             continue;
                         }
-                        if (!Regex.IsMatch(finalContent, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$"))
-                        {
-                            performanceStats.SkippedLineCount++;
-                            continue;
-                        }
+
+                        TranslationDecisionResult translationResult = await TranslateFinalContentAsync(finalContent, performanceStats);
+
+                        AppendLog(characterNameGold + finalContent, translationResult.TranslatedText, translationResult.EngineName);
+
+                        AddTranslationResultToDisplay(characterNameGold, translationResult.TranslatedText);
+                        performanceStats.TranslatedLineCount++;
                     }
-                    else if (finalContent.Length < 2)
-                    {
-                        performanceStats.SkippedLineCount++;
-                        continue;
-                    }
-
-                    string modelName = ReadGeminiModel();
-                    usedEngine = "Google";
-                    string translated = finalContent;
-
-                    TranslationPlan translationPlan = translationService.CreatePlan(
-                        finalContent,
-                        targetLang,
-                        currentTranslationEngineMode,
-                        willUseGemini,
-                        willUseLocalLlm);
-                    TranslationDecisionResult translationResult = translationPlan.ImmediateResult;
-
-                    if (!translationPlan.HasImmediateResult)
-                    {
-                        if (translationPlan.RequestKind == TranslationRequestKind.Gemini)
-                        {
-                            Stopwatch translateStopwatch = Stopwatch.StartNew();
-                            string geminiTranslated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
-                            translateStopwatch.Stop();
-                            performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-
-                            TranslationAttemptResolution geminiResolution = translationService.ResolveGeminiAttempt(geminiTranslated, modelName);
-                            if (geminiResolution.RequiresGoogleFallback)
-                            {
-                                translateStopwatch.Restart();
-                                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
-                                translateStopwatch.Stop();
-                                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                                translationResult = translationService.ResolveGoogleAttempt(googleFallback, true).FinalResult;
-                            }
-                            else
-                            {
-                                translationResult = geminiResolution.FinalResult;
-                            }
-                        }
-                        else if (translationPlan.RequestKind == TranslationRequestKind.LocalLlm)
-                        {
-                            string localLlmModel = ReadLocalLlmModel();
-                            Stopwatch translateStopwatch = Stopwatch.StartNew();
-                            string localLlmTranslated = await CallLocalLlmAPI(finalContent, targetLang);
-                            translateStopwatch.Stop();
-                            performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-
-                            TranslationAttemptResolution localLlmResolution = translationService.ResolveLocalLlmAttempt(localLlmTranslated, localLlmModel);
-                            if (localLlmResolution.RequiresGoogleFallback)
-                            {
-                                translateStopwatch.Restart();
-                                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
-                                translateStopwatch.Stop();
-                                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                                translationResult = translationService.ResolveGoogleAttempt(googleFallback, true, "Local LLM").FinalResult;
-                            }
-                            else
-                            {
-                                translationResult = localLlmResolution.FinalResult;
-                            }
-                        }
-                        else
-                        {
-                            Stopwatch translateStopwatch = Stopwatch.StartNew();
-                            string googleTranslated = await CallGoogleAPI(finalContent, gameLang, targetLang);
-                            translateStopwatch.Stop();
-                            performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                            translationResult = translationService.ResolveGoogleAttempt(googleTranslated, false).FinalResult;
-                        }
-                    }
-
-                    translated = translationResult.TranslatedText;
-                    usedEngine = translationResult.EngineName;
-
-                    AppendLog(characterNameGold + finalContent, translated, usedEngine);
-
-                    AddTranslationResultToDisplay(characterNameGold, translated);
-                    performanceStats.TranslatedLineCount++;
                 }
 
                 performanceStats.Outcome = performanceStats.TranslatedLineCount > 0 ? "Translated" : "NoTranslatableLines";
@@ -580,19 +485,166 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// ETC 모드에서 OCR 병합 라인 전체를 하나의 번역 대상으로 만들어 번역창에 표시합니다.
+        /// Strinova 채팅 포맷이나 characters.txt 검증을 사용하지 않습니다.
+        /// </summary>
+        private async Task TranslateEtcOcrContentAsync(List<OcrLine> mergedLines, OcrPerformanceStats performanceStats)
+        {
+            string finalContent = PrepareFinalTranslationContent(BuildEtcTranslationContent(mergedLines));
+            AppendLog("DEBUG", $"OCR 원본(ETC): {finalContent}", "System");
+
+            if (!ShouldTranslateFinalContent(finalContent))
+            {
+                performanceStats.SkippedLineCount += Math.Max(1, mergedLines?.Count ?? 0);
+                return;
+            }
+
+            TranslationDecisionResult translationResult = await TranslateFinalContentAsync(finalContent, performanceStats);
+
+            AppendLog("[ETC]: " + finalContent, translationResult.TranslatedText, translationResult.EngineName);
+            AddTranslationResultToDisplay("[ETC]: ", translationResult.TranslatedText);
+            performanceStats.TranslatedLineCount++;
+        }
+
+        /// <summary>
+        /// ETC 모드에서 OCR로 읽은 전체 라인을 빈 줄 없이 합칩니다.
+        /// 숫자/기호만 있는 라인은 번역 대상에서 제외해 불필요한 API 호출을 줄입니다.
+        /// </summary>
+        private string BuildEtcTranslationContent(IEnumerable<OcrLine> mergedLines)
+        {
+            var lines = (mergedLines ?? Enumerable.Empty<OcrLine>())
+                .Select(line => line?.Text?.Trim() ?? "")
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .Where(ChatTextAnalyzer.ContainsReadableLetter);
+
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        /// <summary>
+        /// 선택된 번역 엔진에 맞춰 OCR 후처리 문자열을 정리합니다.
+        /// Google 모드에서는 기존 노이즈 제거 규칙을 유지합니다.
+        /// </summary>
+        private string PrepareFinalTranslationContent(string content)
+        {
+            string finalContent = (content ?? "").Trim();
+            if (currentTranslationEngineMode != TranslationEngineMode.Google)
+            {
+                return finalContent;
+            }
+
+            if (Regex.IsMatch(finalContent, @"[\u4e00-\u9fa5]") && Regex.IsMatch(finalContent, @"[ぁ-んァ-ヶ]"))
+                finalContent = Regex.Replace(finalContent, @"[ぁ-んァ-ヶ]", "");
+
+            finalContent = Regex.Replace(finalContent, @"^[0-9\W_]+", "");
+            finalContent = Regex.Replace(finalContent, @"[イ尓カ幺哓ロト昌号i]", "").Trim();
+            return finalContent;
+        }
+
+        /// <summary>
+        /// 최종 번역 입력으로 사용할 수 있는 길이와 문자 구성을 만족하는지 확인합니다.
+        /// 한 글자 입력은 한중일 문자일 때만 허용합니다.
+        /// </summary>
+        private bool ShouldTranslateFinalContent(string finalContent)
+        {
+            if (string.IsNullOrWhiteSpace(finalContent)) return false;
+
+            if (finalContent.Length == 1)
+            {
+                if (Regex.IsMatch(finalContent, @"^[イ尓カ幺哓ロト昌号iI0-9\W_]$")) return false;
+                return Regex.IsMatch(finalContent, @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$");
+            }
+
+            return finalContent.Length >= 2;
+        }
+
+        /// <summary>
+        /// 현재 선택된 번역 엔진 정책에 따라 Google/Gemini/Local LLM 호출을 수행하고 최종 결과를 반환합니다.
+        /// API 호출 시간은 OCR 성능 로그의 Translate 구간에 누적합니다.
+        /// </summary>
+        private async Task<TranslationDecisionResult> TranslateFinalContentAsync(string finalContent, OcrPerformanceStats performanceStats)
+        {
+            string geminiKey = ReadGeminiKey();
+            bool willUseGemini = currentTranslationEngineMode == TranslationEngineMode.Gemini &&
+                !string.IsNullOrWhiteSpace(geminiKey);
+            bool willUseLocalLlm = currentTranslationEngineMode == TranslationEngineMode.LocalLlm;
+
+            TranslationPlan translationPlan = translationService.CreatePlan(
+                finalContent,
+                targetLang,
+                currentTranslationEngineMode,
+                willUseGemini,
+                willUseLocalLlm);
+
+            if (translationPlan.HasImmediateResult)
+            {
+                return translationPlan.ImmediateResult;
+            }
+
+            if (translationPlan.RequestKind == TranslationRequestKind.Gemini)
+            {
+                string modelName = ReadGeminiModel();
+                Stopwatch translateStopwatch = Stopwatch.StartNew();
+                string geminiTranslated = await CallGeminiAPI(finalContent, targetLang, geminiKey);
+                translateStopwatch.Stop();
+                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+
+                TranslationAttemptResolution geminiResolution = translationService.ResolveGeminiAttempt(geminiTranslated, modelName);
+                if (!geminiResolution.RequiresGoogleFallback)
+                {
+                    return geminiResolution.FinalResult;
+                }
+
+                translateStopwatch.Restart();
+                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
+                translateStopwatch.Stop();
+                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+                return translationService.ResolveGoogleAttempt(googleFallback, true).FinalResult;
+            }
+
+            if (translationPlan.RequestKind == TranslationRequestKind.LocalLlm)
+            {
+                string localLlmModel = ReadLocalLlmModel();
+                Stopwatch translateStopwatch = Stopwatch.StartNew();
+                string localLlmTranslated = await CallLocalLlmAPI(finalContent, targetLang);
+                translateStopwatch.Stop();
+                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+
+                TranslationAttemptResolution localLlmResolution = translationService.ResolveLocalLlmAttempt(localLlmTranslated, localLlmModel);
+                if (!localLlmResolution.RequiresGoogleFallback)
+                {
+                    return localLlmResolution.FinalResult;
+                }
+
+                translateStopwatch.Restart();
+                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
+                translateStopwatch.Stop();
+                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+                return translationService.ResolveGoogleAttempt(googleFallback, true, "Local LLM").FinalResult;
+            }
+
+            Stopwatch googleStopwatch = Stopwatch.StartNew();
+            string googleTranslated = await CallGoogleAPI(finalContent, gameLang, targetLang);
+            googleStopwatch.Stop();
+            performanceStats.TranslateMs += googleStopwatch.ElapsedMilliseconds;
+            return translationService.ResolveGoogleAttempt(googleTranslated, false).FinalResult;
+        }
+
+        /// <summary>
         /// OCR 처리 모드에 맞춰 전처리 후보와 OCR 언어 범위를 선택하고 최종 후보를 반환합니다.
         /// <paramref name="resizedBitmap"/>은 캡처 후 설정 배율로 확대한 이미지,
         /// <paramref name="threshold"/>는 색상/밝기 기반 이진화 기준값,
         /// <paramref name="processingMode"/>는 빠름/자동/정확 중 이번 실행 전략입니다.
+        /// <paramref name="contentMode"/>는 Strinova 채팅 검증 또는 OCR 전체 번역 여부입니다.
         /// <paramref name="performanceStats"/>는 후보 선택 과정의 단계별 시간을 누적하는 진단 객체입니다.
         /// </summary>
-        private async Task<OcrResultCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode, OcrPerformanceStats performanceStats)
+        private async Task<OcrResultCandidate> SelectBestOcrCandidateAsync(Bitmap resizedBitmap, int threshold, OcrProcessingMode processingMode, TranslationContentMode contentMode, OcrPerformanceStats performanceStats)
         {
             foreach (OcrEvaluationStep step in ocrService.CreateEvaluationPlan(processingMode))
             {
                 OcrResultCandidate candidate = await EvaluateOcrCandidatesAsync(
                     resizedBitmap,
                     threshold,
+                    contentMode,
                     performanceStats,
                     step.RecognizeAllLanguages,
                     step.PreprocessKinds.ToArray());
@@ -601,7 +653,7 @@ namespace GameTranslator
                 {
                     performanceStats.FastPathAttempted = true;
 
-                    if (ocrService.IsFastPathSuccess(candidate, characterNames))
+                    if (ocrService.IsFastPathSuccess(candidate, characterNames, contentMode))
                     {
                         performanceStats.FastPathSucceeded = true;
                         return candidate;
@@ -628,11 +680,12 @@ namespace GameTranslator
         /// 지정된 전처리 후보들을 실제 Bitmap으로 만들고 OCR을 수행한 뒤 가장 높은 점수의 후보를 고릅니다.
         /// <paramref name="resizedBitmap"/>은 OCR 전처리 입력 이미지,
         /// <paramref name="threshold"/>는 색상 필터와 적응형 이진화의 기준값,
+        /// <paramref name="contentMode"/>는 OCR 후보 점수화에서 채팅 포맷을 강제할지 여부입니다.
         /// <paramref name="performanceStats"/>는 전처리/OCR/점수화 시간을 누적하는 진단 객체입니다.
         /// <paramref name="recognizeAllLanguages"/>가 true이면 설치된 모든 OCR 언어를 실행하고 false이면 게임 언어만 실행합니다.
         /// <paramref name="preprocessKinds"/>는 평가할 전처리 후보 목록입니다.
         /// </summary>
-        private async Task<OcrResultCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, OcrPerformanceStats performanceStats, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
+        private async Task<OcrResultCandidate> EvaluateOcrCandidatesAsync(Bitmap resizedBitmap, int threshold, TranslationContentMode contentMode, OcrPerformanceStats performanceStats, bool recognizeAllLanguages, params OcrPreprocessKind[] preprocessKinds)
         {
             OcrResultCandidate bestCandidate = null;
             Stopwatch preprocessStopwatch = Stopwatch.StartNew();
@@ -674,7 +727,7 @@ namespace GameTranslator
                     }
 
                     List<OcrLine> candidateLines = MergeOcrLines(candidateMasterResult);
-                    int candidateScore = ScoreOcrCandidate(candidateLines);
+                    int candidateScore = ScoreOcrCandidate(candidateLines, contentMode);
                     scoringStopwatch.Stop();
                     performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
 
@@ -825,11 +878,12 @@ namespace GameTranslator
         /// <summary>
         /// OCR 후보 라인 목록의 신뢰도를 점수화합니다.
         /// <paramref name="lines"/>는 후보 전처리에서 얻은 병합 라인 목록입니다.
+        /// <paramref name="contentMode"/>가 ETC이면 채팅 포맷 대신 일반 텍스트 가독성을 기준으로 점수화합니다.
         /// 채팅 포맷, 캐릭터명 일치, 본문 길이, 언어별 문자 포함 여부는 가산하고 노이즈 문자는 감산합니다.
         /// </summary>
-        private int ScoreOcrCandidate(List<OcrLine> lines)
+        private int ScoreOcrCandidate(List<OcrLine> lines, TranslationContentMode contentMode)
         {
-            return ocrService.ScoreLines(lines, characterNames);
+            return ocrService.ScoreLines(lines, characterNames, contentMode);
         }
 
         /// <summary>

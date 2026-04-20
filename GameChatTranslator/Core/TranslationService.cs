@@ -172,7 +172,13 @@ namespace GameTranslator
         public bool IsSameLanguage(string text, string targetLanguageCode)
         {
             string value = text ?? "";
-            if (targetLanguageCode == "ko" && Regex.IsMatch(value, @"[가-힣]{2,}")) return true;
+            if (targetLanguageCode == "ko" &&
+                Regex.IsMatch(value, @"[가-힣]{2,}") &&
+                !Regex.IsMatch(value, @"[a-zA-Zа-яА-ЯёЁぁ-んァ-ヶ\u4e00-\u9fa5]"))
+            {
+                return true;
+            }
+
             if (targetLanguageCode == "ru" && Regex.IsMatch(value, @"[а-яА-ЯёЁ]")) return true;
             if (targetLanguageCode == "ja" && Regex.IsMatch(value, @"[ぁ-んァ-ヶ]")) return true;
             if (targetLanguageCode == "zh-Hans-CN" && Regex.IsMatch(value, @"[\u4e00-\u9fa5]")) return true;

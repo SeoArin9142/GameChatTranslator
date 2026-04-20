@@ -185,6 +185,33 @@
                         </StackPanel>
                     </GroupBox>
 
+                    <!-- 번역기 방식: Strinova 전용 채팅 포맷 검증 또는 일반 OCR 전체 번역 모드를 선택합니다. -->
+                    <GroupBox Header="번역기 방식" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+                        <StackPanel Margin="10">
+                            <RadioButton x:Name="RadioTranslationContentStrinova"
+                                         Content="Strinova"
+                                         Tag="Strinova"
+                                         Foreground="#CCC"
+                                         IsChecked="True"
+                                         Margin="0,0,0,4"/>
+                            <TextBlock Text="[캐릭터이름]: 채팅 형식과 characters.txt 캐릭터명 검증을 통과한 채팅만 번역합니다."
+                                       TextWrapping="Wrap"
+                                       FontSize="11"
+                                       Foreground="#AFAFAF"
+                                       Margin="22,0,0,8"/>
+                            <RadioButton x:Name="RadioTranslationContentEtc"
+                                         Content="ETC"
+                                         Tag="ETC"
+                                         Foreground="#CCC"
+                                         Margin="0,0,0,4"/>
+                            <TextBlock Text="채팅 포맷과 무관하게 OCR로 읽은 전체 내용을 하나의 문장 묶음으로 번역합니다."
+                                       TextWrapping="Wrap"
+                                       FontSize="11"
+                                       Foreground="#AFAFAF"
+                                       Margin="22,0,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+
                     <!-- OCR 언어팩 상태: Windows OCR 엔진 생성 가능 여부를 보여줍니다. -->
                     <GroupBox Header="OCR 언어팩 설치 상태" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">

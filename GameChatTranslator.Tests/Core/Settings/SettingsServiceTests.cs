@@ -107,6 +107,27 @@ namespace GameChatTranslator.Tests
             Assert.Equal(expected, _service.GetTranslationEngineTag(mode));
         }
 
+        [Theory]
+        [InlineData(null, TranslationContentMode.Strinova)]
+        [InlineData("", TranslationContentMode.Strinova)]
+        [InlineData("Strinova", TranslationContentMode.Strinova)]
+        [InlineData("ETC", TranslationContentMode.Etc)]
+        [InlineData("Etc", TranslationContentMode.Etc)]
+        [InlineData("General", TranslationContentMode.Etc)]
+        [InlineData("unknown", TranslationContentMode.Strinova)]
+        public void NormalizeTranslationContentMode_MapsKnownValuesAndDefaultsToStrinova(string rawValue, TranslationContentMode expected)
+        {
+            Assert.Equal(expected, _service.NormalizeTranslationContentMode(rawValue));
+        }
+
+        [Theory]
+        [InlineData(TranslationContentMode.Strinova, "Strinova")]
+        [InlineData(TranslationContentMode.Etc, "ETC")]
+        public void GetTranslationContentModeTag_ReturnsConfigValue(TranslationContentMode mode, string expected)
+        {
+            Assert.Equal(expected, _service.GetTranslationContentModeTag(mode));
+        }
+
 
         [Theory]
         [InlineData("true")]
