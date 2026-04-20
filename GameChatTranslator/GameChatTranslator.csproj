@@ -44,4 +44,13 @@
 	  </None>
 	</ItemGroup>
 
+	<ItemGroup>
+	  <!-- Visual Studio 게시 프로필에서도 배포 보조 파일이 누락되지 않도록 Publish 후 루트 출력 폴더에 한 번 더 복사합니다. -->
+	  <DistributionPublishFile Include="Distribution/characters.txt;Distribution/LangInstall.bat;Distribution/readme.txt" />
+	</ItemGroup>
+
+	<Target Name="CopyDistributionFilesToPublishDirectory" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">
+	  <Copy SourceFiles="@(DistributionPublishFile)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+	</Target>
+
 </Project>
