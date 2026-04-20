@@ -45,8 +45,8 @@ namespace GameTranslator
         private string gameLang = "ko";
         private string targetLang = "ko";
 
-        private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog, modOcrDiag;
-        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog, keyOcrDiag;
+        private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog, modOcrDiag, modHotkeyGuide;
+        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog, keyOcrDiag, keyHotkeyGuide;
 
         private bool useGeminiEngine = false; // 🌟 [추가] 현재 제미나이를 사용 중인지 상태 저장
 
@@ -58,6 +58,7 @@ namespace GameTranslator
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
+        private bool isHotkeyGuideExpanded = true;
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
 

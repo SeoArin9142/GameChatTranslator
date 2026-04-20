@@ -112,6 +112,11 @@ namespace GameTranslator
                 ini.Write("Key_OcrDiagnostic", SettingsService.DefaultKeyOcrDiagnostic);
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_HotkeyGuideToggle")))
+            {
+                ini.Write("Key_HotkeyGuideToggle", SettingsService.DefaultKeyHotkeyGuideToggle);
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("ResultDisplayMode")))
             {
                 ini.Write("ResultDisplayMode", SettingsService.DefaultResultDisplayMode);

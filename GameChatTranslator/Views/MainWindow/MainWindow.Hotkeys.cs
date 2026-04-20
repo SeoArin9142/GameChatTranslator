@@ -44,6 +44,7 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_COPY_RESULT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_LOG_VIEWER);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_OCR_DIAGNOSTIC);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_HOTKEY_GUIDE_TOGGLE);
 
             hotkeyWarningMessage = "";
             var failedHotkeys = new List<string>();
@@ -57,6 +58,7 @@ namespace GameTranslator
             string copyHotkey = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
             string logHotkey = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
             string ocrDiagnosticHotkey = settingsService.NormalizeHotkey(ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
+            string hotkeyGuideHotkey = settingsService.NormalizeHotkey(ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
 
             ParseHotkey(moveHotkey, out modMove, out keyMove);
             ParseHotkey(areaHotkey, out modArea, out keyArea);
@@ -66,6 +68,7 @@ namespace GameTranslator
             ParseHotkey(copyHotkey, out modCopy, out keyCopy);
             ParseHotkey(logHotkey, out modLog, out keyLog);
             ParseHotkey(ocrDiagnosticHotkey, out modOcrDiag, out keyOcrDiag);
+            ParseHotkey(hotkeyGuideHotkey, out modHotkeyGuide, out keyHotkeyGuide);
 
             RegisterHotKeyOrWarn(ID_HOTKEY_MOVE_LOCK, modMove, keyMove, "이동/잠금", moveHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_AREA_SELECT, modArea, keyArea, "영역 설정", areaHotkey, failedHotkeys);
@@ -75,6 +78,7 @@ namespace GameTranslator
             RegisterHotKeyOrWarn(ID_HOTKEY_COPY_RESULT, modCopy, keyCopy, "번역 복사", copyHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_LOG_VIEWER, modLog, keyLog, "로그창", logHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_OCR_DIAGNOSTIC, modOcrDiag, keyOcrDiag, "OCR 진단", ocrDiagnosticHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_HOTKEY_GUIDE_TOGGLE, modHotkeyGuide, keyHotkeyGuide, "단축키 안내", hotkeyGuideHotkey, failedHotkeys);
 
             if (failedHotkeys.Count > 0)
             {
@@ -137,6 +141,7 @@ namespace GameTranslator
             string copy = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
             string log = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
             string diag = settingsService.NormalizeHotkey(ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
+            string guide = settingsService.NormalizeHotkey(ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
 
             // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = useGeminiEngine ? "Gemini" : "Google";
@@ -145,8 +150,21 @@ namespace GameTranslator
                 return;
             }
 
-            // 상단 안내가 길어져 고정 높이에서 잘리지 않도록 2줄짜리 축약 문구로 유지합니다.
             TxtHotkeyGuide.Inlines.Clear();
+
+            if (!isHotkeyGuideExpanded)
+            {
+                TxtHotkeyGuide.Inlines.Add(new Run("자동: "));
+                TxtHotkeyGuide.Inlines.Add(new Run(GetAutoTranslateModeLabel())
+                {
+                    Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
+                    FontWeight = FontWeights.Bold
+                });
+                TxtHotkeyGuide.Inlines.Add(new Run($"  |  번역기: {engineStr}"));
+                return;
+            }
+
+            // 상세 안내 ON 상태에서는 기존 단축키 목록을 보여주고, Ctrl+F10으로 접을 수 있음을 함께 표시합니다.
             TxtHotkeyGuide.Inlines.Add(new Run($"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{au}] 자동: "));
             TxtHotkeyGuide.Inlines.Add(new Run(GetAutoTranslateModeLabel())
             {
@@ -154,6 +172,18 @@ namespace GameTranslator
                 FontWeight = FontWeights.Bold
             });
             TxtHotkeyGuide.Inlines.Add(new Run($"\n[{copy}] 복사  [{diag}] 진단  [{tg}] {engineStr}  [{log}] 로그"));
+            TxtHotkeyGuide.Inlines.Add(new Run($"\n[{guide}] 단축키 안내 숨김"));
+        }
+
+        /// <summary>
+        /// 번역창 상단 단축키 상세 목록 표시 여부를 전환합니다.
+        /// OFF 상태에서는 자동 번역 상태와 현재 번역 엔진만 표시해 게임 화면을 덜 가리게 합니다.
+        /// </summary>
+        private void ToggleHotkeyGuide()
+        {
+            isHotkeyGuideExpanded = !isHotkeyGuideExpanded;
+            UpdateYellowHotkeyGuideText();
+            AppendLog($"단축키 안내 표시: {(isHotkeyGuideExpanded ? "ON" : "OFF")}");
         }
 
         /// <summary>
@@ -233,6 +263,7 @@ namespace GameTranslator
                     case ID_HOTKEY_COPY_RESULT: CopyLastTranslationToClipboard(); handled = true; break;
                     case ID_HOTKEY_LOG_VIEWER: ToggleLogViewerWindow(); handled = true; break;
                     case ID_HOTKEY_OCR_DIAGNOSTIC: ShowOcrDiagnosticWindow(); handled = true; break;
+                    case ID_HOTKEY_HOTKEY_GUIDE_TOGGLE: ToggleHotkeyGuide(); handled = true; break;
                 }
             }
             return IntPtr.Zero;
