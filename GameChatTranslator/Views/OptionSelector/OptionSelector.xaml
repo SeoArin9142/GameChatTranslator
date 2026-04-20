@@ -4,10 +4,33 @@
         Title="GameChatTranslator 환경 설정" Width="500" Height="1000"
         WindowStartupLocation="CenterScreen" Topmost="True" Background="#1E1E1E" Foreground="White" ResizeMode="NoResize">
 
+    <Window.Resources>
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8BE28B"/>
+            <Setter Property="Margin" Value="0,16,0,6"/>
+        </Style>
+        <Style x:Key="SectionHintStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#AFAFAF"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+    </Window.Resources>
+
     <!-- 설정 항목이 많기 때문에 기본 높이 1000을 유지하되, 화면보다 내용이 길면 세로 스크롤로 접근합니다. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20">
-        <TextBlock Text="⚙️ 초기 환경 설정" FontSize="20" FontWeight="Bold" Foreground="LimeGreen" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+        <TextBlock Text="⚙️ 초기 환경 설정" FontSize="20" FontWeight="Bold" Foreground="LimeGreen" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+        <TextBlock Text="자주 쓰는 설정부터 번역 엔진 설정까지 순서대로 정리했습니다. 변경한 값은 아래 저장 버튼을 눌러야 적용됩니다."
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   Foreground="#CCC"
+                   Margin="0,0,0,14"/>
+
+        <TextBlock Text="1. 설정 관리" Style="{StaticResource SectionTitleStyle}"/>
+        <TextBlock Text="프리셋, 설정 백업, 업데이트, 로그창처럼 프로그램 운영에 필요한 항목입니다." Style="{StaticResource SectionHintStyle}"/>
 
         <!-- 프리셋 영역: 현재 UI 설정을 이름별로 저장/불러오기/삭제합니다. API 키는 저장하지 않습니다. -->
         <GroupBox Header="설정 프리셋 (Preset)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
@@ -73,6 +96,9 @@
                 </StackPanel>
             </StackPanel>
         </GroupBox>
+
+        <TextBlock Text="2. 언어 / OCR" Style="{StaticResource SectionTitleStyle}"/>
+        <TextBlock Text="게임 채팅을 어떤 언어로 읽고, OCR 언어팩과 진단 화면을 어떻게 확인할지 설정합니다." Style="{StaticResource SectionHintStyle}"/>
 
         <!-- 언어 영역: OCR 기준 게임 언어와 최종 번역 출력 언어를 선택합니다. -->
         <GroupBox Header="언어 설정 (Language)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
@@ -142,6 +168,9 @@
                 </StackPanel>
             </StackPanel>
         </GroupBox>
+
+        <TextBlock Text="3. 실행 옵션" Style="{StaticResource SectionTitleStyle}"/>
+        <TextBlock Text="번역창 표시, 자동 번역 주기, 결과 표시 방식, 단축키, 캡처 영역처럼 실행 중 동작을 조정합니다." Style="{StaticResource SectionHintStyle}"/>
 
         <!-- 고급 설정: 오버레이 투명도, OCR 확대 배율, 이진화 기준값, 자동 번역 주기, 디버그 이미지 저장 여부를 조정합니다. -->
         <GroupBox Header="상세 설정 (Advanced Options)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
@@ -244,6 +273,9 @@
                 <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" Padding="5,0" Height="25" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
             </StackPanel>
         </GroupBox>
+
+        <TextBlock Text="4. 번역 엔진" Style="{StaticResource SectionTitleStyle}"/>
+        <TextBlock Text="Gemini API 키와 모델을 입력합니다. 비워두면 Google 무료 번역만 사용합니다." Style="{StaticResource SectionHintStyle}"/>
 
         <!-- Gemini 영역: API 키와 모델명을 입력합니다. 프리셋 저장 대상에서 API 키는 제외됩니다. -->
         <GroupBox Header="Gemini AI 번역 설정" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
