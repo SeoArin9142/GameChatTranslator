@@ -82,7 +82,7 @@ namespace GameTranslator
             result.ResizeMs = stats.ResizeMs;
 
             Stopwatch preprocessStopwatch = Stopwatch.StartNew();
-            List<PreprocessedOcrImage> preprocessedImages = CreatePreprocessedOcrImages(
+            List<PreprocessedOcrImage> preprocessedImages = ocrImagePreprocessor.CreatePreprocessedOcrImages(
                 resizedBitmap,
                 threshold,
                 OcrPreprocessKind.Color,

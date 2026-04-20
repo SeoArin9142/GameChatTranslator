@@ -61,6 +61,7 @@ namespace GameTranslator
 
         private HttpClient httpClient = new HttpClient();
         private readonly OcrService ocrService = new OcrService();
+        private readonly OcrImagePreprocessor ocrImagePreprocessor = new OcrImagePreprocessor();
         private readonly SettingsService settingsService = new SettingsService();
         private readonly TranslationPromptBuilder translationPromptBuilder = new TranslationPromptBuilder();
         private readonly TranslationResultParser translationResultParser = new TranslationResultParser();
