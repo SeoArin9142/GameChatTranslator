@@ -300,6 +300,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Text="이동/잠금 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
@@ -325,6 +326,9 @@
 
                                 <TextBlock Text="OCR 진단 화면 :" Grid.Row="7" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                                 <TextBox x:Name="TxtKeyOcrDiagnostic" Grid.Row="7" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+
+                                <TextBlock Text="단축키 안내 ON/OFF :" Grid.Row="8" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyHotkeyGuide" Grid.Row="8" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
                             </Grid>
 
                             <!-- 입력칸만 기본값으로 되돌립니다. config.ini 저장은 아래 저장 버튼을 눌렀을 때만 수행됩니다. -->
