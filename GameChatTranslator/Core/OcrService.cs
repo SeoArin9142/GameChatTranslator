@@ -37,9 +37,17 @@ namespace GameTranslator
         /// OCR 후보가 빠른 경로에서 즉시 번역해도 될 정도로 신뢰 가능한지 판단합니다.
         /// 후보 점수가 양수이고, known character 채팅 라인이 하나 이상 있어야 true입니다.
         /// </summary>
-        public bool IsFastPathSuccess<TResults>(OcrCandidate<TResults> candidate, ISet<string> characterNames)
+        public bool IsFastPathSuccess<TResults>(
+            OcrCandidate<TResults> candidate,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode = TranslationContentMode.Strinova)
         {
             if (candidate == null || candidate.Score <= 0 || candidate.Lines == null) return false;
+
+            if (contentMode == TranslationContentMode.Etc)
+            {
+                return candidate.Lines.Any(line => ChatTextAnalyzer.ContainsReadableLetter(line.Text));
+            }
 
             return candidate.Lines.Any(line =>
                 ChatTextAnalyzer.TryParseKnownCharacterChatLine(line.Text, characterNames, out _));
@@ -59,9 +67,15 @@ namespace GameTranslator
         /// <summary>
         /// OCR 라인 목록을 ChatTextAnalyzer 기준으로 점수화합니다.
         /// </summary>
-        public int ScoreLines(IEnumerable<OcrLine> lines, ISet<string> characterNames)
+        public int ScoreLines(
+            IEnumerable<OcrLine> lines,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode = TranslationContentMode.Strinova)
         {
-            return ChatTextAnalyzer.ScoreOcrCandidate(lines?.Select(line => line.Text), characterNames);
+            IEnumerable<string> lineTexts = lines?.Select(line => line.Text);
+            return contentMode == TranslationContentMode.Etc
+                ? ChatTextAnalyzer.ScoreReadableTextCandidate(lineTexts)
+                : ChatTextAnalyzer.ScoreOcrCandidate(lineTexts, characterNames);
         }
     }
 

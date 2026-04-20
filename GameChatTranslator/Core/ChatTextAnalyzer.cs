@@ -120,5 +120,33 @@ namespace GameTranslator
 
             return score;
         }
+
+        /// <summary>
+        /// 캐릭터명 형식과 무관하게 OCR 텍스트 자체의 읽을 만한 정도를 점수화합니다.
+        /// ETC 번역 모드에서 "[캐릭터명]: 내용" 형식이 아닌 일반 텍스트도 후보로 선택하기 위해 사용합니다.
+        /// </summary>
+        public static int ScoreReadableTextCandidate(IEnumerable<string> lineTexts)
+        {
+            int score = 0;
+
+            foreach (string rawText in lineTexts ?? Enumerable.Empty<string>())
+            {
+                string text = rawText?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                int letterCount = Regex.Matches(text, ReadableLetterPattern).Count;
+                int noiseCount = Regex.Matches(text, AllowedNoisePattern).Count;
+
+                score += letterCount * 24;
+                score -= noiseCount * 18;
+                if (letterCount > 0) score += 120;
+                if (Regex.IsMatch(text, @"[\u4e00-\u9fa5]")) score += 400;
+                if (Regex.IsMatch(text, @"[a-zA-Z]{2,}")) score += 300;
+                if (Regex.IsMatch(text, @"[ぁ-んァ-ヶ]")) score += 200;
+                if (Regex.IsMatch(text, @"[а-яА-ЯёЁ]")) score += 100;
+            }
+
+            return score;
+        }
     }
 }

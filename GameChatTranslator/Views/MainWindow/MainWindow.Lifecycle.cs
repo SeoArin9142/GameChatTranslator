@@ -113,6 +113,7 @@ namespace GameTranslator
             string log_model = ReadGeminiModel();
             string log_local_llm_endpoint = ReadLocalLlmEndpoint();
             string log_local_llm_model = ReadLocalLlmModel();
+            string log_content_mode = settingsService.GetTranslationContentModeTag(ReadTranslationContentMode());
 
             AppendLog($"[현재 세팅]");
             AppendLog($"\t[게임 언어\t\t\t: {log_gLang}\t]");
@@ -120,6 +121,7 @@ namespace GameTranslator
             AppendLog($"\t[Threshold\t\t\t: {log_threshold}\t]");
             AppendLog($"\t[Scale\t\t\t: {log_scale}배\t]");
             AppendLog($"\t[번역 주기\t\t\t: {log_interval}초\t]");
+            AppendLog($"\t[번역기 방식\t\t\t: {log_content_mode}\t]");
             AppendLog($"\t[투명도\t\t\t: {log_opacity}\t]");
             AppendLog($"\t[모델\t\t\t: {log_model}\t]");
             AppendLog($"\t[Local LLM Endpoint\t: {log_local_llm_endpoint}\t]");

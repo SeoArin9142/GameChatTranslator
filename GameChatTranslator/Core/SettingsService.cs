@@ -18,6 +18,7 @@ namespace GameTranslator
         public const int MinLocalLlmMaxTokens = 40;
         public const int MaxLocalLlmMaxTokens = 512;
         public const string DefaultTranslationEngine = "Google";
+        public const string DefaultTranslationContentMode = "Strinova";
         public const string DefaultResultDisplayMode = "Latest";
 
         public const string DefaultKeyMoveLock = "Ctrl+7";
@@ -122,6 +123,32 @@ namespace GameTranslator
                 TranslationEngineMode.LocalLlm => "LocalLlm",
                 _ => DefaultTranslationEngine
             };
+        }
+
+        /// <summary>
+        /// 저장된 번역 대상 방식 문자열을 앱 내부 enum으로 변환합니다.
+        /// Strinova는 기존 "[캐릭터명]: 채팅내용" 검증 방식을 사용하고,
+        /// Etc는 OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 사용합니다.
+        /// </summary>
+        public TranslationContentMode NormalizeTranslationContentMode(string value)
+        {
+            string normalized = (value ?? "").Trim();
+            if (normalized.Equals("ETC", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("Etc", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("General", StringComparison.OrdinalIgnoreCase))
+            {
+                return TranslationContentMode.Etc;
+            }
+
+            return TranslationContentMode.Strinova;
+        }
+
+        /// <summary>
+        /// 번역 대상 방식 enum을 config.ini와 RadioButton.Tag에 저장할 문자열로 변환합니다.
+        /// </summary>
+        public string GetTranslationContentModeTag(TranslationContentMode mode)
+        {
+            return mode == TranslationContentMode.Etc ? "ETC" : DefaultTranslationContentMode;
         }
 
         /// <summary>
@@ -253,5 +280,15 @@ namespace GameTranslator
         public string LogViewer { get; }
         public string OcrDiagnostic { get; }
         public string HotkeyGuideToggle { get; }
+    }
+
+    /// <summary>
+    /// OCR 결과에서 실제 번역 대상으로 사용할 텍스트 선택 방식입니다.
+    /// Strinova는 캐릭터명 검증을 통과한 채팅만 번역하고, Etc는 OCR 전체 텍스트를 번역합니다.
+    /// </summary>
+    public enum TranslationContentMode
+    {
+        Strinova,
+        Etc
     }
 }

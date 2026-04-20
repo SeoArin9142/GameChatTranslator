@@ -48,7 +48,7 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 |:---|:---|
 | 대상 게임 | 스트리노바(Strinova) |
 | 권장 게임 언어 | 한국어 클라이언트 |
-| 인식 대상 | `[캐릭터이름]: 채팅내용` 형식 |
+| 인식 대상 | Strinova 모드: `[캐릭터이름]: 채팅내용`, ETC 모드: OCR 전체 텍스트 |
 | 제외 대상 | 시스템 메시지, 귓속말, 대기실 자체 번역 가능 채팅 |
 | OCR 기준 | Windows OCR 언어팩 |
 | 실행 권한 | 관리자 권한 실행 |
@@ -119,6 +119,15 @@ Google → Gemini → Local LLM
 ```
 
 선택한 번역 엔진은 `config.ini`에 저장되어 다음 실행에도 유지됩니다. Gemini API 키가 없으면 Gemini 단계는 건너뜁니다.
+
+### 5. 번역기 방식 선택
+
+환경설정창의 **번역기 방식**에서 OCR 결과를 어떤 기준으로 번역할지 선택합니다.
+
+| 방식 | 설명 |
+|:---|:---|
+| Strinova | 기존 방식입니다. `[캐릭터이름]: 채팅내용` 형식과 `characters.txt` 캐릭터명 검증을 통과한 채팅만 번역합니다. |
+| ETC | 채팅 포맷과 무관하게 OCR로 읽은 전체 내용을 하나의 번역 대상으로 사용합니다. 다른 게임이나 일반 화면 텍스트 테스트에 사용할 수 있습니다. |
 
 ## 번역 엔진
 
@@ -215,6 +224,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 |:---|:---|:---|
 | `GameLanguage` | `ko` | OCR 기준 게임 언어 |
 | `TargetLanguage` | `ko` | 번역 대상 언어 |
+| `TranslationContentMode` | `Strinova` | 번역기 방식. `Strinova` 또는 `ETC` |
 | `TranslationEngine` | `Google` | 시작 번역 엔진. `Google`, `Gemini`, `LocalLlm` |
 | `GeminiKey` | 빈 값 | Gemini API 키 |
 | `GeminiModel` | `gemini-2.5-flash` | Gemini 호출 모델 |

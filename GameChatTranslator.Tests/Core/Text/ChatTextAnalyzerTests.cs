@@ -83,5 +83,15 @@ namespace GameChatTranslator.Tests
             Assert.True(noisyScore < 0);
             Assert.True(cleanScore > noisyScore);
         }
+
+        [Fact]
+        public void ScoreReadableTextCandidate_AllowsNonChatTextForEtcMode()
+        {
+            int readableScore = ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { "hello world", "猫は可愛い" });
+            int noiseScore = ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { "###@@@%%%" });
+
+            Assert.True(readableScore > 0);
+            Assert.True(readableScore > noiseScore);
+        }
     }
 }

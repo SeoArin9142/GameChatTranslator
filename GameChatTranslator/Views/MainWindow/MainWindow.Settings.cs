@@ -77,6 +77,11 @@ namespace GameTranslator
                 ini.Write("TranslationEngine", SettingsService.DefaultTranslationEngine);
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("TranslationContentMode")))
+            {
+                ini.Write("TranslationContentMode", SettingsService.DefaultTranslationContentMode);
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmEndpoint")))
             {
                 ini.Write("LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint);
@@ -187,6 +192,15 @@ namespace GameTranslator
         private TranslationEngineMode ReadTranslationEngineMode()
         {
             return settingsService.NormalizeTranslationEngineMode(ini.Read("TranslationEngine"));
+        }
+
+        /// <summary>
+        /// OCR 결과에서 번역 대상으로 사용할 텍스트 선택 방식을 읽습니다.
+        /// Strinova는 기존 캐릭터명 검증 방식을 사용하고, ETC는 OCR 전체 텍스트를 번역합니다.
+        /// </summary>
+        private TranslationContentMode ReadTranslationContentMode()
+        {
+            return settingsService.NormalizeTranslationContentMode(ini.Read("TranslationContentMode"));
         }
 
         /// <summary>

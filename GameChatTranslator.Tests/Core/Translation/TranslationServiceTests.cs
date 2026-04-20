@@ -186,6 +186,12 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void IsSameLanguage_KoreanTarget_DoesNotSkipMixedForeignText()
+        {
+            Assert.False(_service.IsSameLanguage("[치요]: 猫は可愛い", "ko"));
+        }
+
+        [Fact]
         public void TranslationService_DoesNotReferenceHttpOrUiTypes()
         {
             string serviceTypeNames = string.Join(
