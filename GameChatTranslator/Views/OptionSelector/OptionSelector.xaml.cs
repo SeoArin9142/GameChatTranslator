@@ -38,9 +38,11 @@ namespace GameTranslator
             _mainWindow = mainWindow;
             _ini = ini;
 
+            RegisterNumericSettingInputGuards();
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
             RefreshOcrLanguageStatus();
+            RefreshAdvancedSettingValidationStatus();
         }
 
         /// <summary>

@@ -102,6 +102,7 @@
 - 환경설정창의 **OCR 진단 화면 열기** 버튼으로 원본 캡처, Color/ColorThick/Adaptive 전처리 이미지, 언어별 OCR 결과, 후보 점수를 즉시 확인할 수 있습니다.
 - `ResultDisplayMode`: 번역 결과 표시 방식입니다. `Latest`는 최신 결과만 표시하고, `History`는 최근 내역을 누적 표시합니다.
 - `ResultHistoryLimit`: `History` 모드에서 유지할 최대 번역 줄 수입니다. 기본값은 5이며 최대 10까지 허용합니다.
+- 상세 설정의 숫자 입력칸은 숫자만 입력/붙여넣기 가능하며, 범위를 벗어난 값은 저장 전에 UI에서 보정 예정값을 안내합니다.
 - `CheckUpdatesOnStartup`: 실행 시 업데이트 자동 확인 여부입니다. `false`면 환경설정창의 업데이트 버튼으로만 확인합니다.
 - `Key_CopyResult`: 최근 번역 결과 복사 단축키입니다. 기본값은 `Ctrl+6`입니다.
 - `Key_LogViewer`: 로그창 ON/OFF 단축키입니다. 기본값은 `Ctrl+=`입니다.
