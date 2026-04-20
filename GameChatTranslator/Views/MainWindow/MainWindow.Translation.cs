@@ -180,6 +180,7 @@ namespace GameTranslator
                 TranslationEngineMode.Gemini => TranslationEngineMode.LocalLlm,
                 _ => TranslationEngineMode.Google
             };
+            SaveTranslationEngineMode();
 
             ResetTranslationCache("번역 엔진 변경");
             string currentEngine = GetCurrentTranslationEngineDisplayName();

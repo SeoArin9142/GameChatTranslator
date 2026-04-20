@@ -193,6 +193,68 @@ namespace GameChatTranslator.Tests
             Assert.Contains("server down", result.ErrorMessage);
         }
 
+        [Fact]
+        public async Task TestLocalLlmConnectionAsync_QueriesModelsEndpointAndFindsModel()
+        {
+            var handler = new StubHttpMessageHandler(request =>
+            {
+                Assert.Equal(HttpMethod.Get, request.Method);
+                Assert.Equal("http://localhost:1234/v1/models", request.RequestUri.ToString());
+                return Task.FromResult(JsonResponse("{\"data\":[{\"id\":\"qwen/qwen3.5-9b\"},{\"id\":\"other-model\"}]}"));
+            });
+            TranslationApiClient client = CreateClient(handler);
+
+            LocalLlmConnectionTestResult result = await client.TestLocalLlmConnectionAsync(
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b");
+
+            Assert.True(result.IsSuccess);
+            Assert.True(result.ModelFound);
+            Assert.Equal("http://localhost:1234/v1/models", result.ModelsEndpoint);
+            Assert.Contains("qwen/qwen3.5-9b", result.Models);
+        }
+
+        [Fact]
+        public async Task TestLocalLlmConnectionAsync_ReturnsSuccessButModelNotFound()
+        {
+            var handler = new StubHttpMessageHandler(_ => Task.FromResult(JsonResponse("{\"data\":[{\"id\":\"other-model\"}]}")));
+            TranslationApiClient client = CreateClient(handler);
+
+            LocalLlmConnectionTestResult result = await client.TestLocalLlmConnectionAsync(
+                "http://localhost:1234/v1/chat/completions",
+                "missing-model");
+
+            Assert.True(result.IsSuccess);
+            Assert.False(result.ModelFound);
+            Assert.Equal(new[] { "other-model" }, result.Models);
+        }
+
+        [Fact]
+        public async Task TestLocalLlmConnectionAsync_ReturnsHttpFailure()
+        {
+            var handler = new StubHttpMessageHandler(_ => Task.FromResult(JsonResponse("{\"error\":\"server down\"}", HttpStatusCode.ServiceUnavailable)));
+            TranslationApiClient client = CreateClient(handler);
+
+            LocalLlmConnectionTestResult result = await client.TestLocalLlmConnectionAsync(
+                "http://localhost:1234/v1/chat/completions",
+                "qwen/qwen3.5-9b");
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(503, result.StatusCode);
+            Assert.Contains("server down", result.ErrorMessage);
+        }
+
+        [Theory]
+        [InlineData("http://localhost:1234/v1/chat/completions", "http://localhost:1234/v1/models")]
+        [InlineData("http://localhost:1234/v1/chat/completions/", "http://localhost:1234/v1/models")]
+        [InlineData("http://localhost:1234/custom", "http://localhost:1234/v1/models")]
+        public void BuildLocalLlmModelsEndpoint_UsesSameHost(string endpoint, string expected)
+        {
+            TranslationApiClient client = CreateClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException()));
+
+            Assert.Equal(expected, client.BuildLocalLlmModelsEndpoint(endpoint));
+        }
+
         private static TranslationApiClient CreateClient(HttpMessageHandler handler)
         {
             return new TranslationApiClient(

@@ -85,6 +85,28 @@ namespace GameChatTranslator.Tests
             Assert.Equal(expected, _service.NormalizeLocalLlmMaxTokens(rawValue));
         }
 
+        [Theory]
+        [InlineData(null, TranslationEngineMode.Google)]
+        [InlineData("", TranslationEngineMode.Google)]
+        [InlineData("Google", TranslationEngineMode.Google)]
+        [InlineData("Gemini", TranslationEngineMode.Gemini)]
+        [InlineData("LocalLlm", TranslationEngineMode.LocalLlm)]
+        [InlineData("Local LLM", TranslationEngineMode.LocalLlm)]
+        [InlineData("unknown", TranslationEngineMode.Google)]
+        public void NormalizeTranslationEngineMode_MapsKnownValuesAndDefaultsToGoogle(string rawValue, TranslationEngineMode expected)
+        {
+            Assert.Equal(expected, _service.NormalizeTranslationEngineMode(rawValue));
+        }
+
+        [Theory]
+        [InlineData(TranslationEngineMode.Google, "Google")]
+        [InlineData(TranslationEngineMode.Gemini, "Gemini")]
+        [InlineData(TranslationEngineMode.LocalLlm, "LocalLlm")]
+        public void GetTranslationEngineTag_ReturnsConfigValue(TranslationEngineMode mode, string expected)
+        {
+            Assert.Equal(expected, _service.GetTranslationEngineTag(mode));
+        }
+
 
         [Theory]
         [InlineData("true")]
