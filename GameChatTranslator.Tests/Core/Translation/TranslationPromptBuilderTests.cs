@@ -38,11 +38,27 @@ namespace GameChatTranslator.Tests
             Assert.Equal(expected, _builder.GetGoogleTranslateLanguageCode(internalCode));
         }
 
-        [Fact]
-        public void BuildGoogleTranslateUrl_EscapesTextAndMapsTargetLanguage()
+        [Theory]
+        [InlineData("zh-Hans-CN", "zh-CN")]
+        [InlineData("zh-CN", "zh-CN")]
+        [InlineData("en-US", "en")]
+        [InlineData("ko", "ko")]
+        [InlineData("ja", "ja")]
+        [InlineData("ru", "ru")]
+        [InlineData("unknown", "auto")]
+        [InlineData("", "auto")]
+        [InlineData(null, "auto")]
+        public void GetGoogleTranslateSourceLanguageCode_MapsGameLanguageOrFallsBackToAuto(string internalCode, string expected)
         {
-            string url = _builder.BuildGoogleTranslateUrl("hello world?", "en-US");
+            Assert.Equal(expected, _builder.GetGoogleTranslateSourceLanguageCode(internalCode));
+        }
 
+        [Fact]
+        public void BuildGoogleTranslateUrl_EscapesTextAndMapsSourceAndTargetLanguage()
+        {
+            string url = _builder.BuildGoogleTranslateUrl("hello world?", "ja", "en-US");
+
+            Assert.Contains("sl=ja", url);
             Assert.Contains("tl=en", url);
             Assert.Contains("q=hello%20world%3F", url);
         }
