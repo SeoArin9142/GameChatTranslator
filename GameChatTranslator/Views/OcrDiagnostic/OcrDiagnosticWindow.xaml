@@ -35,16 +35,27 @@
                            Text="진단 준비 완료"/>
             </StackPanel>
 
-            <Button x:Name="BtnSaveDiagnostic"
-                    Grid.Column="1"
-                    Content="진단 결과 ZIP 저장"
-                    Padding="12,5"
-                    Background="#3F5F7F"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    IsEnabled="False"
-                    Click="BtnSaveDiagnostic_Click"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="BtnCopyDiagnostic"
+                        Content="진단 텍스트 복사"
+                        Padding="12,5"
+                        Margin="0,0,8,0"
+                        Background="#444"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        IsEnabled="False"
+                        Click="BtnCopyDiagnostic_Click"/>
+                <Button x:Name="BtnSaveDiagnostic"
+                        Content="진단 결과 ZIP 저장"
+                        Padding="12,5"
+                        Background="#3F5F7F"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        IsEnabled="False"
+                        Click="BtnSaveDiagnostic_Click"/>
+            </StackPanel>
         </Grid>
 
         <TextBlock DockPanel.Dock="Top"

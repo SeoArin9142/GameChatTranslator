@@ -24,6 +24,15 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 번역창 상단에 잠시 표시할 짧은 Google 실패 안내입니다.
+        /// 상세 오류는 DescribeGoogleFailure 결과로 로그창에 남깁니다.
+        /// </summary>
+        public string DescribeShortGoogleFailure(Exception exception)
+        {
+            return "Google 번역 실패: 로그창 확인";
+        }
+
+        /// <summary>
         /// Gemini 모델 목록 조회 실패를 API 키/권한/할당량/모델 문제처럼 사용자가 확인할 수 있는 문구로 변환합니다.
         /// <paramref name="result"/>는 TranslationApiClient가 반환한 모델 목록 조회 결과입니다.
         /// </summary>
@@ -70,12 +79,38 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 번역창 상단에 잠시 표시할 짧은 Gemini 번역 실패 안내입니다.
+        /// HTTP 상태 코드만 보고 사용자가 바로 확인할 항목을 짧게 알려줍니다.
+        /// </summary>
+        public string DescribeShortGeminiTranslateFailure(GeminiTranslateApiResult result)
+        {
+            return result?.StatusCode switch
+            {
+                400 => "Gemini 요청 오류: 모델/설정 확인",
+                401 => "Gemini 인증 실패: API Key 확인",
+                403 => "Gemini 권한 오류: API 설정 확인",
+                404 => "Gemini 모델 오류: GeminiModel 확인",
+                429 => "Gemini 할당량 초과: 사용량 확인",
+                500 or 502 or 503 or 504 => "Gemini 서버 오류: 잠시 후 재시도",
+                _ => "Gemini 번역 실패: Google 전환"
+            };
+        }
+
+        /// <summary>
         /// Gemini 호출은 성공했지만 번역문을 파싱하지 못했을 때 사용할 안내 문구를 생성합니다.
         /// <paramref name="modelName"/>은 호출에 사용한 모델명입니다.
         /// </summary>
         public string DescribeGeminiEmptyResponse(string modelName)
         {
             return $"Gemini 번역 실패: 모델({NormalizeModelName(modelName)}) 응답에서 번역문을 찾지 못했습니다. 모델명을 확인하거나 Google 번역으로 전환됩니다.";
+        }
+
+        /// <summary>
+        /// Gemini 응답은 왔지만 번역문이 비어 있을 때 번역창에 표시할 짧은 안내입니다.
+        /// </summary>
+        public string DescribeShortGeminiEmptyResponse()
+        {
+            return "Gemini 응답 오류: Google 전환";
         }
 
         /// <summary>
@@ -89,6 +124,14 @@ namespace GameTranslator
             return AppendDetail(
                 $"Gemini 번역 실패: 모델({NormalizeModelName(modelName)}) 호출 중 네트워크 오류가 발생했습니다. 인터넷 연결, 방화벽, Google API 접속 가능 여부를 확인해 주세요.",
                 detail);
+        }
+
+        /// <summary>
+        /// Gemini 호출 중 예외가 발생했을 때 번역창에 표시할 짧은 안내입니다.
+        /// </summary>
+        public string DescribeShortGeminiException(Exception exception)
+        {
+            return "Gemini 네트워크 오류: Google 전환";
         }
 
         /// <summary>

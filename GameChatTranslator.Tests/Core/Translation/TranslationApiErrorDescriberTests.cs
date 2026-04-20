@@ -87,5 +87,34 @@ namespace GameChatTranslator.Tests
 
             Assert.Equal("temporary backend failure", detail);
         }
+
+        [Theory]
+        [InlineData(401, "API Key")]
+        [InlineData(403, "권한")]
+        [InlineData(404, "GeminiModel")]
+        [InlineData(429, "할당량")]
+        public void DescribeShortGeminiTranslateFailure_ReturnsOverlayFriendlyMessage(int statusCode, string expected)
+        {
+            GeminiTranslateApiResult result = GeminiTranslateApiResult.Failed(statusCode, "failure");
+
+            string message = _describer.DescribeShortGeminiTranslateFailure(result);
+
+            Assert.Contains(expected, message);
+            Assert.DoesNotContain("상세", message);
+        }
+
+        [Fact]
+        public void DescribeShortGoogleFailure_ReturnsShortOverlayMessage()
+        {
+            string message = _describer.DescribeShortGoogleFailure(new TimeoutException("timeout"));
+
+            Assert.Equal("Google 번역 실패: 로그창 확인", message);
+        }
+
+        [Fact]
+        public void DescribeShortGeminiEmptyResponse_ReturnsFallbackMessage()
+        {
+            Assert.Equal("Gemini 응답 오류: Google 전환", _describer.DescribeShortGeminiEmptyResponse());
+        }
     }
 }
