@@ -58,7 +58,7 @@ namespace GameTranslator
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
-        private bool isHotkeyGuideExpanded = true;
+        private bool isHotkeyGuideExpanded = false;
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
 
