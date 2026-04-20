@@ -72,6 +72,26 @@ namespace GameTranslator
                 ini.Write("GeminiModel", SettingsService.DefaultGeminiModel);
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmEndpoint")))
+            {
+                ini.Write("LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint);
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmModel")))
+            {
+                ini.Write("LocalLlmModel", SettingsService.DefaultLocalLlmModel);
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmTimeoutSeconds")))
+            {
+                ini.Write("LocalLlmTimeoutSeconds", SettingsService.DefaultLocalLlmTimeoutSeconds.ToString());
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmMaxTokens")))
+            {
+                ini.Write("LocalLlmMaxTokens", SettingsService.DefaultLocalLlmMaxTokens.ToString());
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
             {
                 ini.Write("SaveDebugImages", "false");
@@ -153,6 +173,40 @@ namespace GameTranslator
         private string ReadGeminiModel()
         {
             return settingsService.NormalizeGeminiModel(ini.Read("GeminiModel"));
+        }
+
+        /// <summary>
+        /// Local LLM 호출에 사용할 OpenAI 호환 chat completions endpoint를 읽습니다.
+        /// 비어 있으면 LM Studio 기본 주소를 반환합니다.
+        /// </summary>
+        private string ReadLocalLlmEndpoint()
+        {
+            return settingsService.NormalizeLocalLlmEndpoint(ini.Read("LocalLlmEndpoint"));
+        }
+
+        /// <summary>
+        /// Local LLM 호출에 사용할 모델 ID를 읽습니다.
+        /// 비어 있으면 현재 검증한 Qwen 기본 모델명을 반환합니다.
+        /// </summary>
+        private string ReadLocalLlmModel()
+        {
+            return settingsService.NormalizeLocalLlmModel(ini.Read("LocalLlmModel"));
+        }
+
+        /// <summary>
+        /// Local LLM 요청 타임아웃을 초 단위로 읽고 허용 범위로 보정합니다.
+        /// </summary>
+        private int ReadLocalLlmTimeoutSeconds()
+        {
+            return settingsService.NormalizeLocalLlmTimeoutSeconds(ini.Read("LocalLlmTimeoutSeconds"));
+        }
+
+        /// <summary>
+        /// Local LLM 응답 최대 토큰 수를 읽고 허용 범위로 보정합니다.
+        /// </summary>
+        private int ReadLocalLlmMaxTokens()
+        {
+            return settingsService.NormalizeLocalLlmMaxTokens(ini.Read("LocalLlmMaxTokens"));
         }
 
         /// <summary>

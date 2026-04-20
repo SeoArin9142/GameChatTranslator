@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -129,22 +130,59 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// Ctrl+- 단축키로 Google 무료 번역과 Gemini AI 번역 엔진을 전환합니다.
-        /// Gemini API 키가 없거나 형식이 너무 짧으면 전환하지 않고 사용자 경고를 표시합니다.
+        /// 현재 번역 엔진의 짧은 표시명을 반환합니다.
+        /// 단축키 안내처럼 공간이 좁은 UI에서 사용합니다.
+        /// </summary>
+        private string GetCurrentTranslationEngineShortName()
+        {
+            return currentTranslationEngineMode switch
+            {
+                TranslationEngineMode.Gemini => "Gemini",
+                TranslationEngineMode.LocalLlm => "Local LLM",
+                _ => "Google"
+            };
+        }
+
+        /// <summary>
+        /// 현재 번역 엔진의 사용자 표시명을 반환합니다.
+        /// 로그와 상태 문구처럼 조금 더 설명적인 위치에서 사용합니다.
+        /// </summary>
+        private string GetCurrentTranslationEngineDisplayName()
+        {
+            return currentTranslationEngineMode switch
+            {
+                TranslationEngineMode.Gemini => "Gemini AI 번역",
+                TranslationEngineMode.LocalLlm => "Local LLM 번역",
+                _ => "Google 무료 번역"
+            };
+        }
+
+        /// <summary>
+        /// Gemini API 키가 실제 호출을 시도할 만큼 설정되어 있는지 확인합니다.
+        /// </summary>
+        private bool HasUsableGeminiKey()
+        {
+            string geminiKey = ReadGeminiKey();
+            return !string.IsNullOrWhiteSpace(geminiKey) && geminiKey.Length >= 30;
+        }
+
+        /// <summary>
+        /// Ctrl+- 단축키로 Google, Gemini, Local LLM 번역 엔진을 순환 전환합니다.
+        /// Gemini API 키가 없으면 Gemini 단계를 건너뛰고 Local LLM으로 넘어갑니다.
         /// </summary>
         private void ToggleEngine()
         {
-            string geminiKey = ReadGeminiKey();
-            if (string.IsNullOrWhiteSpace(geminiKey) || geminiKey.Length < 30)
+            bool canUseGemini = HasUsableGeminiKey();
+            currentTranslationEngineMode = currentTranslationEngineMode switch
             {
-                TxtResult.Text = "⚠️ Gemini API 키가 올바르게 등록되지 않아 전환할 수 없습니다.";
-                return;
-            }
+                TranslationEngineMode.Google when canUseGemini => TranslationEngineMode.Gemini,
+                TranslationEngineMode.Google => TranslationEngineMode.LocalLlm,
+                TranslationEngineMode.Gemini => TranslationEngineMode.LocalLlm,
+                _ => TranslationEngineMode.Google
+            };
 
-            // 엔진 상태 반전 (true <-> false)
-            useGeminiEngine = !useGeminiEngine;
             ResetTranslationCache("번역 엔진 변경");
-            string currentEngine = useGeminiEngine ? "Gemini AI" : "Google 무료";
+            string currentEngine = GetCurrentTranslationEngineDisplayName();
 
             AppendLog($"번역 엔진이 '{currentEngine}'(으)로 실시간 변경되었습니다.");
 
@@ -410,9 +448,11 @@ namespace GameTranslator
 
                     string finalContent = bestMessage.Trim();
                     string geminiKey = ReadGeminiKey();
-                    bool willUseGemini = useGeminiEngine && !string.IsNullOrWhiteSpace(geminiKey);
+                    bool willUseGemini = currentTranslationEngineMode == TranslationEngineMode.Gemini &&
+                        !string.IsNullOrWhiteSpace(geminiKey);
+                    bool willUseLocalLlm = currentTranslationEngineMode == TranslationEngineMode.LocalLlm;
 
-                    if (!willUseGemini)
+                    if (currentTranslationEngineMode == TranslationEngineMode.Google)
                     {
                         if (Regex.IsMatch(finalContent, @"[\u4e00-\u9fa5]") && Regex.IsMatch(finalContent, @"[ぁ-んァ-ヶ]"))
                             finalContent = Regex.Replace(finalContent, @"[ぁ-んァ-ヶ]", "");
@@ -451,7 +491,12 @@ namespace GameTranslator
                     usedEngine = "Google";
                     string translated = finalContent;
 
-                    TranslationPlan translationPlan = translationService.CreatePlan(finalContent, targetLang, willUseGemini);
+                    TranslationPlan translationPlan = translationService.CreatePlan(
+                        finalContent,
+                        targetLang,
+                        currentTranslationEngineMode,
+                        willUseGemini,
+                        willUseLocalLlm);
                     TranslationDecisionResult translationResult = translationPlan.ImmediateResult;
 
                     if (!translationPlan.HasImmediateResult)
@@ -475,6 +520,28 @@ namespace GameTranslator
                             else
                             {
                                 translationResult = geminiResolution.FinalResult;
+                            }
+                        }
+                        else if (translationPlan.RequestKind == TranslationRequestKind.LocalLlm)
+                        {
+                            string localLlmModel = ReadLocalLlmModel();
+                            Stopwatch translateStopwatch = Stopwatch.StartNew();
+                            string localLlmTranslated = await CallLocalLlmAPI(finalContent, targetLang);
+                            translateStopwatch.Stop();
+                            performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+
+                            TranslationAttemptResolution localLlmResolution = translationService.ResolveLocalLlmAttempt(localLlmTranslated, localLlmModel);
+                            if (localLlmResolution.RequiresGoogleFallback)
+                            {
+                                translateStopwatch.Restart();
+                                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
+                                translateStopwatch.Stop();
+                                performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
+                                translationResult = translationService.ResolveGoogleAttempt(googleFallback, true, "Local LLM").FinalResult;
+                            }
+                            else
+                            {
+                                translationResult = localLlmResolution.FinalResult;
                             }
                         }
                         else
@@ -807,6 +874,75 @@ namespace GameTranslator
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// LM Studio/OpenAI 호환 로컬 LLM 서버를 호출해 OCR 오타가 포함된 게임 채팅을 번역합니다.
+        /// endpoint/model/timeout/max tokens는 config.ini 설정값을 사용하며, 실패하면 빈 문자열을 반환해 Google fallback을 유도합니다.
+        /// </summary>
+        private async Task<string> CallLocalLlmAPI(string text, string tLang)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+
+            string endpoint = ReadLocalLlmEndpoint();
+            string modelName = ReadLocalLlmModel();
+            int timeoutSeconds = ReadLocalLlmTimeoutSeconds();
+            int maxTokens = ReadLocalLlmMaxTokens();
+
+            string lastFailureMessage = "";
+            string lastShortFailureMessage = "";
+
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+                LocalLlmTranslateApiResult result = await translationApiClient.TranslateWithLocalLlmAsync(
+                    text,
+                    tLang,
+                    endpoint,
+                    modelName,
+                    0.1,
+                    maxTokens,
+                    cts.Token);
+
+                if (!result.IsSuccess)
+                {
+                    lastFailureMessage = translationApiErrorDescriber.DescribeLocalLlmTranslateFailure(result, endpoint, modelName);
+                    lastShortFailureMessage = translationApiErrorDescriber.DescribeShortLocalLlmTranslateFailure(result);
+                    return "";
+                }
+
+                if (string.IsNullOrWhiteSpace(result.Text))
+                {
+                    lastFailureMessage = translationApiErrorDescriber.DescribeLocalLlmEmptyResponse(endpoint, modelName);
+                    lastShortFailureMessage = translationApiErrorDescriber.DescribeShortLocalLlmEmptyResponse();
+                    return "";
+                }
+
+                return result.Text;
+            }
+            catch (OperationCanceledException ex)
+            {
+                lastFailureMessage = translationApiErrorDescriber.DescribeLocalLlmException(
+                    new TimeoutException($"{timeoutSeconds}초 안에 응답하지 않았습니다.", ex),
+                    endpoint,
+                    modelName);
+                lastShortFailureMessage = "Local LLM 시간 초과: Google 전환";
+                return "";
+            }
+            catch (Exception ex)
+            {
+                lastFailureMessage = translationApiErrorDescriber.DescribeLocalLlmException(ex, endpoint, modelName);
+                lastShortFailureMessage = translationApiErrorDescriber.DescribeShortLocalLlmException(ex);
+                return "";
+            }
+            finally
+            {
+                if (!string.IsNullOrWhiteSpace(lastFailureMessage))
+                {
+                    AppendLog(lastFailureMessage + " Google 무료 번역으로 전환합니다.");
+                    ShowTranslationApiStatus(lastShortFailureMessage);
+                }
+            }
         }
 
         /// <summary>
