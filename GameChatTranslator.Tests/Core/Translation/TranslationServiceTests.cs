@@ -49,6 +49,47 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void ResolveGeminiAttempt_ReturnsFinalResultWhenGeminiTextExists()
+        {
+            TranslationAttemptResolution resolution = _service.ResolveGeminiAttempt("제미나이 결과", "gemini-test");
+
+            Assert.True(resolution.HasFinalResult);
+            Assert.False(resolution.RequiresGoogleFallback);
+            Assert.Equal(TranslationRequestKind.None, resolution.NextRequestKind);
+            Assert.Equal("제미나이 결과", resolution.FinalResult.TranslatedText);
+            Assert.Equal("Gemini gemini-test", resolution.FinalResult.EngineName);
+            Assert.False(resolution.FinalResult.FallbackUsed);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData(null)]
+        public void ResolveGeminiAttempt_RequestsGoogleFallbackWhenGeminiResultIsEmpty(string geminiResult)
+        {
+            TranslationAttemptResolution resolution = _service.ResolveGeminiAttempt(geminiResult, "gemini-test");
+
+            Assert.False(resolution.HasFinalResult);
+            Assert.True(resolution.RequiresGoogleFallback);
+            Assert.Equal(TranslationRequestKind.Google, resolution.NextRequestKind);
+            Assert.Null(resolution.FinalResult);
+        }
+
+        [Theory]
+        [InlineData(false, "Google", "구글 결과")]
+        [InlineData(true, "Google (Fallback)", "[Gemini 에러 - 구글 전환됨] 구글 결과")]
+        public void ResolveGoogleAttempt_ReturnsFinalGoogleResult(bool fallback, string expectedEngine, string expectedText)
+        {
+            TranslationAttemptResolution resolution = _service.ResolveGoogleAttempt("구글 결과", fallback);
+
+            Assert.True(resolution.HasFinalResult);
+            Assert.False(resolution.RequiresGoogleFallback);
+            Assert.Equal(TranslationRequestKind.None, resolution.NextRequestKind);
+            Assert.Equal(expectedEngine, resolution.FinalResult.EngineName);
+            Assert.Equal(expectedText, resolution.FinalResult.TranslatedText);
+            Assert.Equal(fallback, resolution.FinalResult.FallbackUsed);
+        }
+
+        [Fact]
         public void CreatePlan_UsesGoogleWhenGeminiIsDisabled()
         {
             TranslationPlan plan = _service.CreatePlan("hello squad", "ko", false);
@@ -106,6 +147,7 @@ namespace GameChatTranslator.Tests
                         type == typeof(TranslationService) ||
                         type == typeof(TranslationPlan) ||
                         type == typeof(TranslationDecisionResult) ||
+                        type == typeof(TranslationAttemptResolution) ||
                         type == typeof(TranslationRequestKind))
                     .Select(type => type.AssemblyQualifiedName));
 
