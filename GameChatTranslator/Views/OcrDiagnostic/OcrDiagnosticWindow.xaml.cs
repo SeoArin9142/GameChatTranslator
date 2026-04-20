@@ -1,13 +1,13 @@
 using System;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MediaColor = System.Windows.Media.Color;
+using WpfMessageBox = System.Windows.MessageBox;
 using WpfFontFamily = System.Windows.Media.FontFamily;
 using WpfImage = System.Windows.Controls.Image;
 using WpfTextBox = System.Windows.Controls.TextBox;
@@ -21,6 +21,8 @@ namespace GameTranslator
     public partial class OcrDiagnosticWindow : Window
     {
         private readonly MainWindow mainWindow;
+        private readonly OcrDiagnosticExporter diagnosticExporter = new OcrDiagnosticExporter();
+        private OcrDiagnosticResult lastDiagnosticResult;
 
         /// <summary>
         /// OCR 진단 창을 생성합니다.
@@ -49,16 +51,20 @@ namespace GameTranslator
         private async System.Threading.Tasks.Task RunDiagnosticAsync()
         {
             BtnRunDiagnostic.IsEnabled = false;
+            BtnSaveDiagnostic.IsEnabled = false;
             TxtStatus.Text = "OCR 진단 실행 중...";
 
             try
             {
                 OcrDiagnosticResult result = await mainWindow.RunOcrDiagnosticAsync();
                 RenderResult(result);
+                lastDiagnosticResult = result;
+                BtnSaveDiagnostic.IsEnabled = true;
                 TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms";
             }
             catch (Exception ex)
             {
+                lastDiagnosticResult = null;
                 TabDiagnostics.Items.Clear();
                 TabDiagnostics.Items.Add(CreateTextTab("오류", ex.Message));
                 TxtStatus.Text = $"실패: {ex.Message}";
@@ -66,6 +72,44 @@ namespace GameTranslator
             finally
             {
                 BtnRunDiagnostic.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// 현재 화면에 표시된 OCR 진단 결과를 ZIP 파일로 저장합니다.
+        /// ZIP에는 요약 텍스트, 원본/확대 이미지, 후보별 전처리/크롭 이미지와 OCR 텍스트가 포함됩니다.
+        /// </summary>
+        private void BtnSaveDiagnostic_Click(object sender, RoutedEventArgs e)
+        {
+            if (lastDiagnosticResult == null)
+            {
+                WpfMessageBox.Show(this, "저장할 OCR 진단 결과가 없습니다. 먼저 진단을 실행해 주세요.", "OCR 진단 결과 저장", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "OCR 진단 결과 저장",
+                Filter = "ZIP 파일 (*.zip)|*.zip",
+                FileName = diagnosticExporter.CreateDefaultFileName(lastDiagnosticResult.CapturedAt),
+                AddExtension = true,
+                DefaultExt = ".zip",
+                OverwritePrompt = true
+            };
+
+            bool? result = dialog.ShowDialog(this);
+            if (result != true) return;
+
+            try
+            {
+                using FileStream stream = File.Create(dialog.FileName);
+                diagnosticExporter.ExportToZip(lastDiagnosticResult, stream);
+                TxtStatus.Text = $"저장 완료: {Path.GetFileName(dialog.FileName)}";
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show(this, $"OCR 진단 결과 저장에 실패했습니다.\n{ex.Message}", "OCR 진단 결과 저장 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
+                TxtStatus.Text = $"저장 실패: {ex.Message}";
             }
         }
 
@@ -223,35 +267,7 @@ namespace GameTranslator
         /// </summary>
         private string BuildSummaryText(OcrDiagnosticResult result)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine("[OCR 진단 요약]");
-            builder.AppendLine($"진단 시각: {result.CapturedAt:yyyy-MM-dd HH:mm:ss}");
-            builder.AppendLine($"캡처 영역: X={result.CaptureArea.X}, Y={result.CaptureArea.Y}, W={result.CaptureArea.Width}, H={result.CaptureArea.Height}");
-            builder.AppendLine($"Threshold: {result.Threshold}");
-            builder.AppendLine($"ScaleFactor: {result.ScaleFactor}");
-            builder.AppendLine();
-            builder.AppendLine("[선택 결과]");
-            builder.AppendLine($"선택 후보: {result.SelectedCandidateName}");
-            builder.AppendLine($"선택 점수: {result.SelectedScore}");
-            builder.AppendLine($"후보 수: {result.Candidates.Count}");
-            builder.AppendLine($"OCR 호출 수: {result.OcrCallCount}");
-            builder.AppendLine();
-            builder.AppendLine("[처리 시간]");
-            builder.AppendLine($"Capture: {result.CaptureMs}ms");
-            builder.AppendLine($"Resize: {result.ResizeMs}ms");
-            builder.AppendLine($"Preprocess: {result.PreprocessMs}ms");
-            builder.AppendLine($"Crop: {result.CropMs}ms");
-            builder.AppendLine($"OCR: {result.OcrMs}ms");
-            builder.AppendLine($"Scoring: {result.ScoringMs}ms");
-            builder.AppendLine($"Total: {result.TotalMs}ms");
-            builder.AppendLine();
-            builder.AppendLine("[후보 점수]");
-            foreach (OcrDiagnosticCandidate candidate in result.Candidates.OrderByDescending(c => c.Score))
-            {
-                builder.AppendLine($"- {candidate.Name}: {candidate.Score}");
-            }
-
-            return builder.ToString();
+            return diagnosticExporter.BuildSummaryText(result);
         }
 
         /// <summary>
@@ -259,46 +275,7 @@ namespace GameTranslator
         /// </summary>
         private string BuildCandidateText(OcrDiagnosticCandidate candidate, bool selected)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine($"[{candidate.Name}]");
-            builder.AppendLine($"선택 여부: {(selected ? "YES" : "NO")}");
-            builder.AppendLine($"점수: {candidate.Score}");
-            builder.AppendLine();
-            builder.AppendLine("[병합 라인]");
-            AppendNumberedLines(builder, candidate.MergedLines);
-            builder.AppendLine();
-            builder.AppendLine("[언어별 OCR 결과]");
-
-            foreach (OcrDiagnosticLanguageResult language in candidate.Languages)
-            {
-                builder.AppendLine();
-                builder.AppendLine($"-- {language.LanguageTag} --");
-                AppendNumberedLines(builder, language.Lines);
-            }
-
-            if (candidate.Languages.Count == 0)
-            {
-                builder.AppendLine("OCR 결과 없음");
-            }
-
-            return builder.ToString();
-        }
-
-        /// <summary>
-        /// 문자열 목록을 01, 02 형식으로 정리해 StringBuilder에 추가합니다.
-        /// </summary>
-        private void AppendNumberedLines(StringBuilder builder, System.Collections.Generic.IList<string> lines)
-        {
-            if (lines == null || lines.Count == 0)
-            {
-                builder.AppendLine("없음");
-                return;
-            }
-
-            for (int i = 0; i < lines.Count; i++)
-            {
-                builder.AppendLine($"{i + 1:00}. {lines[i]}");
-            }
+            return diagnosticExporter.BuildCandidateText(candidate, selected);
         }
 
         /// <summary>
