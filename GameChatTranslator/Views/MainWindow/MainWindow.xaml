@@ -20,8 +20,8 @@
                        FontSize="11"
                        FontWeight="Bold"
                        LineHeight="16"
-                       TextAlignment="Center"
-                       HorizontalAlignment="Center"
+                       TextAlignment="Left"
+                       HorizontalAlignment="Stretch"
                        Margin="0,0,0,6"/>
 
             <!-- 자동 번역 모드 전환 시 현재 상태를 잠깐 강조 표시합니다. 단축키 안내가 길어져도 전환 상태를 놓치지 않게 분리했습니다. -->
