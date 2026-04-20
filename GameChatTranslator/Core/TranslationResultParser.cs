@@ -72,5 +72,48 @@ namespace GameTranslator
                 return "";
             }
         }
+
+        /// <summary>
+        /// LM Studio/OpenAI 호환 chat completions 응답에서 choices[0].message.content를 추출합니다.
+        /// 응답 구조가 예상과 다르면 빈 문자열을 반환합니다.
+        /// </summary>
+        public string ParseOpenAiChatCompletionResponse(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return "";
+
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(json);
+                JsonElement choices = document.RootElement.GetProperty("choices");
+                if (choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0) return "";
+
+                JsonElement message = choices[0].GetProperty("message");
+                if (!message.TryGetProperty("content", out JsonElement contentElement)) return "";
+                if (contentElement.ValueKind != JsonValueKind.String) return "";
+
+                return RemoveThinkingBlock(contentElement.GetString() ?? "").Trim();
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private static string RemoveThinkingBlock(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+
+            const string openTag = "<think>";
+            const string closeTag = "</think>";
+            int openIndex = text.IndexOf(openTag, StringComparison.OrdinalIgnoreCase);
+            int closeIndex = text.IndexOf(closeTag, StringComparison.OrdinalIgnoreCase);
+
+            if (openIndex >= 0 && closeIndex >= openIndex)
+            {
+                return text.Remove(openIndex, closeIndex + closeTag.Length - openIndex);
+            }
+
+            return text;
+        }
     }
 }

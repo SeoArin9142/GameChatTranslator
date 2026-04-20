@@ -17,6 +17,8 @@ namespace GameTranslator
             RegisterNumericSettingInputGuard(TxtThreshold);
             RegisterNumericSettingInputGuard(TxtInterval);
             RegisterNumericSettingInputGuard(TxtResultHistoryLimit);
+            RegisterNumericSettingInputGuard(TxtLocalLlmTimeout);
+            RegisterNumericSettingInputGuard(TxtLocalLlmMaxTokens);
         }
 
         /// <summary>
@@ -97,6 +99,20 @@ namespace GameTranslator
                 SettingsValueNormalizer.MinResultHistoryLimit,
                 SettingsValueNormalizer.MaxResultHistoryLimit,
                 SettingsValueNormalizer.NormalizeResultHistoryLimit);
+            AddNumericSettingStatus(
+                messages,
+                "Local LLM Timeout",
+                TxtLocalLlmTimeout?.Text,
+                SettingsService.MinLocalLlmTimeoutSeconds,
+                SettingsService.MaxLocalLlmTimeoutSeconds,
+                _settingsService.NormalizeLocalLlmTimeoutSeconds);
+            AddNumericSettingStatus(
+                messages,
+                "Local LLM Max Tokens",
+                TxtLocalLlmMaxTokens?.Text,
+                SettingsService.MinLocalLlmMaxTokens,
+                SettingsService.MaxLocalLlmMaxTokens,
+                _settingsService.NormalizeLocalLlmMaxTokens);
 
             if (messages.Count == 0)
             {

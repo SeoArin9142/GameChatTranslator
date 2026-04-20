@@ -114,5 +114,28 @@ namespace GameTranslator
                    "3. If the text is just a name or nonsense, return an empty string. " +
                    "Output ONLY the translation: \n\n" + (text ?? "");
         }
+
+        /// <summary>
+        /// LM Studio/OpenAI 호환 로컬 LLM에 전달할 system 프롬프트를 생성합니다.
+        /// Qwen 계열 reasoning 모델이 내부 추론 토큰을 소모하지 않도록 /no_think를 포함합니다.
+        /// </summary>
+        public string BuildLocalLlmSystemPrompt(string targetLanguageCode)
+        {
+            string targetLanguage = GetGeminiTargetLanguageName(targetLanguageCode);
+            return "/no_think You are a game chat translator. " +
+                   "The input text may contain OCR mistakes from a game chat overlay. " +
+                   "Restore the intended sentence and translate it naturally into " + targetLanguage + ". " +
+                   "Return only the translated sentence. Do not explain. Do not think step by step.";
+        }
+
+        /// <summary>
+        /// 로컬 LLM에 전달할 user 프롬프트를 생성합니다.
+        /// Google 입력 정리와 같은 OCR 노이즈 정리를 적용해 한중일 문자 사이 불필요한 공백을 줄입니다.
+        /// </summary>
+        public string BuildLocalLlmUserPrompt(string text)
+        {
+            string cleaned = CleanGoogleTranslateInput(text);
+            return "/no_think Input: " + cleaned;
+        }
     }
 }

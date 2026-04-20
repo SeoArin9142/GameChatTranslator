@@ -117,6 +117,11 @@ namespace GameTranslator
             if (PasswordGeminiKey != null) PasswordGeminiKey.Password = geminiKey.Key;
             if (TxtGeminiModel != null) TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(_ini.Read("GeminiModel"));
 
+            if (TxtLocalLlmEndpoint != null) TxtLocalLlmEndpoint.Text = _settingsService.NormalizeLocalLlmEndpoint(_ini.Read("LocalLlmEndpoint"));
+            if (TxtLocalLlmModel != null) TxtLocalLlmModel.Text = _settingsService.NormalizeLocalLlmModel(_ini.Read("LocalLlmModel"));
+            if (TxtLocalLlmTimeout != null) TxtLocalLlmTimeout.Text = _settingsService.NormalizeLocalLlmTimeoutSeconds(_ini.Read("LocalLlmTimeoutSeconds")).ToString();
+            if (TxtLocalLlmMaxTokens != null) TxtLocalLlmMaxTokens.Text = _settingsService.NormalizeLocalLlmMaxTokens(_ini.Read("LocalLlmMaxTokens")).ToString();
+
             if (CheckSaveDebugImages != null)
             {
                 CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(_ini.Read("SaveDebugImages"));
@@ -331,6 +336,16 @@ namespace GameTranslator
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
 
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));
+
+            _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text));
+            _ini.Write("LocalLlmModel", _settingsService.NormalizeLocalLlmModel(TxtLocalLlmModel?.Text));
+            int localLlmTimeout = _settingsService.NormalizeLocalLlmTimeoutSeconds(TxtLocalLlmTimeout?.Text);
+            _ini.Write("LocalLlmTimeoutSeconds", localLlmTimeout.ToString());
+            if (TxtLocalLlmTimeout != null) TxtLocalLlmTimeout.Text = localLlmTimeout.ToString();
+
+            int localLlmMaxTokens = _settingsService.NormalizeLocalLlmMaxTokens(TxtLocalLlmMaxTokens?.Text);
+            _ini.Write("LocalLlmMaxTokens", localLlmMaxTokens.ToString());
+            if (TxtLocalLlmMaxTokens != null) TxtLocalLlmMaxTokens.Text = localLlmMaxTokens.ToString();
 
             // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
             this.DialogResult = true;

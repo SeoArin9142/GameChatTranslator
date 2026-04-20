@@ -48,7 +48,7 @@ namespace GameTranslator
         private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog, modOcrDiag, modHotkeyGuide;
         private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog, keyOcrDiag, keyHotkeyGuide;
 
-        private bool useGeminiEngine = false; // 🌟 [추가] 현재 제미나이를 사용 중인지 상태 저장
+        private TranslationEngineMode currentTranslationEngineMode = TranslationEngineMode.Google;
 
         private DispatcherTimer autoTranslateTimer;
         // 🌟 [추가] 최상단 강제 유지 타이머

@@ -362,6 +362,43 @@
                             <TextBlock Text="기본값: gemini-2.5-flash" FontSize="11" Foreground="#888"/>
                         </StackPanel>
                     </GroupBox>
+
+                    <!-- Local LLM 영역: LM Studio/OpenAI 호환 로컬 서버 연결 정보를 입력합니다. 실제 번역 연결은 Local LLM 엔진에서 사용합니다. -->
+                    <GroupBox Header="Local LLM 번역 설정 (실험)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="LM Studio Local Server를 켠 뒤 OpenAI 호환 endpoint와 모델명을 입력합니다. 실패 시 Google 번역으로 전환됩니다." TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#CCC"/>
+
+                            <TextBlock Text="Local LLM Endpoint:" Margin="0,0,0,5" Foreground="#CCC"/>
+                            <TextBox x:Name="TxtLocalLlmEndpoint" Height="26" Margin="0,0,0,5" Background="#333" Foreground="White" BorderBrush="#555"/>
+                            <TextBlock Text="기본값: http://localhost:1234/v1/chat/completions" FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Local LLM Model:" Margin="0,0,0,5" Foreground="#CCC"/>
+                            <TextBox x:Name="TxtLocalLlmModel" Height="26" Margin="0,0,0,5" Background="#333" Foreground="White" BorderBrush="#555"/>
+                            <TextBlock Text="권장 시작값: qwen/qwen3.5-9b" FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Timeout (초):" Margin="0,0,0,5" Foreground="#CCC"/>
+                                    <TextBox x:Name="TxtLocalLlmTimeout" Height="26" Margin="0,0,0,5" Background="#333" Foreground="White" BorderBrush="#555"
+                                             InputMethod.IsInputMethodEnabled="False" PreviewTextInput="NumericSetting_PreviewTextInput" TextChanged="NumericSetting_TextChanged"/>
+                                    <TextBlock Text="1~60초, 기본 10초" FontSize="11" Foreground="#888"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Max Tokens:" Margin="0,0,0,5" Foreground="#CCC"/>
+                                    <TextBox x:Name="TxtLocalLlmMaxTokens" Height="26" Margin="0,0,0,5" Background="#333" Foreground="White" BorderBrush="#555"
+                                             InputMethod.IsInputMethodEnabled="False" PreviewTextInput="NumericSetting_PreviewTextInput" TextChanged="NumericSetting_TextChanged"/>
+                                    <TextBlock Text="40~512, 기본 160" FontSize="11" Foreground="#888"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </GroupBox>
                 </StackPanel>
             </Grid>
 

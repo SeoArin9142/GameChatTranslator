@@ -135,6 +135,77 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// Local LLM 번역 호출 실패를 endpoint/model/status 기준으로 설명합니다.
+        /// <paramref name="result"/>는 LM Studio/OpenAI 호환 엔드포인트 호출 결과,
+        /// <paramref name="endpoint"/>는 사용자가 설정한 chat completions 주소,
+        /// <paramref name="modelName"/>은 호출에 사용한 로컬 모델 ID입니다.
+        /// </summary>
+        public string DescribeLocalLlmTranslateFailure(LocalLlmTranslateApiResult result, string endpoint, string modelName)
+        {
+            if (result == null)
+            {
+                return $"Local LLM 번역 실패: 모델({NormalizeModelName(modelName)}) 응답 정보가 없습니다. LM Studio 서버와 endpoint를 확인해 주세요.";
+            }
+
+            string action = DescribeLocalLlmHttpStatus(result.StatusCode);
+            string detail = ExtractApiErrorDetail(result.ErrorMessage);
+            return AppendDetail(
+                $"Local LLM 번역 실패: 모델({NormalizeModelName(modelName)}), endpoint({NormalizeEndpoint(endpoint)}) {action}",
+                detail);
+        }
+
+        /// <summary>
+        /// 번역창 상단에 잠시 표시할 짧은 Local LLM 실패 안내입니다.
+        /// </summary>
+        public string DescribeShortLocalLlmTranslateFailure(LocalLlmTranslateApiResult result)
+        {
+            return result?.StatusCode switch
+            {
+                400 => "Local LLM 요청 오류: 설정 확인",
+                404 => "Local LLM endpoint/model 확인",
+                408 => "Local LLM 응답 지연: Google 전환",
+                429 => "Local LLM 처리 제한: Google 전환",
+                500 or 502 or 503 or 504 => "Local LLM 서버 오류: Google 전환",
+                _ => "Local LLM 실패: Google 전환"
+            };
+        }
+
+        /// <summary>
+        /// Local LLM 호출은 성공했지만 번역문을 파싱하지 못했을 때 사용할 안내 문구를 생성합니다.
+        /// </summary>
+        public string DescribeLocalLlmEmptyResponse(string endpoint, string modelName)
+        {
+            return $"Local LLM 번역 실패: 모델({NormalizeModelName(modelName)}) 응답에서 번역문을 찾지 못했습니다. endpoint({NormalizeEndpoint(endpoint)})와 모델 출력 형식을 확인해 주세요.";
+        }
+
+        /// <summary>
+        /// Local LLM 응답이 비어 있을 때 번역창에 표시할 짧은 안내입니다.
+        /// </summary>
+        public string DescribeShortLocalLlmEmptyResponse()
+        {
+            return "Local LLM 응답 오류: Google 전환";
+        }
+
+        /// <summary>
+        /// Local LLM 호출 중 예외가 발생했을 때 사용할 안내 문구를 생성합니다.
+        /// </summary>
+        public string DescribeLocalLlmException(Exception exception, string endpoint, string modelName)
+        {
+            string detail = NormalizeDetail(exception?.Message);
+            return AppendDetail(
+                $"Local LLM 번역 실패: 모델({NormalizeModelName(modelName)}) 호출 중 오류가 발생했습니다. LM Studio Local Server가 켜져 있는지, endpoint({NormalizeEndpoint(endpoint)})가 맞는지 확인해 주세요.",
+                detail);
+        }
+
+        /// <summary>
+        /// Local LLM 호출 중 예외가 발생했을 때 번역창에 표시할 짧은 안내입니다.
+        /// </summary>
+        public string DescribeShortLocalLlmException(Exception exception)
+        {
+            return "Local LLM 연결 실패: Google 전환";
+        }
+
+        /// <summary>
         /// API 오류 JSON에서 사람이 읽을 수 있는 핵심 오류 메시지만 추출합니다.
         /// Google API의 {"error":{"message":"...","status":"..."}} 형태와 단순 문자열 오류를 모두 처리합니다.
         /// </summary>
@@ -188,6 +259,20 @@ namespace GameTranslator
             };
         }
 
+        private static string DescribeLocalLlmHttpStatus(int? statusCode)
+        {
+            return statusCode switch
+            {
+                400 => "요청 형식이 거부됐습니다. endpoint, model, max tokens 설정을 확인해 주세요.",
+                404 => "endpoint 또는 모델을 찾지 못했습니다. LM Studio 서버 주소와 모델 ID를 확인해 주세요.",
+                408 => "응답 시간이 초과됐습니다. timeout 값을 늘리거나 더 가벼운 모델을 사용해 주세요.",
+                429 => "로컬 서버가 현재 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                500 or 502 or 503 or 504 => "로컬 서버 오류가 발생했습니다. LM Studio 모델 로드 상태를 확인해 주세요.",
+                null => "실패 원인을 특정하지 못했습니다. LM Studio 서버와 모델 설정을 확인해 주세요.",
+                _ => $"실패가 발생했습니다. HTTP {statusCode.Value} 응답 내용을 확인해 주세요."
+            };
+        }
+
         private static string AppendDetail(string message, string detail)
         {
             if (string.IsNullOrWhiteSpace(detail)) return message;
@@ -197,6 +282,11 @@ namespace GameTranslator
         private static string NormalizeModelName(string modelName)
         {
             return string.IsNullOrWhiteSpace(modelName) ? "(비어 있음)" : modelName.Trim();
+        }
+
+        private static string NormalizeEndpoint(string endpoint)
+        {
+            return string.IsNullOrWhiteSpace(endpoint) ? "(비어 있음)" : endpoint.Trim();
         }
 
         private static string NormalizeDetail(string detail)

@@ -91,9 +91,11 @@ namespace GameTranslator
 
             string geminiKey = ReadGeminiKey();
 
-            useGeminiEngine = !string.IsNullOrEmpty(geminiKey);
+            currentTranslationEngineMode = !string.IsNullOrEmpty(geminiKey)
+                ? TranslationEngineMode.Gemini
+                : TranslationEngineMode.Google;
 
-            string currentEngine = string.IsNullOrEmpty(geminiKey) ? "Google 무료 번역" : "Gemini AI 번역";
+            string currentEngine = GetCurrentTranslationEngineDisplayName();
 
             AppendLog($"프로그램이 시작되었습니다. (적용 엔진: {currentEngine})");
 
@@ -105,6 +107,8 @@ namespace GameTranslator
             string log_scale = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor")).ToString();
             string log_opacity = ini.Read("Opacity") ?? "100";
             string log_model = ReadGeminiModel();
+            string log_local_llm_endpoint = ReadLocalLlmEndpoint();
+            string log_local_llm_model = ReadLocalLlmModel();
 
             AppendLog($"[현재 세팅]");
             AppendLog($"\t[게임 언어\t\t\t: {log_gLang}\t]");
@@ -114,6 +118,8 @@ namespace GameTranslator
             AppendLog($"\t[번역 주기\t\t\t: {log_interval}초\t]");
             AppendLog($"\t[투명도\t\t\t: {log_opacity}\t]");
             AppendLog($"\t[모델\t\t\t: {log_model}\t]");
+            AppendLog($"\t[Local LLM Endpoint\t: {log_local_llm_endpoint}\t]");
+            AppendLog($"\t[Local LLM Model\t\t: {log_local_llm_model}\t]");
 
             if (!string.IsNullOrEmpty(geminiKey))
             {

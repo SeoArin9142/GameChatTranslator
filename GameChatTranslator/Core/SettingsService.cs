@@ -9,6 +9,14 @@ namespace GameTranslator
     public sealed class SettingsService
     {
         public const string DefaultGeminiModel = "gemini-2.5-flash";
+        public const string DefaultLocalLlmEndpoint = "http://localhost:1234/v1/chat/completions";
+        public const string DefaultLocalLlmModel = "qwen/qwen3.5-9b";
+        public const int DefaultLocalLlmTimeoutSeconds = 10;
+        public const int MinLocalLlmTimeoutSeconds = 1;
+        public const int MaxLocalLlmTimeoutSeconds = 60;
+        public const int DefaultLocalLlmMaxTokens = 160;
+        public const int MinLocalLlmMaxTokens = 40;
+        public const int MaxLocalLlmMaxTokens = 512;
         public const string DefaultResultDisplayMode = "Latest";
 
         public const string DefaultKeyMoveLock = "Ctrl+7";
@@ -46,6 +54,38 @@ namespace GameTranslator
         public string NormalizeGeminiModel(string modelName)
         {
             return string.IsNullOrWhiteSpace(modelName) ? DefaultGeminiModel : modelName.Trim();
+        }
+
+        /// <summary>
+        /// Local LLM 엔드포인트가 비어 있으면 LM Studio 기본 chat completions 주소를 반환합니다.
+        /// </summary>
+        public string NormalizeLocalLlmEndpoint(string endpoint)
+        {
+            return string.IsNullOrWhiteSpace(endpoint) ? DefaultLocalLlmEndpoint : endpoint.Trim();
+        }
+
+        /// <summary>
+        /// Local LLM 모델명이 비어 있으면 현재 검증한 기본 LM Studio 모델명을 반환합니다.
+        /// </summary>
+        public string NormalizeLocalLlmModel(string modelName)
+        {
+            return string.IsNullOrWhiteSpace(modelName) ? DefaultLocalLlmModel : modelName.Trim();
+        }
+
+        /// <summary>
+        /// Local LLM 요청 타임아웃을 1~60초 범위로 보정합니다.
+        /// </summary>
+        public int NormalizeLocalLlmTimeoutSeconds(string value)
+        {
+            return NormalizeInt(value, DefaultLocalLlmTimeoutSeconds, MinLocalLlmTimeoutSeconds, MaxLocalLlmTimeoutSeconds);
+        }
+
+        /// <summary>
+        /// Local LLM 응답 최대 토큰 수를 40~512 범위로 보정합니다.
+        /// </summary>
+        public int NormalizeLocalLlmMaxTokens(string value)
+        {
+            return NormalizeInt(value, DefaultLocalLlmMaxTokens, MinLocalLlmMaxTokens, MaxLocalLlmMaxTokens);
         }
 
         /// <summary>
@@ -95,6 +135,16 @@ namespace GameTranslator
         public string NormalizeHotkey(string configuredHotkey, string defaultHotkey)
         {
             return string.IsNullOrWhiteSpace(configuredHotkey) ? defaultHotkey : configuredHotkey.Trim();
+        }
+
+        private static int NormalizeInt(string value, int defaultValue, int minValue, int maxValue)
+        {
+            if (!int.TryParse(value, out int parsedValue))
+            {
+                return defaultValue;
+            }
+
+            return Math.Max(minValue, Math.Min(maxValue, parsedValue));
         }
 
         /// <summary>

@@ -24,13 +24,27 @@ namespace GameChatTranslator.Tests
         [Fact]
         public void CreatePlan_UsesGeminiWhenGeminiIsAvailableAndTranslationIsNeeded()
         {
-            TranslationPlan plan = _service.CreatePlan("hello squad", "ko", true);
+            TranslationPlan plan = _service.CreatePlan("hello squad", "ko", TranslationEngineMode.Gemini, true, true);
             TranslationDecisionResult result = _service.CreateGeminiResult("안녕 팀", "gemini-test");
 
             Assert.Equal(TranslationRequestKind.Gemini, plan.RequestKind);
             Assert.False(plan.HasImmediateResult);
             Assert.Equal("안녕 팀", result.TranslatedText);
             Assert.Equal("Gemini gemini-test", result.EngineName);
+            Assert.False(result.Skipped);
+            Assert.False(result.FallbackUsed);
+        }
+
+        [Fact]
+        public void CreatePlan_UsesLocalLlmWhenLocalLlmIsSelectedAndTranslationIsNeeded()
+        {
+            TranslationPlan plan = _service.CreatePlan("猫可愛 0", "ko", TranslationEngineMode.LocalLlm, true, true);
+            TranslationDecisionResult result = _service.CreateLocalLlmResult("고양이는 귀여워", "qwen-test");
+
+            Assert.Equal(TranslationRequestKind.LocalLlm, plan.RequestKind);
+            Assert.False(plan.HasImmediateResult);
+            Assert.Equal("고양이는 귀여워", result.TranslatedText);
+            Assert.Equal("Local LLM qwen-test", result.EngineName);
             Assert.False(result.Skipped);
             Assert.False(result.FallbackUsed);
         }
@@ -87,6 +101,41 @@ namespace GameChatTranslator.Tests
             Assert.Equal(expectedEngine, resolution.FinalResult.EngineName);
             Assert.Equal(expectedText, resolution.FinalResult.TranslatedText);
             Assert.Equal(fallback, resolution.FinalResult.FallbackUsed);
+        }
+
+        [Fact]
+        public void ResolveGoogleAttempt_UsesFallbackSourceName()
+        {
+            TranslationAttemptResolution resolution = _service.ResolveGoogleAttempt("구글 결과", true, "Local LLM");
+
+            Assert.Equal("[Local LLM 에러 - 구글 전환됨] 구글 결과", resolution.FinalResult.TranslatedText);
+            Assert.Equal("Google (Fallback)", resolution.FinalResult.EngineName);
+            Assert.True(resolution.FinalResult.FallbackUsed);
+        }
+
+        [Fact]
+        public void ResolveLocalLlmAttempt_ReturnsFinalResultWhenTextExists()
+        {
+            TranslationAttemptResolution resolution = _service.ResolveLocalLlmAttempt("로컬 결과", "qwen-test");
+
+            Assert.True(resolution.HasFinalResult);
+            Assert.False(resolution.RequiresGoogleFallback);
+            Assert.Equal(TranslationRequestKind.None, resolution.NextRequestKind);
+            Assert.Equal("로컬 결과", resolution.FinalResult.TranslatedText);
+            Assert.Equal("Local LLM qwen-test", resolution.FinalResult.EngineName);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData(null)]
+        public void ResolveLocalLlmAttempt_RequestsGoogleFallbackWhenResultIsEmpty(string localResult)
+        {
+            TranslationAttemptResolution resolution = _service.ResolveLocalLlmAttempt(localResult, "qwen-test");
+
+            Assert.False(resolution.HasFinalResult);
+            Assert.True(resolution.RequiresGoogleFallback);
+            Assert.Equal(TranslationRequestKind.Google, resolution.NextRequestKind);
+            Assert.Null(resolution.FinalResult);
         }
 
         [Fact]
@@ -148,7 +197,8 @@ namespace GameChatTranslator.Tests
                         type == typeof(TranslationPlan) ||
                         type == typeof(TranslationDecisionResult) ||
                         type == typeof(TranslationAttemptResolution) ||
-                        type == typeof(TranslationRequestKind))
+                        type == typeof(TranslationRequestKind) ||
+                        type == typeof(TranslationEngineMode))
                     .Select(type => type.AssemblyQualifiedName));
 
             Assert.DoesNotContain("HttpClient", serviceTypeNames);

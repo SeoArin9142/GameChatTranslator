@@ -144,7 +144,7 @@ namespace GameTranslator
             string guide = settingsService.NormalizeHotkey(ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
 
             // 🌟 안내 문구에 엔진 전환 추가
-            string engineStr = useGeminiEngine ? "Gemini" : "Google";
+            string engineStr = GetCurrentTranslationEngineShortName();
             if (TxtHotkeyGuide == null)
             {
                 return;
