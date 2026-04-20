@@ -288,6 +288,10 @@ namespace GameTranslator
             _ini.Write("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text).ToString(), section);
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false", section);
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text), section);
+            _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text), section);
+            _ini.Write("LocalLlmModel", _settingsService.NormalizeLocalLlmModel(TxtLocalLlmModel?.Text), section);
+            _ini.Write("LocalLlmTimeoutSeconds", _settingsService.NormalizeLocalLlmTimeoutSeconds(TxtLocalLlmTimeout?.Text).ToString(), section);
+            _ini.Write("LocalLlmMaxTokens", _settingsService.NormalizeLocalLlmMaxTokens(TxtLocalLlmMaxTokens?.Text).ToString(), section);
             _ini.Write("Key_MoveLock", TxtKeyMove.Text, section);
             _ini.Write("Key_AreaSelect", TxtKeyArea.Text, section);
             _ini.Write("Key_Translate", TxtKeyTrans.Text, section);
@@ -327,6 +331,10 @@ namespace GameTranslator
             TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(ReadPresetValue(section, "ResultHistoryLimit", "5")).ToString();
             CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(ReadPresetValue(section, "SaveDebugImages", "false"));
             TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(ReadPresetValue(section, "GeminiModel", SettingsService.DefaultGeminiModel));
+            TxtLocalLlmEndpoint.Text = _settingsService.NormalizeLocalLlmEndpoint(ReadPresetValue(section, "LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint));
+            TxtLocalLlmModel.Text = _settingsService.NormalizeLocalLlmModel(ReadPresetValue(section, "LocalLlmModel", SettingsService.DefaultLocalLlmModel));
+            TxtLocalLlmTimeout.Text = _settingsService.NormalizeLocalLlmTimeoutSeconds(ReadPresetValue(section, "LocalLlmTimeoutSeconds", SettingsService.DefaultLocalLlmTimeoutSeconds.ToString())).ToString();
+            TxtLocalLlmMaxTokens.Text = _settingsService.NormalizeLocalLlmMaxTokens(ReadPresetValue(section, "LocalLlmMaxTokens", SettingsService.DefaultLocalLlmMaxTokens.ToString())).ToString();
             DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
             TxtKeyMove.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_MoveLock", defaults.MoveLock), defaults.MoveLock);
             TxtKeyArea.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_AreaSelect", defaults.AreaSelect), defaults.AreaSelect);
