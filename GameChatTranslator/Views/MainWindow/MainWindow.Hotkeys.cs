@@ -154,14 +154,14 @@ namespace GameTranslator
 
             if (!isHotkeyGuideExpanded)
             {
-                TxtHotkeyGuide.Inlines.Add(new Run($"[{guide}] 단축키 안내 ON  "));
+                TxtHotkeyGuide.Inlines.Add(new Run($"[{guide}] 단축키 안내\t\t"));
                 TxtHotkeyGuide.Inlines.Add(new Run("자동: "));
                 TxtHotkeyGuide.Inlines.Add(new Run(GetAutoTranslateModeLabel())
                 {
                     Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
                     FontWeight = FontWeights.Bold
                 });
-                TxtHotkeyGuide.Inlines.Add(new Run($"  |  번역기: {engineStr}"));
+                TxtHotkeyGuide.Inlines.Add(new Run($"\t\t번역기: {engineStr}"));
                 return;
             }
 
