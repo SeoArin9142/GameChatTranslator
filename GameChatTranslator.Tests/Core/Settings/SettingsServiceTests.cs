@@ -46,6 +46,47 @@ namespace GameChatTranslator.Tests
         }
 
         [Theory]
+        [InlineData(null, SettingsService.DefaultLocalLlmEndpoint)]
+        [InlineData("", SettingsService.DefaultLocalLlmEndpoint)]
+        [InlineData("  http://localhost:1234/v1/chat/completions  ", "http://localhost:1234/v1/chat/completions")]
+        public void NormalizeLocalLlmEndpoint_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeLocalLlmEndpoint(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultLocalLlmModel)]
+        [InlineData("", SettingsService.DefaultLocalLlmModel)]
+        [InlineData("  custom-model  ", "custom-model")]
+        public void NormalizeLocalLlmModel_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeLocalLlmModel(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultLocalLlmTimeoutSeconds)]
+        [InlineData("abc", SettingsService.DefaultLocalLlmTimeoutSeconds)]
+        [InlineData("0", SettingsService.MinLocalLlmTimeoutSeconds)]
+        [InlineData("15", 15)]
+        [InlineData("999", SettingsService.MaxLocalLlmTimeoutSeconds)]
+        public void NormalizeLocalLlmTimeoutSeconds_ClampsRange(string rawValue, int expected)
+        {
+            Assert.Equal(expected, _service.NormalizeLocalLlmTimeoutSeconds(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultLocalLlmMaxTokens)]
+        [InlineData("abc", SettingsService.DefaultLocalLlmMaxTokens)]
+        [InlineData("1", SettingsService.MinLocalLlmMaxTokens)]
+        [InlineData("200", 200)]
+        [InlineData("9999", SettingsService.MaxLocalLlmMaxTokens)]
+        public void NormalizeLocalLlmMaxTokens_ClampsRange(string rawValue, int expected)
+        {
+            Assert.Equal(expected, _service.NormalizeLocalLlmMaxTokens(rawValue));
+        }
+
+
+        [Theory]
         [InlineData("true")]
         [InlineData("TRUE")]
         [InlineData("1")]
