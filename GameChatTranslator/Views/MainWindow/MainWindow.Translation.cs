@@ -187,6 +187,10 @@ namespace GameTranslator
             public string SelectedOcrLanguages = "-";
             public int SelectedScore;
             public string Outcome = "Started";
+            public bool FastPathAttempted;
+            public bool FastPathSucceeded;
+            public bool FallbackAttempted;
+            public string FallbackReason = "-";
         }
 
         /// <summary>
@@ -196,27 +200,43 @@ namespace GameTranslator
         /// </summary>
         private void AppendOcrPerformanceLog(OcrPerformanceStats stats, long totalElapsedMs)
         {
-            AppendLog(
-                "[OCR PERF] " +
-                $"Mode={GetOcrProcessingModeLabel(stats.ProcessingMode)}, " +
-                $"Capture={stats.CaptureMs}ms, " +
-                $"Resize={stats.ResizeMs}ms, " +
-                $"Preprocess={stats.PreprocessMs}ms, " +
-                $"Crop={stats.CropMs}ms, " +
-                $"OCR={stats.OcrMs}ms, " +
-                $"Scoring={stats.ScoringMs}ms, " +
-                $"Translate={stats.TranslateMs}ms, " +
-                $"Total={totalElapsedMs}ms, " +
-                $"Selected={stats.SelectedPreprocessName}/{stats.SelectedOcrLanguages}, " +
-                $"Score={stats.SelectedScore}, " +
-                $"Candidates={stats.PreprocessCandidateCount}, " +
-                $"OcrCalls={stats.OcrLanguageCallCount}, " +
-                $"Lines={stats.MergedLineCount}, " +
-                $"Translated={stats.TranslatedLineCount}, " +
-                $"Skipped={stats.SkippedLineCount}, " +
-                $"Outcome={stats.Outcome}");
+            AppendLog(OcrPerformanceReportFormatter.BuildLogLine(CreateOcrPerformanceReport(stats, totalElapsedMs)));
 
             TrackOcrPerformanceSummary(stats, totalElapsedMs);
+        }
+
+        /// <summary>
+        /// MainWindow 내부 진단 객체를 테스트 가능한 순수 성능 리포트 모델로 변환합니다.
+        /// <paramref name="stats"/>는 번역 실행 중 누적한 시간/후보 선택 정보이고,
+        /// <paramref name="totalElapsedMs"/>는 캡처부터 화면 출력까지의 전체 소요 시간입니다.
+        /// </summary>
+        private OcrPerformanceReport CreateOcrPerformanceReport(OcrPerformanceStats stats, long totalElapsedMs)
+        {
+            return new OcrPerformanceReport
+            {
+                ModeLabel = GetOcrProcessingModeLabel(stats.ProcessingMode),
+                CaptureMs = stats.CaptureMs,
+                ResizeMs = stats.ResizeMs,
+                PreprocessMs = stats.PreprocessMs,
+                CropMs = stats.CropMs,
+                OcrMs = stats.OcrMs,
+                ScoringMs = stats.ScoringMs,
+                TranslateMs = stats.TranslateMs,
+                TotalMs = totalElapsedMs,
+                PreprocessCandidateCount = stats.PreprocessCandidateCount,
+                OcrLanguageCallCount = stats.OcrLanguageCallCount,
+                MergedLineCount = stats.MergedLineCount,
+                TranslatedLineCount = stats.TranslatedLineCount,
+                SkippedLineCount = stats.SkippedLineCount,
+                SelectedPreprocessName = stats.SelectedPreprocessName,
+                SelectedOcrLanguages = stats.SelectedOcrLanguages,
+                SelectedScore = stats.SelectedScore,
+                Outcome = stats.Outcome,
+                FastPathAttempted = stats.FastPathAttempted,
+                FastPathSucceeded = stats.FastPathSucceeded,
+                FallbackAttempted = stats.FallbackAttempted,
+                FallbackReason = stats.FallbackReason
+            };
         }
 
         /// <summary>
@@ -510,8 +530,22 @@ namespace GameTranslator
 
                 if (step.IsFastPathStep)
                 {
-                    if (ocrService.IsFastPathSuccess(candidate, characterNames)) return candidate;
-                    if (processingMode == OcrProcessingMode.Fast) return null;
+                    performanceStats.FastPathAttempted = true;
+
+                    if (ocrService.IsFastPathSuccess(candidate, characterNames))
+                    {
+                        performanceStats.FastPathSucceeded = true;
+                        return candidate;
+                    }
+
+                    if (processingMode == OcrProcessingMode.Fast)
+                    {
+                        performanceStats.FallbackReason = "FastPathFailedNoFallback";
+                        return null;
+                    }
+
+                    performanceStats.FallbackAttempted = true;
+                    performanceStats.FallbackReason = "FastPathFailed";
                     continue;
                 }
 

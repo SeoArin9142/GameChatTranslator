@@ -20,6 +20,9 @@ namespace GameTranslator
             public long TotalOcrMs { get; set; }
             public long TotalTranslateMs { get; set; }
             public int TotalOcrCalls { get; set; }
+            public int FastPathAttemptCount { get; set; }
+            public int FastPathSuccessCount { get; set; }
+            public int FallbackCount { get; set; }
         }
 
         /// <summary>
@@ -41,6 +44,9 @@ namespace GameTranslator
             average.TotalOcrMs += stats.OcrMs;
             average.TotalTranslateMs += stats.TranslateMs;
             average.TotalOcrCalls += stats.OcrLanguageCallCount;
+            if (stats.FastPathAttempted) average.FastPathAttemptCount++;
+            if (stats.FastPathSucceeded) average.FastPathSuccessCount++;
+            if (stats.FallbackAttempted) average.FallbackCount++;
 
             latestOcrPerformanceSummary = BuildOcrPerformanceSummaryText();
             PushOcrPerformanceSummaryToLogViewer();
@@ -61,16 +67,35 @@ namespace GameTranslator
             foreach (string mode in modeOrder)
             {
                 if (!ocrPerformanceAverages.TryGetValue(mode, out OcrPerformanceAverage average)) continue;
-                parts.Add($"{mode} n={average.Count} Total {average.TotalElapsedMs / average.Count}ms / OCR {average.TotalOcrMs / average.Count}ms / Translate {average.TotalTranslateMs / average.Count}ms / Calls {average.TotalOcrCalls / average.Count}");
+                parts.Add(BuildOcrPerformanceAveragePart(mode, average));
             }
 
             foreach (var item in ocrPerformanceAverages.Where(x => !modeOrder.Contains(x.Key)))
             {
-                OcrPerformanceAverage average = item.Value;
-                parts.Add($"{item.Key} n={average.Count} Total {average.TotalElapsedMs / average.Count}ms / OCR {average.TotalOcrMs / average.Count}ms / Translate {average.TotalTranslateMs / average.Count}ms / Calls {average.TotalOcrCalls / average.Count}");
+                parts.Add(BuildOcrPerformanceAveragePart(item.Key, item.Value));
             }
 
             return "OCR 평균: " + string.Join("  |  ", parts);
+        }
+
+        /// <summary>
+        /// 모드별 누적 평균 객체를 로그창에 표시할 한 조각의 문자열로 변환합니다.
+        /// FastPath/Fallback 비율도 함께 표시해 자동 모드가 실제로 빠른 경로를 얼마나 타는지 확인합니다.
+        /// </summary>
+        private string BuildOcrPerformanceAveragePart(string modeLabel, OcrPerformanceAverage average)
+        {
+            return OcrPerformanceReportFormatter.BuildAveragePart(new OcrPerformanceAverageReport
+            {
+                ModeLabel = modeLabel,
+                Count = average.Count,
+                TotalElapsedMs = average.TotalElapsedMs,
+                TotalOcrMs = average.TotalOcrMs,
+                TotalTranslateMs = average.TotalTranslateMs,
+                TotalOcrCalls = average.TotalOcrCalls,
+                FastPathAttemptCount = average.FastPathAttemptCount,
+                FastPathSuccessCount = average.FastPathSuccessCount,
+                FallbackCount = average.FallbackCount
+            });
         }
 
         /// <summary>
