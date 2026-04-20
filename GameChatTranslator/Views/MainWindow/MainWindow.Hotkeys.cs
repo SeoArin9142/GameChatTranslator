@@ -140,42 +140,50 @@ namespace GameTranslator
 
             // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = useGeminiEngine ? "Gemini" : "Google";
-            string newGuide = $"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{copy}] 복사  [{diag}] 진단\n[{au}] 자동  [{tg}] {engineStr}  [{log}] 로그";
-
-            foreach (var tb in FindVisualChildren<TextBlock>(this))
+            if (TxtHotkeyGuide == null)
             {
-                if (tb.Text.Contains("이동") && tb.Text.Contains("영역설정") || tb.Text.Contains("자동"))
-                {
-                    // TextBlock 내부 Run을 직접 교체해 자동 모드 상태만 색상 강조합니다.
-                    tb.Inlines.Clear();
-                    tb.Inlines.Add(new Run(newGuide));
-                    tb.Inlines.Add(new Run($"\n  ● 자동: {GetAutoTranslateModeLabel()}")
-                    {
-                        Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
-                        FontWeight = FontWeights.Bold
-                    });
-                    break;
-                }
+                return;
             }
+
+            // 상단 안내가 길어져 고정 높이에서 잘리지 않도록 2줄짜리 축약 문구로 유지합니다.
+            TxtHotkeyGuide.Inlines.Clear();
+            TxtHotkeyGuide.Inlines.Add(new Run($"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{au}] 자동: "));
+            TxtHotkeyGuide.Inlines.Add(new Run(GetAutoTranslateModeLabel())
+            {
+                Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
+                FontWeight = FontWeights.Bold
+            });
+            TxtHotkeyGuide.Inlines.Add(new Run($"\n[{copy}] 복사  [{diag}] 진단  [{tg}] {engineStr}  [{log}] 로그"));
         }
 
         /// <summary>
-        /// WPF 시각 트리에서 특정 타입의 자식 컨트롤을 재귀적으로 찾습니다.
-        /// <typeparam name="T"/>는 찾을 DependencyObject 타입입니다. 예: TextBlock.
-        /// <paramref name="depObj"/>는 검색을 시작할 루트 컨트롤입니다.
-        /// 반환값은 루트 아래에서 발견된 모든 T 타입 컨트롤입니다.
+        /// 자동 번역 모드가 바뀔 때 별도 상태 문구를 잠깐 표시합니다.
+        /// 단축키 안내 영역과 분리해 안내 문구가 길어져도 모드 전환 피드백이 잘리지 않게 합니다.
         /// </summary>
-        public static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
+        private void ShowAutoModeStatus()
         {
-            if (depObj != null)
-            {
-                for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
-                {
-                    DependencyObject child = VisualTreeHelper.GetChild(depObj, i);
-                    if (child != null && child is T) yield return (T)child;
-                    foreach (T childOfChild in FindVisualChildren<T>(child)) yield return childOfChild;
-                }
-            }
+            if (TxtAutoModeStatus == null) return;
+
+            string modeLabel = GetAutoTranslateModeLabel();
+            TxtAutoModeStatus.Text = modeLabel == "OFF"
+                ? "자동 번역 OFF"
+                : $"자동 번역: {modeLabel}";
+            TxtAutoModeStatus.Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray;
+            TxtAutoModeStatus.Visibility = Visibility.Visible;
+            autoModeStatusTimer?.Stop();
+            autoModeStatusTimer?.Start();
+        }
+
+        /// <summary>
+        /// 자동 번역 모드 전환 상태 문구를 숨깁니다.
+        /// </summary>
+        private void HideAutoModeStatus()
+        {
+            autoModeStatusTimer?.Stop();
+
+            if (TxtAutoModeStatus == null) return;
+            TxtAutoModeStatus.Text = "";
+            TxtAutoModeStatus.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>

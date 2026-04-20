@@ -54,6 +54,7 @@ namespace GameTranslator
         // 🌟 [추가] 최상단 강제 유지 타이머
         private DispatcherTimer topmostTimer;
         private DispatcherTimer apiStatusTimer;
+        private DispatcherTimer autoModeStatusTimer;
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
@@ -130,6 +131,10 @@ namespace GameTranslator
             apiStatusTimer = new DispatcherTimer();
             apiStatusTimer.Interval = TimeSpan.FromSeconds(7);
             apiStatusTimer.Tick += (s, e) => HideTranslationApiStatus();
+
+            autoModeStatusTimer = new DispatcherTimer();
+            autoModeStatusTimer.Interval = TimeSpan.FromSeconds(2.5);
+            autoModeStatusTimer.Tick += (s, e) => HideAutoModeStatus();
         }
     }
 }
