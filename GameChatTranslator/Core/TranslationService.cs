@@ -42,6 +42,30 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// Gemini API 호출 결과를 최종 번역 결과 또는 Google fallback 요청으로 해석합니다.
+        /// <paramref name="geminiResult"/>가 비어 있으면 호출자가 Google을 한 번 더 호출해야 하며,
+        /// 값이 있으면 Gemini 최종 결과로 확정합니다.
+        /// </summary>
+        public TranslationAttemptResolution ResolveGeminiAttempt(string geminiResult, string modelName)
+        {
+            if (ShouldFallbackToGoogle(geminiResult))
+            {
+                return TranslationAttemptResolution.RequestGoogleFallback();
+            }
+
+            return TranslationAttemptResolution.Final(CreateGeminiResult(geminiResult, modelName));
+        }
+
+        /// <summary>
+        /// Google API 호출 결과를 최종 번역 결과로 해석합니다.
+        /// <paramref name="isFallback"/>이 true이면 Gemini 실패 후 Google로 전환된 결과임을 출력문과 엔진명에 반영합니다.
+        /// </summary>
+        public TranslationAttemptResolution ResolveGoogleAttempt(string googleResult, bool isFallback)
+        {
+            return TranslationAttemptResolution.Final(CreateGoogleResult(googleResult, isFallback));
+        }
+
+        /// <summary>
         /// 성공한 Gemini 번역 결과를 UI/로그에 사용할 공통 결과 모델로 변환합니다.
         /// <paramref name="geminiResult"/>는 Gemini 응답에서 추출한 번역문,
         /// <paramref name="modelName"/>은 사용한 Gemini 모델명입니다.
@@ -148,5 +172,33 @@ namespace GameTranslator
         public string EngineName { get; }
         public bool Skipped { get; }
         public bool FallbackUsed { get; }
+    }
+
+    /// <summary>
+    /// 한 번의 API 호출 결과를 해석한 상태입니다.
+    /// FinalResult가 있으면 화면에 출력할 수 있고, NextRequestKind가 Google이면 Google fallback 호출이 필요합니다.
+    /// </summary>
+    public sealed class TranslationAttemptResolution
+    {
+        private TranslationAttemptResolution(TranslationDecisionResult finalResult, TranslationRequestKind nextRequestKind)
+        {
+            FinalResult = finalResult;
+            NextRequestKind = nextRequestKind;
+        }
+
+        public TranslationDecisionResult FinalResult { get; }
+        public TranslationRequestKind NextRequestKind { get; }
+        public bool HasFinalResult => FinalResult != null;
+        public bool RequiresGoogleFallback => !HasFinalResult && NextRequestKind == TranslationRequestKind.Google;
+
+        public static TranslationAttemptResolution Final(TranslationDecisionResult result)
+        {
+            return new TranslationAttemptResolution(result, TranslationRequestKind.None);
+        }
+
+        public static TranslationAttemptResolution RequestGoogleFallback()
+        {
+            return new TranslationAttemptResolution(null, TranslationRequestKind.Google);
+        }
     }
 }

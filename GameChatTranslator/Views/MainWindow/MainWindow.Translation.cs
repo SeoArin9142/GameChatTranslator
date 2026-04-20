@@ -442,17 +442,18 @@ namespace GameTranslator
                             translateStopwatch.Stop();
                             performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
 
-                            if (translationService.ShouldFallbackToGoogle(geminiTranslated))
+                            TranslationAttemptResolution geminiResolution = translationService.ResolveGeminiAttempt(geminiTranslated, modelName);
+                            if (geminiResolution.RequiresGoogleFallback)
                             {
                                 translateStopwatch.Restart();
                                 string googleFallback = await CallGoogleAPI(finalContent, targetLang);
                                 translateStopwatch.Stop();
                                 performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                                translationResult = translationService.CreateGoogleResult(googleFallback, true);
+                                translationResult = translationService.ResolveGoogleAttempt(googleFallback, true).FinalResult;
                             }
                             else
                             {
-                                translationResult = translationService.CreateGeminiResult(geminiTranslated, modelName);
+                                translationResult = geminiResolution.FinalResult;
                             }
                         }
                         else
@@ -461,7 +462,7 @@ namespace GameTranslator
                             string googleTranslated = await CallGoogleAPI(finalContent, targetLang);
                             translateStopwatch.Stop();
                             performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
-                            translationResult = translationService.CreateGoogleResult(googleTranslated, false);
+                            translationResult = translationService.ResolveGoogleAttempt(googleTranslated, false).FinalResult;
                         }
                     }
 
