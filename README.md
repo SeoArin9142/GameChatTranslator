@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.24-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.24-alpha/GameChatTranslator_v1.0.24-alpha.zip)
+[GameChatTranslator v1.0.25-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.25-alpha/GameChatTranslator_v1.0.25-alpha.zip)
 
 릴리즈 페이지:
 
@@ -344,8 +344,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v.1.0.24-alpha
-git push origin v.1.0.24-alpha
+git tag v.1.0.25-alpha
+git push origin v.1.0.25-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -358,6 +358,18 @@ git push origin v.1.0.24-alpha
 
 ## 업데이트 내역
 
+### v.1.0.25-alpha
+
+이번 버전에서는 설치형 배포 기준 인앱 자동 업데이트를 반영했습니다.
+
+- Velopack WPF startup(Main) 통합을 추가했습니다.
+- 설치형(Setup.exe) 배포에서는 앱 안에서 업데이트 확인, 다운로드, 재시작 적용을 수행합니다.
+- ZIP 직접 실행 버전은 기존처럼 릴리즈 페이지 안내를 유지합니다.
+- 환경설정창과 문서의 업데이트 안내 문구를 현재 동작 기준으로 정리했습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
 ### v.1.0.24-alpha
 
 이번 버전에서는 설치형 배포 준비와 사용자 데이터 저장 경로 분리를 반영했습니다.
@@ -367,9 +379,6 @@ git push origin v.1.0.24-alpha
 - GitHub Actions 릴리즈 workflow에 Velopack 설치형 패키징 단계를 추가했습니다.
 - `GameChatTranslator-Setup.exe`, `releases.win.json`, `*.nupkg` 설치형 배포 자산을 릴리즈에 함께 업로드할 수 있도록 준비했습니다.
 - 설치형 배포에서는 앱 안에서 새 버전을 직접 다운로드하고 재시작해 적용할 수 있게 했습니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v.1.0.22-alpha
 
