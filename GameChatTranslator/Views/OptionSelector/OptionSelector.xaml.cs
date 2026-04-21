@@ -62,6 +62,16 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 설정창이 닫힐 때 상태 문구 자동 초기화 타이머를 함께 정지합니다.
+        /// 닫힌 창에 늦게 Tick이 도착하는 경우를 막아 상태 갱신 흐름을 정리합니다.
+        /// </summary>
+        protected override void OnClosed(EventArgs e)
+        {
+            _updateStatusResetTimer.Stop();
+            base.OnClosed(e);
+        }
+
+        /// <summary>
         /// config.ini에 저장된 값을 읽어 환경설정창의 모든 입력 컨트롤에 채웁니다.
         /// 언어, 투명도, 단축키, 캡처 영역, OCR 옵션, 업데이트 확인, Gemini 설정을 한 번에 초기화합니다.
         /// </summary>
