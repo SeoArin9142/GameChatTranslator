@@ -143,7 +143,6 @@ jobs:
           "path=$notesPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Build Velopack installer assets
-        id: velopack
         shell: pwsh
         run: |
           if (Test-Path $env:VELOPACK_DIR) {
@@ -174,43 +173,10 @@ jobs:
             --skipVeloAppCheck `
             --noPortable
 
-          $setupItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "*-Setup.exe" | Sort-Object FullName | Select-Object -First 1
-          $fullItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "*-$($env:APP_VERSION)-full.nupkg" | Sort-Object FullName | Select-Object -First 1
-          $deltaItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "*-$($env:APP_VERSION)-delta.nupkg" | Sort-Object FullName | Select-Object -First 1
-          $setup = $setupItem?.FullName
-          $full = $fullItem?.FullName
-          $delta = $deltaItem?.FullName
-          $releasesJsonItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "releases.win.json" | Sort-Object FullName | Select-Object -First 1
-          $legacyReleasesItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "RELEASES" | Sort-Object FullName | Select-Object -First 1
-          $assetsJsonItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "assets.win.json" | Sort-Object FullName | Select-Object -First 1
-          $releasesJson = $releasesJsonItem?.FullName
-          $legacyReleases = $legacyReleasesItem?.FullName
-          $assetsJson = $assetsJsonItem?.FullName
-
-          if ([string]::IsNullOrWhiteSpace($setup) -or -not (Test-Path $setup)) {
-            throw "Velopack Setup.exe was not generated."
+          Write-Host "Velopack output tree:"
+          Get-ChildItem -Path $env:VELOPACK_DIR -Recurse | ForEach-Object {
+            Write-Host $_.FullName
           }
-
-          if ([string]::IsNullOrWhiteSpace($full) -or -not (Test-Path $full)) {
-            throw "Velopack full package was not generated."
-          }
-
-          foreach ($requiredFile in @($releasesJson, $legacyReleases, $assetsJson)) {
-            if ([string]::IsNullOrWhiteSpace($requiredFile) -or -not (Test-Path $requiredFile)) {
-              throw "Required Velopack artifact missing: $requiredFile"
-            }
-          }
-
-          "setup_path=$setup" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "full_path=$full" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          if (Test-Path $delta) {
-            "delta_path=$delta" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "delta_path=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          }
-          "releases_json_path=$releasesJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "legacy_releases_path=$legacyReleases" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "assets_json_path=$assetsJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Compress release files and calculate checksums
         id: package
@@ -227,14 +193,17 @@ jobs:
 
           $zipHash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
           $checksumPath = Join-Path $env:DIST_DIR "sha256.txt"
-          $filesToHash = @(
-            $zipPath,
-            "${{ steps.velopack.outputs.setup_path }}",
-            "${{ steps.velopack.outputs.full_path }}"
-          )
+          $filesToHash = @($zipPath)
 
-          if (-not [string]::IsNullOrWhiteSpace("${{ steps.velopack.outputs.delta_path }}")) {
-            $filesToHash += "${{ steps.velopack.outputs.delta_path }}"
+          $velopackFiles = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File | Where-Object {
+            $_.Name -eq "Setup.exe" -or
+            $_.Name -like "*-Setup.exe" -or
+            $_.Name -like "*-full.nupkg" -or
+            $_.Name -like "*-delta.nupkg"
+          } | Sort-Object FullName
+
+          foreach ($velopackFile in $velopackFiles) {
+            $filesToHash += $velopackFile.FullName
           }
 
           $checksumLines = foreach ($filePath in $filesToHash) {
@@ -267,7 +236,7 @@ jobs:
           - Commit: $targetCommit
 
           Assets:
-          - 권장 설치 파일: $([System.IO.Path]::GetFileName('${{ steps.velopack.outputs.setup_path }}'))
+          - 권장 설치 파일: Setup.exe 또는 *-Setup.exe (Velopack asset)
           - 수동 실행 ZIP: $env:ZIP_NAME
           - Velopack 릴리즈 인덱스: releases.win.json
 
@@ -280,6 +249,19 @@ jobs:
           "RELEASE_NOTES_PATH=$notesPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "path=$notesPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
+      - name: Upload Velopack assets to GitHub release
+        shell: pwsh
+        run: |
+          & $env:VPK_EXE upload github `
+            --outputDir $env:VELOPACK_DIR `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --token "${{ secrets.GITHUB_TOKEN }}" `
+            --publish `
+            --merge `
+            --releaseName $env:RELEASE_TITLE `
+            --tag $env:RELEASE_TAG `
+            --targetCommitish (git rev-parse HEAD)
+
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v3
         with:
@@ -289,12 +271,6 @@ jobs:
           files: |
             ${{ steps.package.outputs.zip_path }}
             ${{ steps.package.outputs.checksum_path }}
-            ${{ steps.velopack.outputs.setup_path }}
-            ${{ steps.velopack.outputs.full_path }}
-            ${{ steps.velopack.outputs.delta_path }}
-            ${{ steps.velopack.outputs.releases_json_path }}
-            ${{ steps.velopack.outputs.legacy_releases_path }}
-            ${{ steps.velopack.outputs.assets_json_path }}
           fail_on_unmatched_files: false
           overwrite_files: true
           prerelease: false
