@@ -3,11 +3,11 @@ name: Release Build
 on:
   push:
     tags:
-      - "v.*"
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to build, for example v.1.0.8-alpha"
+        description: "Existing release tag to build, for example v1.0.27-alpha"
         required: true
         type: string
 
@@ -51,19 +51,19 @@ jobs:
             throw "Release tag is empty."
           }
 
-          if ($tag -notmatch '^v\.\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$') {
-            throw "Release tag must look like v.1.0.8 or v.1.0.8-alpha. Actual: $tag"
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$') {
+            throw "Release tag must look like v1.0.27 or v1.0.27-alpha. Actual: $tag"
           }
 
           [xml]$project = Get-Content $env:PROJECT_PATH
           $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
-          $expectedTag = "v.$version"
+          $expectedTag = "v$version"
 
           if ($tag -ne $expectedTag) {
             throw "Tag and project version do not match. Tag: $tag, expected from .csproj: $expectedTag"
           }
 
-          $assetVersion = $tag -replace '^v\.', 'v'
+          $assetVersion = $tag
           $zipName = "GameChatTranslator_$assetVersion.zip"
 
           "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
