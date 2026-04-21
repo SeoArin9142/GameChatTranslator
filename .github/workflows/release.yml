@@ -174,15 +174,18 @@ jobs:
             --skipVeloAppCheck `
             --noPortable
 
-          $setupItem = Get-ChildItem -Path $env:VELOPACK_DIR -Filter "*-Setup.exe" | Sort-Object Name | Select-Object -First 1
-          $fullItem = Get-ChildItem -Path $env:VELOPACK_DIR -Filter "*-$($env:APP_VERSION)-full.nupkg" | Sort-Object Name | Select-Object -First 1
-          $deltaItem = Get-ChildItem -Path $env:VELOPACK_DIR -Filter "*-$($env:APP_VERSION)-delta.nupkg" | Sort-Object Name | Select-Object -First 1
+          $setupItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "*-Setup.exe" | Sort-Object FullName | Select-Object -First 1
+          $fullItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "*-$($env:APP_VERSION)-full.nupkg" | Sort-Object FullName | Select-Object -First 1
+          $deltaItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "*-$($env:APP_VERSION)-delta.nupkg" | Sort-Object FullName | Select-Object -First 1
           $setup = $setupItem?.FullName
           $full = $fullItem?.FullName
           $delta = $deltaItem?.FullName
-          $releasesJson = Join-Path $env:VELOPACK_DIR "releases.win.json"
-          $legacyReleases = Join-Path $env:VELOPACK_DIR "RELEASES"
-          $assetsJson = Join-Path $env:VELOPACK_DIR "assets.win.json"
+          $releasesJsonItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "releases.win.json" | Sort-Object FullName | Select-Object -First 1
+          $legacyReleasesItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "RELEASES" | Sort-Object FullName | Select-Object -First 1
+          $assetsJsonItem = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File -Filter "assets.win.json" | Sort-Object FullName | Select-Object -First 1
+          $releasesJson = $releasesJsonItem?.FullName
+          $legacyReleases = $legacyReleasesItem?.FullName
+          $assetsJson = $assetsJsonItem?.FullName
 
           if ([string]::IsNullOrWhiteSpace($setup) -or -not (Test-Path $setup)) {
             throw "Velopack Setup.exe was not generated."
@@ -193,7 +196,7 @@ jobs:
           }
 
           foreach ($requiredFile in @($releasesJson, $legacyReleases, $assetsJson)) {
-            if (-not (Test-Path $requiredFile)) {
+            if ([string]::IsNullOrWhiteSpace($requiredFile) -or -not (Test-Path $requiredFile)) {
               throw "Required Velopack artifact missing: $requiredFile"
             }
           }
@@ -306,5 +309,5 @@ jobs:
           path: |
             artifacts/dist/*.zip
             artifacts/dist/sha256.txt
-            artifacts/velopack/*
+            artifacts/velopack/**/*
           if-no-files-found: error
