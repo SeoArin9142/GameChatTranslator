@@ -4,9 +4,12 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using MessageBox = System.Windows.MessageBox;
+using Velopack;
+using Velopack.Sources;
 
 namespace GameTranslator
 {
@@ -16,6 +19,7 @@ namespace GameTranslator
     /// </summary>
     public partial class MainWindow
     {
+        private const string GitHubRepoUrl = "https://github.com/SeoArin9142/GameChatTranslator";
         private const string ReleaseListApiUrl = "https://api.github.com/repos/SeoArin9142/GameChatTranslator/releases?per_page=10";
         private const string ReleasePageUrl = "https://github.com/SeoArin9142/GameChatTranslator/releases";
 
@@ -98,32 +102,123 @@ namespace GameTranslator
         /// </summary>
         private async Task<bool> CheckForUpdatesAsync(UpdateCheckMode mode, Window owner, Action<string> setStatus)
         {
-            setStatus?.Invoke("확인 중...");
+            SetUpdateStatus(setStatus, "확인 중...");
 
             try
             {
-                ReleaseInfo releaseInfo = await FetchLatestReleaseAsync();
-
-                if (releaseInfo != null)
+                UpdateManager updateManager = CreateUpdateManager();
+                if (CanUseVelopackDirectUpdate(updateManager))
                 {
-                    return ShowUpdateResult(mode, owner, setStatus, releaseInfo.Tag, releaseInfo.Url);
+                    return await CheckForVelopackUpdatesAsync(mode, owner, setStatus, updateManager);
                 }
 
-                setStatus?.Invoke("릴리즈 없음");
-                if (mode == UpdateCheckMode.Manual)
-                {
-                    MessageBox.Show(owner, "확인 가능한 릴리즈가 없습니다.", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                return await CheckForLegacyReleaseUpdatesAsync(mode, owner, setStatus);
             }
             catch (Exception ex)
             {
-                setStatus?.Invoke("확인 실패");
+                SetUpdateStatus(setStatus, "확인 실패");
                 AppendLog($"업데이트 확인 실패: {ex.Message}");
 
                 if (mode == UpdateCheckMode.Manual)
                 {
                     MessageBox.Show(owner, $"업데이트 정보를 확인하지 못했습니다.\n{ex.Message}", "업데이트 확인 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Setup.exe로 설치된 Velopack 환경에서는 releases.win.json을 기준으로 직접 다운로드/재시작 업데이트를 수행합니다.
+        /// </summary>
+        private async Task<bool> CheckForVelopackUpdatesAsync(UpdateCheckMode mode, Window owner, Action<string> setStatus, UpdateManager updateManager)
+        {
+            VelopackAsset pendingRestart = updateManager.UpdatePendingRestart;
+            if (pendingRestart != null)
+            {
+                string pendingVersion = FormatVelopackVersion(pendingRestart.Version);
+                SetUpdateStatus(setStatus, $"재시작 필요 {pendingVersion}");
+                AppendLog($"다운로드된 업데이트가 대기 중입니다. ({pendingVersion})");
+
+                UpdatePromptResult pendingResult = ShowUpdatePrompt(mode, owner, pendingVersion, canInstallDirectly: true);
+                if (pendingResult == UpdatePromptResult.DisableStartupCheck)
+                {
+                    ini.Write("CheckUpdatesOnStartup", "false");
+                    SetUpdateStatus(setStatus, "자동 확인 끔");
+                    AppendLog("시작 시 업데이트 자동 확인을 비활성화했습니다.");
+                    return true;
+                }
+
+                if (pendingResult == UpdatePromptResult.InstallNow)
+                {
+                    AppendLog($"대기 중인 업데이트를 적용하기 위해 재시작합니다. ({pendingVersion})");
+                    updateManager.ApplyUpdatesAndRestart(pendingRestart);
+                    return false;
+                }
+
+                return true;
+            }
+
+            UpdateInfo updateInfo = await updateManager.CheckForUpdatesAsync();
+            if (updateInfo == null)
+            {
+                SetUpdateStatus(setStatus, "최신 버전");
+                AppendLog($"업데이트 확인: 현재 최신 버전입니다. ({CurrentAppVersion})");
+
+                if (mode == UpdateCheckMode.Manual)
+                {
+                    MessageBox.Show(owner, $"현재 최신 버전입니다.\n현재: {CurrentAppVersion}", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                return true;
+            }
+
+            string latestVersion = FormatVelopackVersion(updateInfo.TargetFullRelease.Version);
+            SetUpdateStatus(setStatus, $"새 버전 {latestVersion}");
+            AppendLog($"새 버전 확인: {latestVersion}");
+
+            UpdatePromptResult promptResult = ShowUpdatePrompt(mode, owner, latestVersion, canInstallDirectly: true);
+            if (promptResult == UpdatePromptResult.DisableStartupCheck)
+            {
+                ini.Write("CheckUpdatesOnStartup", "false");
+                SetUpdateStatus(setStatus, "자동 확인 끔");
+                AppendLog("시작 시 업데이트 자동 확인을 비활성화했습니다.");
+                return true;
+            }
+
+            if (promptResult != UpdatePromptResult.InstallNow)
+            {
+                return true;
+            }
+
+            AppendLog($"업데이트 다운로드 시작: {latestVersion}");
+            await updateManager.DownloadUpdatesAsync(
+                updateInfo,
+                progress => SetUpdateStatus(setStatus, $"다운로드 중... {progress}%"),
+                CancellationToken.None);
+
+            SetUpdateStatus(setStatus, "업데이트 적용 중...");
+            AppendLog($"업데이트 다운로드 완료: {latestVersion}. 재시작 후 적용합니다.");
+            updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+            return false;
+        }
+
+        /// <summary>
+        /// 설치형이 아닌 ZIP/직접 실행 환경에서는 기존 GitHub 릴리즈 페이지 안내 흐름을 유지합니다.
+        /// </summary>
+        private async Task<bool> CheckForLegacyReleaseUpdatesAsync(UpdateCheckMode mode, Window owner, Action<string> setStatus)
+        {
+            ReleaseInfo releaseInfo = await FetchLatestReleaseAsync();
+
+            if (releaseInfo != null)
+            {
+                return ShowLegacyUpdateResult(mode, owner, setStatus, releaseInfo.Tag, releaseInfo.Url);
+            }
+
+            SetUpdateStatus(setStatus, "릴리즈 없음");
+            if (mode == UpdateCheckMode.Manual)
+            {
+                MessageBox.Show(owner, "확인 가능한 릴리즈가 없습니다.", "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
             }
 
             return true;
@@ -201,30 +296,24 @@ namespace GameTranslator
         /// <paramref name="latestUrl"/>은 열어야 할 릴리즈 페이지 URL입니다.
         /// 반환값 false는 업데이트 페이지로 이동하면서 앱을 종료해야 한다는 의미입니다.
         /// </summary>
-        private bool ShowUpdateResult(UpdateCheckMode mode, Window owner, Action<string> setStatus, string latestTag, string latestUrl)
+        private bool ShowLegacyUpdateResult(UpdateCheckMode mode, Window owner, Action<string> setStatus, string latestTag, string latestUrl)
         {
             if (IsNewerVersion(latestTag, CurrentAppVersion))
             {
-                setStatus?.Invoke($"새 버전 {latestTag}");
+                SetUpdateStatus(setStatus, $"새 버전 {latestTag}");
                 AppendLog($"새 버전 확인: {latestTag}");
 
-                var prompt = new UpdatePromptWindow(CurrentAppVersion, latestTag, mode == UpdateCheckMode.Startup)
-                {
-                    Owner = owner,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
-                };
+                UpdatePromptResult promptResult = ShowUpdatePrompt(mode, owner, latestTag, canInstallDirectly: false);
 
-                prompt.ShowDialog();
-
-                if (prompt.Result == UpdatePromptResult.DisableStartupCheck)
+                if (promptResult == UpdatePromptResult.DisableStartupCheck)
                 {
                     ini.Write("CheckUpdatesOnStartup", "false");
-                    setStatus?.Invoke("자동 확인 끔");
+                    SetUpdateStatus(setStatus, "자동 확인 끔");
                     AppendLog("시작 시 업데이트 자동 확인을 비활성화했습니다.");
                     return true;
                 }
 
-                if (prompt.Result == UpdatePromptResult.OpenReleasePage)
+                if (promptResult == UpdatePromptResult.OpenReleasePage)
                 {
                     OpenReleasePage(latestUrl);
                     System.Windows.Application.Current.Shutdown();
@@ -236,7 +325,7 @@ namespace GameTranslator
 
             if (AreSameVersion(latestTag, CurrentAppVersion))
             {
-                setStatus?.Invoke("최신 버전");
+                SetUpdateStatus(setStatus, "최신 버전");
                 AppendLog($"업데이트 확인: 현재 최신 버전입니다. ({CurrentAppVersion})");
 
                 if (mode == UpdateCheckMode.Manual)
@@ -247,7 +336,7 @@ namespace GameTranslator
                 return true;
             }
 
-            setStatus?.Invoke($"확인 필요 {latestTag}");
+            SetUpdateStatus(setStatus, $"확인 필요 {latestTag}");
 
             if (mode == UpdateCheckMode.Manual)
             {
@@ -265,6 +354,66 @@ namespace GameTranslator
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 현재 실행 환경에서 Velopack 인앱 업데이트를 사용할 수 있는지 판단합니다.
+        /// 설치형(current + Update.exe) 환경에서만 직접 다운로드/적용을 허용하고,
+        /// ZIP/직접 실행 모드는 기존 릴리즈 페이지 방식으로 유지합니다.
+        /// </summary>
+        private bool CanUseVelopackDirectUpdate(UpdateManager updateManager)
+        {
+            return updateManager != null && updateManager.IsInstalled && !updateManager.IsPortable;
+        }
+
+        /// <summary>
+        /// GitHub Releases를 업데이트 소스로 읽는 Velopack UpdateManager를 생성합니다.
+        /// 현재 저장소는 public이므로 access token 없이 조회합니다.
+        /// </summary>
+        private UpdateManager CreateUpdateManager()
+        {
+            return new UpdateManager(new GithubSource(GitHubRepoUrl, "", false));
+        }
+
+        /// <summary>
+        /// Velopack 버전 객체를 현재 앱 표기 형식(v.1.0.24-alpha)으로 정규화합니다.
+        /// </summary>
+        private string FormatVelopackVersion(object version)
+        {
+            string text = version?.ToString()?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(text)) return "v.0.0.0";
+            return text.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? text : $"v.{text}";
+        }
+
+        /// <summary>
+        /// 수동/자동 업데이트 확인에서 공통으로 사용하는 업데이트 선택 팝업을 띄웁니다.
+        /// </summary>
+        private UpdatePromptResult ShowUpdatePrompt(UpdateCheckMode mode, Window owner, string latestVersion, bool canInstallDirectly)
+        {
+            var prompt = new UpdatePromptWindow(CurrentAppVersion, latestVersion, mode == UpdateCheckMode.Startup, canInstallDirectly)
+            {
+                Owner = owner,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            prompt.ShowDialog();
+            return prompt.Result;
+        }
+
+        /// <summary>
+        /// 백그라운드 다운로드 진행률 콜백에서도 안전하게 설정창 상태 문구를 갱신합니다.
+        /// </summary>
+        private void SetUpdateStatus(Action<string> setStatus, string value)
+        {
+            if (setStatus == null) return;
+
+            if (Dispatcher.CheckAccess())
+            {
+                setStatus(value);
+                return;
+            }
+
+            Dispatcher.Invoke(() => setStatus(value));
         }
 
         /// <summary>
