@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.26-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.26-alpha/GameChatTranslator_v1.0.26-alpha.zip)
+[GameChatTranslator v1.0.27-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.27-alpha/GameChatTranslator_v1.0.27-alpha.zip)
 
 릴리즈 페이지:
 
@@ -348,8 +348,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v.1.0.26-alpha
-git push origin v.1.0.26-alpha
+git tag v1.0.27-alpha
+git push origin v1.0.27-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다. MSI는 릴리즈 자산에 함께 생성되는지 실제 자산 목록으로 확인한 뒤 사용하면 됩니다.
@@ -362,6 +362,17 @@ git push origin v.1.0.26-alpha
 
 ## 업데이트 내역
 
+### v1.0.27-alpha
+
+이번 버전에서는 설치 경로 확인과 설치 경로 지정 안내를 정리했습니다.
+
+- 환경설정창 업데이트 영역에서 현재 설치형 실행 경로 또는 ZIP 직접 실행 경로를 바로 확인할 수 있게 했습니다.
+- 설치형 배포 문서에 `GameChatTranslator-win-Setup.exe --installto <경로>` 사용법을 추가했습니다.
+- 릴리즈 workflow에서 MSI 생성 옵션을 준비해 설치 경로 선택 방식 검증 기반을 정리했습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
 ### v.1.0.26-alpha
 
 이번 버전에서는 OCR 언어팩 설치 배치파일을 실제 앱 기준에 맞게 정리했습니다.
@@ -370,9 +381,6 @@ git push origin v.1.0.26-alpha
 - 앱의 OCR 언어팩 상태 표시와 배치파일 설치 기준이 일치하도록 정리했습니다.
 - 언어팩 설치 결과 출력에서 `[FAIL]` / `[OK]`가 함께 나오던 혼란을 제거했습니다.
 - 키보드 입력기 정리 옵션은 `ko-KR`만 남기도록 정리해 Win+Space에서 영어 입력기가 남지 않게 했습니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v.1.0.25-alpha
 
