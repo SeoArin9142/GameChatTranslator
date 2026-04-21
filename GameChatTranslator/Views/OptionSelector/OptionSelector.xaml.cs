@@ -177,6 +177,7 @@ namespace GameTranslator
 
             RadioTranslationContentEtc.IsChecked = contentMode == TranslationContentMode.Etc;
             RadioTranslationContentStrinova.IsChecked = contentMode != TranslationContentMode.Etc;
+            UpdateGameLanguageControlState(contentMode);
         }
 
         /// <summary>
@@ -185,6 +186,46 @@ namespace GameTranslator
         private string GetSelectedTranslationContentModeTag()
         {
             return _settingsService.GetTranslationContentModeTag(
+                RadioTranslationContentEtc?.IsChecked == true
+                    ? TranslationContentMode.Etc
+                    : TranslationContentMode.Strinova);
+        }
+
+        /// <summary>
+        /// ETC 모드에서는 번역 source 언어를 자동 감지하므로 게임 언어 선택을 비활성화해
+        /// 현재 설정이 실제로 사용되지 않는다는 점을 UI에서 명확히 보여줍니다.
+        /// </summary>
+        private void UpdateGameLanguageControlState(TranslationContentMode contentMode)
+        {
+            bool isEtcMode = contentMode == TranslationContentMode.Etc;
+
+            if (ComboGameLang != null)
+            {
+                ComboGameLang.IsEnabled = !isEtcMode;
+                ComboGameLang.Opacity = isEtcMode ? 0.6 : 1.0;
+                ComboGameLang.ToolTip = isEtcMode
+                    ? "ETC 모드에서는 원문 언어를 자동 감지하므로 이 설정을 사용하지 않습니다."
+                    : "게임 채팅 인식 기준 언어입니다.";
+            }
+
+            if (TxtGameLangLabel != null)
+            {
+                TxtGameLangLabel.Foreground = isEtcMode
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(150, 150, 150))
+                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(204, 204, 204));
+            }
+
+            if (TxtGameLangModeHint != null)
+            {
+                TxtGameLangModeHint.Text = isEtcMode
+                    ? "ETC 모드에서는 게임 언어를 source로 강제하지 않고 자동 감지합니다. 번역 결과 언어만 사용됩니다."
+                    : "Strinova 모드에서는 게임 언어를 source 언어로 사용합니다.";
+            }
+        }
+
+        private void TranslationContentMode_Checked(object sender, RoutedEventArgs e)
+        {
+            UpdateGameLanguageControlState(
                 RadioTranslationContentEtc?.IsChecked == true
                     ? TranslationContentMode.Etc
                     : TranslationContentMode.Strinova);
