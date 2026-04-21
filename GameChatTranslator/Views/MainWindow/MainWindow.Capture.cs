@@ -21,11 +21,14 @@ using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
 using ColorConverter = System.Windows.Media.ColorConverter;
 using PixelFormat = System.Drawing.Imaging.PixelFormat;
+using Screen = System.Windows.Forms.Screen;
 
 namespace GameTranslator
 {
     public partial class MainWindow
     {
+        private const int TranslationWindowGap = 8;
+
         /// <summary>
         /// 캡처 영역 선택용 오버레이 창을 엽니다.
         /// 이미 열린 AreaSelector가 있으면 닫고 새로 만들어 중복 선택 창이 쌓이지 않도록 합니다.
@@ -56,8 +59,6 @@ namespace GameTranslator
         {
             gameChatArea = area;
             gameChatCaptureArea = pixelArea;
-            this.Top = area.Y + area.Height + 50;
-            this.Left = area.X - 5;
             this.SizeToContent = SizeToContent.Manual;
             this.Width = area.Width;
             this.MinWidth = area.Width;
@@ -65,6 +66,7 @@ namespace GameTranslator
             this.Visibility = Visibility.Visible;
             this.Topmost = true;
             UpdateYellowHotkeyGuideText();
+            PositionTranslationWindowNearCaptureArea(area, pixelArea);
 
             ini.Write("CaptureX", area.X.ToString());
             ini.Write("CaptureY", area.Y.ToString());
@@ -115,6 +117,78 @@ namespace GameTranslator
             }
 
             return ConvertDisplayAreaToPixels(gameChatArea);
+        }
+
+        /// <summary>
+        /// 번역창을 캡처 영역 위/아래 중 더 자연스러운 위치로 배치합니다.
+        /// 캡처 영역이 해당 모니터의 세로 중간보다 위에 있으면 아래에, 아래에 있으면 위에 붙이고, 화면 밖으로 나가지 않게 clamp합니다.
+        /// </summary>
+        private void PositionTranslationWindowNearCaptureArea(Rectangle displayArea, Rectangle pixelArea)
+        {
+            Rectangle workArea = GetDisplayWorkAreaForCaptureArea(displayArea, pixelArea);
+
+            UpdateLayout();
+            double windowWidth = ActualWidth > 0 ? ActualWidth : Width;
+            double windowHeight = ActualHeight > 0 ? ActualHeight : Height;
+            double desiredLeft = displayArea.X - 5;
+            double areaMidY = displayArea.Y + (displayArea.Height / 2.0);
+            double workAreaMidY = workArea.Y + (workArea.Height / 2.0);
+            bool placeBelow = areaMidY < workAreaMidY;
+            double desiredTop = placeBelow
+                ? displayArea.Bottom + TranslationWindowGap
+                : displayArea.Y - windowHeight - TranslationWindowGap;
+
+            Left = ClampWindowCoordinate(desiredLeft, workArea.Left, workArea.Right - windowWidth);
+            Top = ClampWindowCoordinate(desiredTop, workArea.Top, workArea.Bottom - windowHeight);
+        }
+
+        /// <summary>
+        /// 캡처 영역이 위치한 실제 모니터의 작업 영역을 WPF 표시 좌표계로 반환합니다.
+        /// 다중 모니터 환경에서 주 모니터 대신 캡처 영역이 속한 모니터 기준으로 창 위치를 보정하기 위해 사용합니다.
+        /// </summary>
+        private Rectangle GetDisplayWorkAreaForCaptureArea(Rectangle displayArea, Rectangle pixelArea)
+        {
+            if (displayArea.Width > 0 &&
+                displayArea.Height > 0 &&
+                pixelArea.Width > 0 &&
+                pixelArea.Height > 0)
+            {
+                var centerPoint = new System.Drawing.Point(
+                    pixelArea.X + (pixelArea.Width / 2),
+                    pixelArea.Y + (pixelArea.Height / 2));
+                Rectangle pixelWorkArea = Screen.FromPoint(centerPoint).WorkingArea;
+
+                double scaleX = (double)pixelArea.Width / displayArea.Width;
+                double scaleY = (double)pixelArea.Height / displayArea.Height;
+                if (scaleX > 0 && scaleY > 0)
+                {
+                    return new Rectangle(
+                        (int)Math.Round(pixelWorkArea.X / scaleX),
+                        (int)Math.Round(pixelWorkArea.Y / scaleY),
+                        Math.Max(1, (int)Math.Round(pixelWorkArea.Width / scaleX)),
+                        Math.Max(1, (int)Math.Round(pixelWorkArea.Height / scaleY)));
+                }
+            }
+
+            Rect fallbackWorkArea = SystemParameters.WorkArea;
+            return new Rectangle(
+                (int)Math.Round(fallbackWorkArea.Left),
+                (int)Math.Round(fallbackWorkArea.Top),
+                Math.Max(1, (int)Math.Round(fallbackWorkArea.Width)),
+                Math.Max(1, (int)Math.Round(fallbackWorkArea.Height)));
+        }
+
+        /// <summary>
+        /// 창 크기가 작업 영역보다 크더라도 화면 밖으로 완전히 밀려나지 않도록 좌표를 제한합니다.
+        /// </summary>
+        private double ClampWindowCoordinate(double value, double min, double max)
+        {
+            if (max < min)
+            {
+                return min;
+            }
+
+            return Math.Max(min, Math.Min(value, max));
         }
 
         /// <summary>
