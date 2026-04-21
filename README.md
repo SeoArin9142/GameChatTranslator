@@ -18,13 +18,16 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 
 권장 배포 방식:
 
-- 릴리즈 페이지에 `GameChatTranslator-Setup.exe`가 있으면 설치형 배포를 우선 사용합니다.
+- 릴리즈 페이지에 `GameChatTranslator-win-Setup.exe`가 있으면 설치형 배포를 우선 사용합니다.
+- 설치 경로를 직접 고르고 싶으면 릴리즈에 `*.msi` 파일이 함께 제공되는지 먼저 확인하세요.
 - 설치형으로 설치한 경우 이후 업데이트는 앱 안에서 바로 다운로드/설치/재시작할 수 있습니다.
 - ZIP 파일은 수동 실행/백업용으로 사용할 수 있습니다.
 
 ## 빠른 시작
 
-1. 릴리즈 페이지에 `GameChatTranslator-Setup.exe`가 있으면 먼저 실행해 설치합니다.
+1. 릴리즈 페이지에 `GameChatTranslator-win-Setup.exe`가 있으면 먼저 실행해 설치합니다.
+   - 설치 경로를 직접 선택해야 하면 릴리즈에 `*.msi` 파일이 함께 제공되는지 먼저 확인한 뒤 사용합니다.
+   - `Setup.exe`를 명령줄로 실행하는 경우 `--installto <경로>` 옵션으로 경로를 지정할 수 있습니다.
    - 설치형 배포가 아직 없거나 수동 실행이 필요하면 ZIP 파일을 내려받아 압축을 풉니다.
    - 설치형으로 설치한 경우 이후 업데이트 확인 시 새 버전을 앱에서 바로 적용할 수 있습니다.
 2. `LangInstall.bat`를 **관리자 권한**으로 실행해 필요한 Windows OCR 언어팩을 설치합니다.
@@ -197,6 +200,7 @@ qwen/qwen3.5-9b
 - 이후 설정 변경, 로그 기록, 디버그 캡처 저장은 모두 `%LocalAppData%\GameChatTranslator` 아래를 사용합니다.
 - `characters.txt`를 직접 수정해 쓰는 경우에는 사용자 데이터 폴더 쪽 파일을 수정하면 됩니다.
 - 설치형 Velopack 배포는 `%LocalAppData%\GameChatTranslator\current` 폴더를 교체하므로, 설정/로그는 이 사용자 데이터 폴더에 유지됩니다.
+- 환경설정창의 업데이트 영역에서 현재 실행 경로를 확인할 수 있습니다.
 - 로컬 PC에서 실행되므로 외부 API 비용은 없지만, 모델 로드 용량과 GPU/CPU 자원을 사용합니다.
 
 ## 기본 단축키
@@ -348,7 +352,7 @@ git tag v.1.0.26-alpha
 git push origin v.1.0.26-alpha
 ```
 
-자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
+자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다. MSI는 릴리즈 자산에 함께 생성되는지 실제 자산 목록으로 확인한 뒤 사용하면 됩니다.
 
 ## 기여 및 문의
 

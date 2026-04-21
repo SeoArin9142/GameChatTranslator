@@ -6,8 +6,9 @@
 본 프로그램은 게임 화면의 채팅 영역을 캡처하고 Windows OCR로 글자를 인식한 뒤,
 Google 무료 번역, Gemini AI 번역, Local LLM 번역을 사용해 한국어 등 원하는 언어로 표시하는 도구입니다.
 
-릴리즈 페이지에 GameChatTranslator-Setup.exe 설치형 파일이 함께 제공되는 버전에서는
-해당 설치형 파일 사용을 권장합니다. 현재 압축을 풀어 보고 있는 이 ZIP은 수동 실행용 배포본입니다.
+릴리즈 페이지에 GameChatTranslator-win-Setup.exe 설치형 파일이 함께 제공되는 버전에서는
+해당 설치형 파일 사용을 권장합니다. 설치 경로를 직접 고르고 싶으면 릴리즈에 MSI 파일이 함께 제공되는지 먼저 확인하세요.
+현재 압축을 풀어 보고 있는 이 ZIP은 수동 실행용 배포본입니다.
 설치형으로 설치한 경우 이후 업데이트는 프로그램 안에서 바로 다운로드/설치/재시작할 수 있습니다.
 
 현재는 스트리노바(Strinova)의 채팅창과 "[캐릭터명]: 채팅내용" 형식에 맞춰 개발 중인
@@ -24,8 +25,10 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
 - GameChatTranslator.exe
   프로그램 실행 파일입니다. 실행 시 관리자 권한 요청(UAC)이 표시됩니다.
 
-- GameChatTranslator-Setup.exe
+- GameChatTranslator-win-Setup.exe
   릴리즈 페이지에 별도로 제공되는 설치형 배포 파일입니다.
+  명령줄에서는 `--installto <경로>` 옵션으로 설치 경로를 지정할 수 있습니다.
+  설치 중 경로 선택 UI가 필요하면 릴리즈에 MSI 파일이 함께 제공되는지 먼저 확인한 뒤 사용하세요.
   ZIP 내부에는 포함되지 않으며, 릴리즈 페이지에서 직접 실행합니다.
   설치 시 프로그램 파일은 %LocalAppData%\\GameChatTranslator\\current 에 배치됩니다.
 
@@ -63,6 +66,9 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
   %LocalAppData%\GameChatTranslator\ 를 사용합니다.
   기존 ZIP 버전에서 실행 폴더에 config.ini / logs / Captures / characters.txt 가 있었다면
   첫 실행 시 새 위치로 자동 복사됩니다.
+
+- 현재 실행 경로 확인
+  환경설정창의 업데이트 영역에서 현재 실행 중인 EXE 경로를 확인할 수 있습니다.
 
 ------------------------------------------
 2. 필수 사전 설정

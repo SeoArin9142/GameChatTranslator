@@ -44,6 +44,7 @@ namespace GameTranslator
             RegisterNumericSettingInputGuards();
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
+            RefreshInstallLocationStatus();
             RefreshOcrLanguageStatus();
             RefreshAdvancedSettingValidationStatus();
         }
@@ -202,6 +203,20 @@ namespace GameTranslator
             }
 
             TxtOcrLanguageStatus.Text = string.Join(System.Environment.NewLine, lines);
+        }
+
+        /// <summary>
+        /// 현재 실행 중인 EXE 경로와 설치 방식을 업데이트 영역에 표시합니다.
+        /// 설치형이면 Velopack 설치형 경로로, ZIP 실행이면 현재 실행 폴더로 안내합니다.
+        /// </summary>
+        private void RefreshInstallLocationStatus()
+        {
+            if (TxtInstallLocation == null) return;
+
+            string locationText = _mainWindow?.GetInstallLocationDisplayText();
+            TxtInstallLocation.Text = string.IsNullOrWhiteSpace(locationText)
+                ? "경로 확인 실패"
+                : locationText;
         }
 
         /// <summary>
