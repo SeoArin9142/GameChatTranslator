@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.22-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.22-alpha/GameChatTranslator_v1.0.22-alpha.zip)
+[GameChatTranslator v1.0.24-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.24-alpha/GameChatTranslator_v1.0.24-alpha.zip)
 
 릴리즈 페이지:
 
@@ -341,8 +341,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v.1.0.22-alpha
-git push origin v.1.0.22-alpha
+git tag v.1.0.24-alpha
+git push origin v.1.0.24-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -355,17 +355,24 @@ git push origin v.1.0.22-alpha
 
 ## 업데이트 내역
 
-### v.1.0.22-alpha
+### v.1.0.24-alpha
 
-이번 버전에서는 Local LLM 번역 엔진의 실사용 편의를 보강했습니다.
+이번 버전에서는 설치형 배포 준비와 사용자 데이터 저장 경로 분리를 반영했습니다.
+
+- `config.ini`, `logs`, `Captures`, OCR 진단 기본 저장 위치를 `%LocalAppData%\\GameChatTranslator\\` 로 분리했습니다.
+- 기존 ZIP 실행 폴더에 있던 설정/로그/캡처/characters 파일은 첫 실행 시 새 위치로 자동 복사합니다.
+- GitHub Actions 릴리즈 workflow에 Velopack 설치형 패키징 단계를 추가했습니다.
+- `GameChatTranslator-Setup.exe`, `releases.win.json`, `*.nupkg` 설치형 배포 자산을 릴리즈에 함께 업로드할 수 있도록 준비했습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
+### v.1.0.22-alpha
 
 - 기본 번역 엔진을 Google / Gemini / Local LLM 중 선택해 저장할 수 있습니다.
 - `Ctrl + -`로 실행 중 번역 엔진을 바꾸면 다음 실행에도 유지됩니다.
 - 환경설정창에 Local LLM 연결 테스트 버튼을 추가했습니다.
 - `/v1/chat/completions` 주소를 기준으로 `/v1/models`를 조회해 LM Studio 서버와 모델 ID를 확인합니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v.1.0.21-alpha
 
