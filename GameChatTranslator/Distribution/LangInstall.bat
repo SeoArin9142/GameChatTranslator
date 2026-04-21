@@ -111,7 +111,21 @@ exit /b 0
 :InstallLanguage
 echo.
 echo [Install] %~1 (%~2)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Install-Language -Language '%~2' -Confirm:$false -ErrorAction Stop; exit 0 } catch { Write-Host $_.Exception.Message; exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$lang = '%~2';" ^
+  "$installed = $false;" ^
+  "try {" ^
+  "  Install-Language -Language $lang -ErrorAction Stop | Out-Null;" ^
+  "} catch {" ^
+  "  Write-Host $_.Exception.Message;" ^
+  "}" ^
+  "try {" ^
+  "  $installed = @(Get-InstalledLanguage | Where-Object { $_.Language -eq $lang }).Count -gt 0;" ^
+  "} catch {" ^
+  "  Write-Host $_.Exception.Message;" ^
+  "  exit 1;" ^
+  "}" ^
+  "if ($installed) { exit 0 } else { exit 1 }"
 if errorlevel 1 (
     echo [FAIL] %~1 (%~2)
     set "FAILED=Y"
