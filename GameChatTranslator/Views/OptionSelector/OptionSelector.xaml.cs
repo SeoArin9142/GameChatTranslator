@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,6 +24,7 @@ namespace GameTranslator
         // 환경설정 파일(config.ini)을 읽고 쓰기 위한 객체
         private IniFile _ini;
         private readonly SettingsService _settingsService = new SettingsService();
+        private readonly OcrLanguageStatusFormatter _ocrLanguageStatusFormatter = new OcrLanguageStatusFormatter();
 
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
         {
@@ -186,23 +191,23 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// Windows OCR 엔진을 언어별로 생성해 설치 상태를 UI에 표시합니다.
-        /// 설치된 언어는 OcrEngine.TryCreateFromLanguage가 null이 아닌 값을 반환합니다.
+        /// Windows OCR capability 설치 여부와 OCR 엔진 생성 가능 여부를 언어별로 나눠 표시합니다.
+        /// capability는 설치됐는데 엔진이 안 만들어지면 재부팅 필요 가능성을 함께 안내합니다.
         /// </summary>
         private void RefreshOcrLanguageStatus()
         {
             if (TxtOcrLanguageStatus == null) return;
 
-            var lines = new System.Collections.Generic.List<string>();
+            Dictionary<string, string> capabilityStates = GetOcrCapabilityStates();
+            var entries = new List<OcrLanguageStatusEntry>();
             foreach ((string label, string tag) in OcrLanguageStatusTargets)
             {
-                bool installed = IsOcrLanguageInstalled(tag);
-                string marker = installed ? "OK" : "NO";
-                string status = installed ? "설치됨" : "미설치";
-                lines.Add($"{marker}  {label,-8} ({tag}) : {status}");
+                capabilityStates.TryGetValue(tag, out string capabilityState);
+                bool engineAvailable = IsOcrLanguageEngineAvailable(tag);
+                entries.Add(_ocrLanguageStatusFormatter.CreateEntry(label, tag, capabilityState, engineAvailable));
             }
 
-            TxtOcrLanguageStatus.Text = string.Join(System.Environment.NewLine, lines);
+            TxtOcrLanguageStatus.Text = _ocrLanguageStatusFormatter.BuildDisplayText(entries);
         }
 
         /// <summary>
@@ -220,10 +225,96 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// 지정한 Windows OCR 언어팩이 현재 OS에서 사용 가능한지 확인합니다.
-        /// <paramref name="languageTag"/>는 ko, en-US, zh-Hans-CN, ja, ru 같은 Windows 언어 태그입니다.
+        /// PowerShell의 Get-WindowsCapability 결과를 이용해 OCR capability 설치 상태를 읽습니다.
+        /// 반환 키는 앱 언어 태그(ko, en-US, zh-Hans-CN, ja, ru)이며 값은 Installed/NotPresent/Unknown 같은 상태 문자열입니다.
         /// </summary>
-        private bool IsOcrLanguageInstalled(string languageTag)
+        private Dictionary<string, string> GetOcrCapabilityStates()
+        {
+            var states = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                StringBuilder script = new StringBuilder();
+                script.AppendLine("$targets = @{}");
+                foreach ((string _, string tag) in OcrLanguageStatusTargets)
+                {
+                    string escapedTag = EscapePowerShellSingleQuotedString(tag);
+                    string capabilityTag = EscapePowerShellSingleQuotedString(_ocrLanguageStatusFormatter.GetCapabilityLanguageTag(tag));
+                    script.AppendLine($"$targets['{escapedTag}'] = 'Language.OCR~~~{capabilityTag}~0.0.1.0'");
+                }
+
+                script.AppendLine("$result = @{}");
+                script.AppendLine("try {");
+                script.AppendLine("  $capabilities = Get-WindowsCapability -Online");
+                script.AppendLine("  foreach ($key in $targets.Keys) {");
+                script.AppendLine("    $cap = $capabilities | Where-Object { $_.Name -eq $targets[$key] } | Select-Object -First 1");
+                script.AppendLine("    if ($null -eq $cap) { $result[$key] = 'Unknown' } else { $result[$key] = [string]$cap.State }");
+                script.AppendLine("  }");
+                script.AppendLine("  $result | ConvertTo-Json -Compress");
+                script.AppendLine("} catch {");
+                script.AppendLine("  '{}' ");
+                script.AppendLine("}");
+
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+                startInfo.ArgumentList.Add("-NoProfile");
+                startInfo.ArgumentList.Add("-NonInteractive");
+                startInfo.ArgumentList.Add("-ExecutionPolicy");
+                startInfo.ArgumentList.Add("Bypass");
+                startInfo.ArgumentList.Add("-Command");
+                startInfo.ArgumentList.Add(script.ToString());
+
+                using (Process process = Process.Start(startInfo))
+                {
+                    if (process == null)
+                    {
+                        return states;
+                    }
+
+                    if (!process.WaitForExit(8000))
+                    {
+                        try { process.Kill(); } catch { }
+                        return states;
+                    }
+
+                    string output = process.StandardOutput.ReadToEnd().Trim();
+                    if (string.IsNullOrWhiteSpace(output))
+                    {
+                        return states;
+                    }
+
+                    using (JsonDocument document = JsonDocument.Parse(output))
+                    {
+                        if (document.RootElement.ValueKind != JsonValueKind.Object)
+                        {
+                            return states;
+                        }
+
+                        foreach (JsonProperty property in document.RootElement.EnumerateObject())
+                        {
+                            states[property.Name] = property.Value.GetString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return states;
+        }
+
+        /// <summary>
+        /// 지정한 Windows OCR 언어로 실제 OcrEngine이 생성 가능한지 확인합니다.
+        /// capability 설치 여부와 별개로 현재 세션에서 엔진 생성이 가능한지를 보여주기 위해 따로 확인합니다.
+        /// </summary>
+        private bool IsOcrLanguageEngineAvailable(string languageTag)
         {
             try
             {
@@ -233,6 +324,11 @@ namespace GameTranslator
             {
                 return false;
             }
+        }
+
+        private static string EscapePowerShellSingleQuotedString(string value)
+        {
+            return (value ?? "").Replace("'", "''");
         }
 
         /// <summary>
