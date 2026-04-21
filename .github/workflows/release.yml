@@ -135,6 +135,7 @@ jobs:
 
           이 패키지는 Velopack 설치형 배포용 메타데이터를 포함합니다.
           - 권장 설치 파일: GameChatTranslator-Setup.exe
+          - 경로 선택 설치 파일: *.msi
           - 수동 실행 대안: $env:ZIP_NAME
           "@
 
@@ -170,6 +171,8 @@ jobs:
             --runtime $env:VELOPACK_RUNTIME `
             --mainExe "GameChatTranslator.exe" `
             --releaseNotes $env:VELOPACK_NOTES_PATH `
+            --msi `
+            --instLocation Either `
             --skipVeloAppCheck `
             --noPortable
 
@@ -198,6 +201,7 @@ jobs:
           $velopackFiles = Get-ChildItem -Path $env:VELOPACK_DIR -Recurse -File | Where-Object {
             $_.Name -eq "Setup.exe" -or
             $_.Name -like "*-Setup.exe" -or
+            $_.Extension -eq ".msi" -or
             $_.Name -like "*-full.nupkg" -or
             $_.Name -like "*-delta.nupkg"
           } | Sort-Object FullName
@@ -237,6 +241,7 @@ jobs:
 
           Assets:
           - 권장 설치 파일: Setup.exe 또는 *-Setup.exe (Velopack asset)
+          - 경로 선택 설치 파일: *.msi
           - 수동 실행 ZIP: $env:ZIP_NAME
           - Velopack 릴리즈 인덱스: releases.win.json
 

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -373,6 +374,39 @@ namespace GameTranslator
         private UpdateManager CreateUpdateManager()
         {
             return new UpdateManager(new GithubSource(GitHubRepoUrl, "", false));
+        }
+
+        /// <summary>
+        /// 현재 실행 중인 앱의 설치/실행 경로를 사용자에게 보여줄 문자열로 반환합니다.
+        /// 설치형이면 Velopack current 폴더 경로를, ZIP 직접 실행이면 현재 EXE 폴더 경로를 표시합니다.
+        /// </summary>
+        internal string GetInstallLocationDisplayText()
+        {
+            string baseDirectory;
+
+            try
+            {
+                baseDirectory = Path.GetFullPath(AppContext.BaseDirectory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
+            catch
+            {
+                baseDirectory = AppContext.BaseDirectory ?? "";
+            }
+
+            try
+            {
+                UpdateManager updateManager = CreateUpdateManager();
+                if (CanUseVelopackDirectUpdate(updateManager))
+                {
+                    return $"설치형 실행 경로: {baseDirectory}";
+                }
+            }
+            catch
+            {
+            }
+
+            return $"직접 실행 경로: {baseDirectory}";
         }
 
         /// <summary>
