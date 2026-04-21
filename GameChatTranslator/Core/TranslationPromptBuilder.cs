@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace GameTranslator
@@ -10,6 +11,7 @@ namespace GameTranslator
     public sealed class TranslationPromptBuilder
     {
         private const string TranslatableLetterPattern = @"[a-zA-Z가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]";
+        private const string NonAsciiReadablePattern = @"[가-힣ぁ-んァ-ヶ一-龥а-яА-ЯёЁ]";
         private const string SingleCharacterAllowPattern = @"^[가-힣ぁ-んァ-ヶ\u4e00-\u9fa5]$";
         private const string EastAsianNoSpacePattern = @"(?<=[ぁ-んァ-ヶ一-龥])\s+(?=[ぁ-んァ-ヶ一-龥])";
 
@@ -28,6 +30,61 @@ namespace GameTranslator
             cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
             cleaned = Regex.Replace(cleaned, EastAsianNoSpacePattern, "");
             return cleaned;
+        }
+
+        /// <summary>
+        /// ETC 모드에서 OCR 한 줄을 번역기에 넘기기 전 정리합니다.
+        /// 동아시아 문자와 ASCII/숫자가 섞인 토큰은 ASCII/숫자 노이즈를 제거하고,
+        /// 순수 영어 문장은 가능한 한 유지합니다.
+        /// 의미 있는 문자 구성이 남지 않으면 빈 문자열을 반환합니다.
+        /// </summary>
+        public string CleanEtcOcrLine(string text)
+        {
+            string source = text ?? "";
+            string cleaned = source;
+            cleaned = Regex.Replace(cleaned, @"\d{1,2}:\d{2}", " ");
+            cleaned = Regex.Replace(cleaned, @"[\[\]\(\)\{\}\<\>]", " ");
+            cleaned = Regex.Replace(cleaned, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]", " ");
+            cleaned = Regex.Replace(cleaned, @"([\-\=\.\/_])\1+", "$1");
+
+            bool containsNonAsciiReadable = Regex.IsMatch(cleaned, NonAsciiReadablePattern);
+
+            string[] normalizedTokens = Regex
+                .Split(cleaned, @"\s+")
+                .Select(token => NormalizeEtcToken(token, containsNonAsciiReadable))
+                .Where(token => !string.IsNullOrWhiteSpace(token))
+                .ToArray();
+
+            cleaned = string.Join(" ", normalizedTokens);
+            cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+            cleaned = Regex.Replace(cleaned, EastAsianNoSpacePattern, "");
+
+            if (ShouldDiscardEtcLineAsTooNoisy(source))
+            {
+                return "";
+            }
+
+            return HasMeaningfulEtcContent(cleaned) ? cleaned : "";
+        }
+
+        /// <summary>
+        /// ETC 정리 후 남은 문자열이 실제 번역 대상으로 볼 만한지 확인합니다.
+        /// 동아시아/키릴 문자가 섞인 줄은 한 글자만 남으면 노이즈로 보고 제외합니다.
+        /// </summary>
+        public bool HasMeaningfulEtcContent(string cleanedText)
+        {
+            string text = (cleanedText ?? "").Trim();
+            if (!HasTranslatableContent(text))
+            {
+                return false;
+            }
+
+            if (Regex.IsMatch(text, NonAsciiReadablePattern))
+            {
+                return Regex.Matches(text, TranslatableLetterPattern).Count >= 2;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -136,6 +193,57 @@ namespace GameTranslator
         {
             string cleaned = CleanGoogleTranslateInput(text);
             return "/no_think Input: " + cleaned;
+        }
+
+        private string NormalizeEtcToken(string token, bool containsNonAsciiReadable)
+        {
+            string normalized = (token ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return "";
+            }
+
+            if (containsNonAsciiReadable &&
+                Regex.IsMatch(normalized, NonAsciiReadablePattern) &&
+                Regex.IsMatch(normalized, @"[a-zA-Z0-9]"))
+            {
+                normalized = Regex.Replace(normalized, @"[a-zA-Z0-9]", "");
+            }
+
+            normalized = Regex.Replace(normalized, @"^[\.\,\!\?\-]+|[\.\,\!\?\-]+$", "");
+
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return "";
+            }
+
+            if (containsNonAsciiReadable)
+            {
+                if (Regex.IsMatch(normalized, @"^[a-zA-Z]$")) return "";
+                if (Regex.IsMatch(normalized, @"^\d$")) return "";
+            }
+
+            if (!Regex.IsMatch(normalized, TranslatableLetterPattern) &&
+                !Regex.IsMatch(normalized, @"^\d{2,}$"))
+            {
+                return "";
+            }
+
+            return normalized;
+        }
+
+        private bool ShouldDiscardEtcLineAsTooNoisy(string source)
+        {
+            string text = source ?? "";
+            int nonAsciiReadableCount = Regex.Matches(text, NonAsciiReadablePattern).Count;
+            if (nonAsciiReadableCount == 0)
+            {
+                return false;
+            }
+
+            int asciiLetterCount = Regex.Matches(text, @"[a-zA-Z]").Count;
+            int noiseCount = Regex.Matches(text, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]").Count;
+            return asciiLetterCount > nonAsciiReadableCount && noiseCount >= 3;
         }
     }
 }

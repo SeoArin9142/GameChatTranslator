@@ -182,7 +182,7 @@
 
                     <GroupBox Header="언어 설정 (Language)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
-                            <TextBlock Text="게임 언어 (채팅 인식 기준):" Margin="0,0,0,5" Foreground="#CCC"/>
+                            <TextBlock x:Name="TxtGameLangLabel" Text="게임 언어 (채팅 인식 기준):" Margin="0,0,0,5" Foreground="#CCC"/>
                             <ComboBox x:Name="ComboGameLang" Margin="0,0,0,10" Background="#333" Foreground="Black">
                                 <ComboBoxItem Content="한국어" Tag="ko"/>
                                 <ComboBoxItem Content="영어" Tag="en-US"/>
@@ -190,6 +190,12 @@
                                 <ComboBoxItem Content="일본어" Tag="ja"/>
                                 <ComboBoxItem Content="러시아어" Tag="ru"/>
                             </ComboBox>
+                            <TextBlock x:Name="TxtGameLangModeHint"
+                                       Text=""
+                                       Margin="0,0,0,10"
+                                       Foreground="#AFAFAF"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"/>
 
                             <TextBlock Text="번역 언어 (결과 언어):" Margin="0,0,0,5" Foreground="#CCC"/>
                             <ComboBox x:Name="ComboTargetLang" Background="#333" Foreground="Black">
@@ -209,7 +215,8 @@
                                          Tag="Strinova"
                                          Foreground="#CCC"
                                          IsChecked="True"
-                                         Margin="0,0,0,4"/>
+                                         Margin="0,0,0,4"
+                                         Checked="TranslationContentMode_Checked"/>
                             <TextBlock Text="[캐릭터이름]: 채팅 형식과 characters.txt 캐릭터명 검증을 통과한 채팅만 번역합니다."
                                        TextWrapping="Wrap"
                                        FontSize="11"
@@ -219,7 +226,8 @@
                                          Content="ETC"
                                          Tag="ETC"
                                          Foreground="#CCC"
-                                         Margin="0,0,0,4"/>
+                                         Margin="0,0,0,4"
+                                         Checked="TranslationContentMode_Checked"/>
                             <TextBlock Text="채팅 포맷과 무관하게 OCR로 읽은 전체 내용을 하나의 문장 묶음으로 번역합니다."
                                        TextWrapping="Wrap"
                                        FontSize="11"

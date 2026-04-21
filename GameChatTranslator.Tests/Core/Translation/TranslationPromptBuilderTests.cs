@@ -115,5 +115,40 @@ namespace GameChatTranslator.Tests
 
             Assert.Equal("/no_think Input: 猫可愛 0", prompt);
         }
+
+        [Fact]
+        public void CleanEtcOcrLine_RemovesAsciiNoiseFromMixedEastAsianToken()
+        {
+            string cleaned = _builder.CleanEtcOcrLine("CØ猫` 可愛< 황&`?");
+
+            Assert.Equal("猫可愛 황", cleaned);
+        }
+
+        [Fact]
+        public void CleanEtcOcrLine_PreservesPureEnglishText()
+        {
+            string cleaned = _builder.CleanEtcOcrLine("hello brave world");
+
+            Assert.Equal("hello brave world", cleaned);
+        }
+
+        [Fact]
+        public void CleanEtcOcrLine_DropsMeaninglessBrokenNoise()
+        {
+            string cleaned = _builder.CleanEtcOcrLine("乞5U(私(z構ote.ntOØ?");
+
+            Assert.Equal("", cleaned);
+        }
+
+        [Theory]
+        [InlineData("猫可愛 황", true)]
+        [InlineData("고양이", true)]
+        [InlineData("a", false)]
+        [InlineData("猫", false)]
+        [InlineData("", false)]
+        public void HasMeaningfulEtcContent_AppliesEtcRules(string text, bool expected)
+        {
+            Assert.Equal(expected, _builder.HasMeaningfulEtcContent(text));
+        }
     }
 }

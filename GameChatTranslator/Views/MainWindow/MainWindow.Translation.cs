@@ -460,7 +460,7 @@ namespace GameTranslator
                             continue;
                         }
 
-                        TranslationDecisionResult translationResult = await TranslateFinalContentAsync(finalContent, performanceStats);
+                        TranslationDecisionResult translationResult = await TranslateFinalContentAsync(finalContent, performanceStats, contentMode);
 
                         AppendLog(characterNameGold + finalContent, translationResult.TranslatedText, translationResult.EngineName);
 
@@ -499,7 +499,7 @@ namespace GameTranslator
                 return;
             }
 
-            TranslationDecisionResult translationResult = await TranslateFinalContentAsync(finalContent, performanceStats);
+            TranslationDecisionResult translationResult = await TranslateFinalContentAsync(finalContent, performanceStats, TranslationContentMode.Etc);
 
             AppendLog("[ETC]: " + finalContent, translationResult.TranslatedText, translationResult.EngineName);
             AddTranslationResultToDisplay("[ETC]: ", translationResult.TranslatedText);
@@ -515,7 +515,8 @@ namespace GameTranslator
             var lines = (mergedLines ?? Enumerable.Empty<OcrLine>())
                 .Select(line => line?.Text?.Trim() ?? "")
                 .Where(text => !string.IsNullOrWhiteSpace(text))
-                .Where(ChatTextAnalyzer.ContainsReadableLetter);
+                .Select(text => translationPromptBuilder.CleanEtcOcrLine(text))
+                .Where(translationPromptBuilder.HasMeaningfulEtcContent);
 
             return string.Join(Environment.NewLine, lines);
         }
@@ -561,12 +562,13 @@ namespace GameTranslator
         /// 현재 선택된 번역 엔진 정책에 따라 Google/Gemini/Local LLM 호출을 수행하고 최종 결과를 반환합니다.
         /// API 호출 시간은 OCR 성능 로그의 Translate 구간에 누적합니다.
         /// </summary>
-        private async Task<TranslationDecisionResult> TranslateFinalContentAsync(string finalContent, OcrPerformanceStats performanceStats)
+        private async Task<TranslationDecisionResult> TranslateFinalContentAsync(string finalContent, OcrPerformanceStats performanceStats, TranslationContentMode contentMode)
         {
             string geminiKey = ReadGeminiKey();
             bool willUseGemini = currentTranslationEngineMode == TranslationEngineMode.Gemini &&
                 !string.IsNullOrWhiteSpace(geminiKey);
             bool willUseLocalLlm = currentTranslationEngineMode == TranslationEngineMode.LocalLlm;
+            string googleSourceLanguage = contentMode == TranslationContentMode.Etc ? "auto" : gameLang;
 
             TranslationPlan translationPlan = translationService.CreatePlan(
                 finalContent,
@@ -595,7 +597,7 @@ namespace GameTranslator
                 }
 
                 translateStopwatch.Restart();
-                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
+                string googleFallback = await CallGoogleAPI(finalContent, googleSourceLanguage, targetLang);
                 translateStopwatch.Stop();
                 performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                 return translationService.ResolveGoogleAttempt(googleFallback, true).FinalResult;
@@ -616,14 +618,14 @@ namespace GameTranslator
                 }
 
                 translateStopwatch.Restart();
-                string googleFallback = await CallGoogleAPI(finalContent, gameLang, targetLang);
+                string googleFallback = await CallGoogleAPI(finalContent, googleSourceLanguage, targetLang);
                 translateStopwatch.Stop();
                 performanceStats.TranslateMs += translateStopwatch.ElapsedMilliseconds;
                 return translationService.ResolveGoogleAttempt(googleFallback, true, "Local LLM").FinalResult;
             }
 
             Stopwatch googleStopwatch = Stopwatch.StartNew();
-            string googleTranslated = await CallGoogleAPI(finalContent, gameLang, targetLang);
+            string googleTranslated = await CallGoogleAPI(finalContent, googleSourceLanguage, targetLang);
             googleStopwatch.Stop();
             performanceStats.TranslateMs += googleStopwatch.ElapsedMilliseconds;
             return translationService.ResolveGoogleAttempt(googleTranslated, false).FinalResult;
