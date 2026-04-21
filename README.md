@@ -16,9 +16,15 @@
 
 https://github.com/SeoArin9142/GameChatTranslator/releases
 
+권장 배포 방식:
+
+- 릴리즈 페이지에 `GameChatTranslator-Setup.exe`가 있으면 설치형 배포를 우선 사용합니다.
+- ZIP 파일은 수동 실행/백업용으로 사용할 수 있습니다.
+
 ## 빠른 시작
 
-1. 릴리즈 ZIP 파일을 내려받아 압축을 풉니다.
+1. 릴리즈 페이지에 `GameChatTranslator-Setup.exe`가 있으면 먼저 실행해 설치합니다.
+   - 설치형 배포가 아직 없거나 수동 실행이 필요하면 ZIP 파일을 내려받아 압축을 풉니다.
 2. `LangInstall.bat`를 **관리자 권한**으로 실행해 필요한 Windows OCR 언어팩을 설치합니다.
    - 선택 가능: 영어, 일본어, 중국어 간체, 러시아어
 3. 언어팩 설치 후 Windows를 재부팅합니다.
@@ -44,7 +50,7 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 | 진단 | OCR 진단 화면, 후보별 OCR 결과 비교, ZIP 저장, 요약/전체 텍스트 복사 |
 | 로그 | 실시간 로그창, CPU/메모리 표시, OCR 처리 시간 평균, API 오류 상세 안내 |
 | 설정 | 설정 프리셋, 추천 프리셋, 설정 내보내기/가져오기, 숫자 입력 검증 |
-| 배포 | GitHub Actions 자동 릴리즈, win-x64 self-contained ZIP, SHA256 첨부 |
+| 배포 | GitHub Actions 자동 릴리즈, Velopack Setup.exe, win-x64 self-contained ZIP, SHA256 첨부 |
 
 ## 지원 범위와 제한
 
@@ -339,7 +345,7 @@ git tag v.1.0.22-alpha
 git push origin v.1.0.22-alpha
 ```
 
-자동 릴리즈는 win-x64 self-contained publish, ZIP 압축, SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
+자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
 
 ## 기여 및 문의
 
