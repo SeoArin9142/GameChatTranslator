@@ -28,6 +28,7 @@ namespace GameTranslator
     public partial class MainWindow
     {
         private const int TranslationWindowGap = 8;
+        private const double DefaultTranslationWindowHeight = 130;
 
         /// <summary>
         /// 캡처 영역 선택용 오버레이 창을 엽니다.
@@ -130,6 +131,11 @@ namespace GameTranslator
             UpdateLayout();
             double windowWidth = ActualWidth > 0 ? ActualWidth : Width;
             double windowHeight = ActualHeight > 0 ? ActualHeight : Height;
+            if (double.IsNaN(windowHeight) || windowHeight <= 0)
+            {
+                windowHeight = DefaultTranslationWindowHeight;
+            }
+
             double desiredLeft = displayArea.X - 5;
             double areaMidY = displayArea.Y + (displayArea.Height / 2.0);
             double workAreaMidY = workArea.Y + (workArea.Height / 2.0);
