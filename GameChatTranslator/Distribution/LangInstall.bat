@@ -75,24 +75,21 @@ if /i "!FAILED!"=="Y" (
 echo ===================================================
 echo.
 echo Installing OCR language packs can also add keyboard input methods.
-echo You can optionally keep only Korean and English input methods.
+echo You can optionally keep only the Korean keyboard input method.
 echo OCR recognition languages remain installed even if extra keyboard inputs are removed.
 echo.
 set "CLEAN_INPUTS="
-set /p "CLEAN_INPUTS=Keep only Korean and English keyboard inputs? (Y/N): "
+set /p "CLEAN_INPUTS=Keep only the Korean keyboard input method? (Y/N): "
 if /i "!CLEAN_INPUTS!"=="Y" (
     echo.
     echo Cleaning keyboard input language list...
     powershell -NoProfile -ExecutionPolicy Bypass -Command ^
       "$list = New-WinUserLanguageList 'ko-KR';" ^
-      "if (@($list | Where-Object { $_.LanguageTag -eq 'en-US' }).Count -eq 0) {" ^
-      "  $list.Add((New-WinUserLanguageList 'en-US')[0]);" ^
-      "}" ^
       "Set-WinUserLanguageList -LanguageList $list -Force"
     if errorlevel 1 (
         echo [WARN] Failed to clean keyboard input language list.
     ) else (
-        echo [OK] Keyboard input language list was limited to Korean and English.
+        echo [OK] Keyboard input language list was limited to Korean only.
     )
 ) else (
     echo Keyboard input language list was not changed.
