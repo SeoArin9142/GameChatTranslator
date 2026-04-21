@@ -141,6 +141,103 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void SelectBestLanguageSelection_EtcMode_PicksMostReadableLanguage()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "猫は可愛い" }
+                    }
+                }
+            };
+
+            OcrLanguageSelection selected = _service.SelectBestLanguageSelection(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.NotNull(selected);
+            Assert.Equal("ja", selected.LanguageCode);
+            Assert.Single(selected.Lines);
+            Assert.Equal("猫は可愛い", selected.Lines[0].Text);
+            Assert.True(selected.Score > 0);
+        }
+
+        [Fact]
+        public void SelectBestLanguageSelection_ReturnsNullWhenNoCandidates()
+        {
+            OcrLanguageSelection selected = _service.SelectBestLanguageSelection(
+                null,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.Null(selected);
+        }
+
+        [Fact]
+        public void SelectBestLanguageSelection_ReturnsNullWhenAllCandidatesScoreZero()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "" } }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "!!!" } }
+                }
+            };
+
+            OcrLanguageSelection selected = _service.SelectBestLanguageSelection(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.Null(selected);
+        }
+
+        [Fact]
+        public void SelectBestLanguageSelection_TieUsesDeterministicLanguageOrder()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "hello world" } }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "hello world" } }
+                }
+            };
+
+            OcrLanguageSelection selected = _service.SelectBestLanguageSelection(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.NotNull(selected);
+            Assert.Equal("ja", selected.LanguageCode);
+        }
+
+        [Fact]
         public void OcrService_DoesNotReferenceWinRtOrBitmapTypes()
         {
             string assemblyQualifiedNames = string.Join(

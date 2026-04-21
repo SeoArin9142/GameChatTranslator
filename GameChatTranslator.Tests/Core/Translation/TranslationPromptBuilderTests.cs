@@ -140,6 +140,14 @@ namespace GameChatTranslator.Tests
             Assert.Equal("", cleaned);
         }
 
+        [Fact]
+        public void CleanEtcOcrLine_DropsShortFragmentsFromNoisyMixedLine()
+        {
+            string cleaned = _builder.CleanEtcOcrLine("乞5 5t1황&`Ø?");
+
+            Assert.Equal("", cleaned);
+        }
+
         [Theory]
         [InlineData("猫可愛 황", true)]
         [InlineData("고양이", true)]

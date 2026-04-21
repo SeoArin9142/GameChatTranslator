@@ -358,10 +358,10 @@ namespace GameTranslator
                 var ocrResults = bestCandidate.Results;
                 var mergedLines = bestCandidate.Lines;
                 performanceStats.SelectedPreprocessName = bestCandidate.PreprocessName;
-                performanceStats.SelectedOcrLanguages = string.Join("+", ocrResults.Keys);
+                performanceStats.SelectedOcrLanguages = bestCandidate.SelectedLanguageCode;
                 performanceStats.SelectedScore = bestCandidate.Score;
                 performanceStats.MergedLineCount = mergedLines.Count;
-                AppendLog("DEBUG", $"OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName} (점수 {bestCandidate.Score})", "System");
+                AppendLog("DEBUG", $"OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName}, 언어 선택: {bestCandidate.SelectedLanguageCode} (점수 {bestCandidate.Score})", "System");
 
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
                 if (currentRawTextCombined == lastRawTextCombined)
@@ -720,22 +720,31 @@ namespace GameTranslator
                     // OCR 엔진 호출이 가장 큰 병목입니다. 빠름 모드에서는 게임 언어만 호출해 처리량을 줄입니다.
                     Dictionary<string, OcrResult> candidateResults = await RecognizeLanguagesAsync(croppedBitmap, recognizeAllLanguages, performanceStats);
                     Stopwatch scoringStopwatch = Stopwatch.StartNew();
-                    OcrResult candidateMasterResult = SelectMasterOcrResult(candidateResults);
-                    if (candidateMasterResult == null)
+                    Dictionary<string, List<OcrLine>> mergedLinesByLanguage = candidateResults
+                        .Where(kvp => kvp.Value != null)
+                        .ToDictionary(kvp => kvp.Key, kvp => MergeOcrLines(kvp.Value));
+
+                    OcrLanguageSelection selectedLanguage = SelectOcrLanguageSelection(
+                        candidateResults,
+                        mergedLinesByLanguage,
+                        contentMode);
+
+                    if (selectedLanguage == null || selectedLanguage.Lines.Count == 0)
                     {
                         scoringStopwatch.Stop();
                         performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
                         continue;
                     }
 
-                    List<OcrLine> candidateLines = MergeOcrLines(candidateMasterResult);
-                    int candidateScore = ScoreOcrCandidate(candidateLines, contentMode);
+                    List<OcrLine> candidateLines = selectedLanguage.Lines;
+                    int candidateScore = selectedLanguage.Score;
                     scoringStopwatch.Stop();
                     performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
 
                     bestCandidate = ocrService.SelectHigherScore(bestCandidate, new OcrResultCandidate
                     {
                         PreprocessName = preprocessedImage.Name,
+                        SelectedLanguageCode = selectedLanguage.LanguageCode,
                         Results = candidateResults,
                         Lines = candidateLines,
                         Score = candidateScore
@@ -751,6 +760,69 @@ namespace GameTranslator
             }
 
             return bestCandidate;
+        }
+
+        /// <summary>
+        /// 이번 OCR 후보에서 실제 번역 대상으로 삼을 기준 언어 결과를 선택합니다.
+        /// Strinova는 기존처럼 게임 언어/한국어 우선 전략을 유지하고, ETC는 언어별 OCR 결과를 읽기 점수로 비교합니다.
+        /// </summary>
+        private OcrLanguageSelection SelectOcrLanguageSelection(
+            Dictionary<string, OcrResult> candidateResults,
+            Dictionary<string, List<OcrLine>> mergedLinesByLanguage,
+            TranslationContentMode contentMode)
+        {
+            if (contentMode == TranslationContentMode.Etc)
+            {
+                // ETC는 "선택 점수"와 "실제 번역 입력"이 어긋나지 않게,
+                // 언어 선택에 사용한 cleaned lines 자체를 이후 번역 입력으로 그대로 넘깁니다.
+                OcrLanguageSelection cleanedSelection = ocrService.SelectBestLanguageSelection(
+                    (mergedLinesByLanguage ?? new Dictionary<string, List<OcrLine>>())
+                        .Select(kvp => new OcrLanguageCandidate
+                        {
+                            LanguageCode = kvp.Key,
+                            Lines = BuildCleanedEtcLanguageLines(kvp.Value)
+                        }),
+                    characterNames,
+                    TranslationContentMode.Etc);
+
+                if (cleanedSelection == null ||
+                    string.IsNullOrWhiteSpace(cleanedSelection.LanguageCode))
+                {
+                    return null;
+                }
+
+                return cleanedSelection;
+            }
+
+            string selectedLanguageCode = GetPreferredMasterLanguageCode(candidateResults);
+            if (string.IsNullOrWhiteSpace(selectedLanguageCode) ||
+                mergedLinesByLanguage == null ||
+                !mergedLinesByLanguage.TryGetValue(selectedLanguageCode, out List<OcrLine> lines))
+            {
+                return null;
+            }
+
+            return new OcrLanguageSelection(
+                selectedLanguageCode,
+                lines,
+                ScoreOcrCandidate(lines, contentMode));
+        }
+
+        /// <summary>
+        /// ETC 모드 언어 선택 점수 비교 전에 각 언어별 OCR 라인을 전처리 결과 기준으로 정리합니다.
+        /// 실제 번역 입력과 같은 필터를 써서, 노이즈가 심한 언어 결과가 선택 점수에서 과대평가되지 않게 합니다.
+        /// </summary>
+        private List<OcrLine> BuildCleanedEtcLanguageLines(IEnumerable<OcrLine> lines)
+        {
+            return (lines ?? Enumerable.Empty<OcrLine>())
+                .Select(line => new OcrLine
+                {
+                    Top = line?.Top ?? 0,
+                    Bottom = line?.Bottom ?? 0,
+                    Text = translationPromptBuilder.CleanEtcOcrLine(line?.Text?.Trim() ?? "")
+                })
+                .Where(line => translationPromptBuilder.HasMeaningfulEtcContent(line.Text))
+                .ToList();
         }
 
         /// <summary>
@@ -846,6 +918,18 @@ namespace GameTranslator
         private OcrResult SelectMasterOcrResult(Dictionary<string, OcrResult> ocrResults)
         {
             return ocrResults.ContainsKey(gameLang) ? ocrResults[gameLang] : (ocrResults.ContainsKey("ko") ? ocrResults["ko"] : null);
+        }
+
+        /// <summary>
+        /// Strinova 모드에서 우선 사용할 기준 OCR 언어 코드를 반환합니다.
+        /// 게임 언어를 우선하고, 없으면 한국어를 fallback으로 사용합니다.
+        /// </summary>
+        private string GetPreferredMasterLanguageCode(Dictionary<string, OcrResult> ocrResults)
+        {
+            if (ocrResults == null) return "";
+            if (ocrResults.ContainsKey(gameLang)) return gameLang;
+            if (ocrResults.ContainsKey("ko")) return "ko";
+            return "";
         }
 
         /// <summary>

@@ -64,6 +64,11 @@ namespace GameTranslator
                 return "";
             }
 
+            if (ShouldDiscardEtcLineAsShortFragments(source, cleaned))
+            {
+                return "";
+            }
+
             return HasMeaningfulEtcContent(cleaned) ? cleaned : "";
         }
 
@@ -244,6 +249,31 @@ namespace GameTranslator
             int asciiLetterCount = Regex.Matches(text, @"[a-zA-Z]").Count;
             int noiseCount = Regex.Matches(text, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]").Count;
             return asciiLetterCount > nonAsciiReadableCount && noiseCount >= 3;
+        }
+
+        private bool ShouldDiscardEtcLineAsShortFragments(string source, string cleaned)
+        {
+            string rawText = source ?? "";
+            string normalized = (cleaned ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(normalized) || !Regex.IsMatch(normalized, NonAsciiReadablePattern))
+            {
+                return false;
+            }
+
+            int digitCount = Regex.Matches(rawText, @"\d").Count;
+            int noiseCount = Regex.Matches(rawText, @"[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣぁ-んァ-ヶ一-龥а-яА-ЯёЁ\s\.,!\?\-]").Count;
+            if (digitCount + noiseCount < 2)
+            {
+                return false;
+            }
+
+            string[] readableTokens = Regex
+                .Split(normalized, @"\s+")
+                .Where(token => Regex.IsMatch(token, TranslatableLetterPattern))
+                .ToArray();
+
+            return readableTokens.Length > 0 &&
+                readableTokens.All(token => Regex.Matches(token, TranslatableLetterPattern).Count <= 1);
         }
     }
 }
