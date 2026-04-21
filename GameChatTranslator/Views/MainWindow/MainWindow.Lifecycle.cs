@@ -143,8 +143,6 @@ namespace GameTranslator
             string cpy = ini.Read("CapturePixelY");
             string cpw = ini.Read("CapturePixelW");
             string cph = ini.Read("CapturePixelH");
-            double screenH = SystemParameters.PrimaryScreenHeight;
-
             if (int.TryParse(cx, out int x) && int.TryParse(cy, out int y) &&
                 int.TryParse(cw, out int w) && int.TryParse(ch, out int h) && w > 0 && h > 0)
             {
@@ -162,18 +160,15 @@ namespace GameTranslator
                 this.Width = w;
                 this.MinWidth = w;
                 this.SizeToContent = SizeToContent.Height;
-                this.Left = x - 5;
-                this.Top = y + h + 50;
 
                 TxtResult.Text = $"📍 마지막으로 저장된 영역을 불러왔습니다.\n🤖 현재 번역 엔진: {currentEngine}";
+                PositionTranslationWindowNearCaptureArea(gameChatArea, gameChatCaptureArea);
             }
             else
             {
                 this.Width = 1000;
                 this.Height = 130;
-                this.Left = 20;
-                this.Top = screenH - this.Height - 10;
-                gameChatArea = new Rectangle((int)this.Left, (int)(this.Top - 250 - 10), 500, 250);
+                gameChatArea = new Rectangle(20, (int)(SystemParameters.WorkArea.Bottom - this.Height - TranslationWindowGap - 250 - 10), 500, 250);
                 gameChatCaptureArea = ConvertDisplayAreaToPixels(gameChatArea);
 
                 string missingLangs = "";
@@ -185,6 +180,8 @@ namespace GameTranslator
                     TxtResult.Text = $"⚠️ [경고] {missingLangs}언어팩 누락!\n'LangInstall.bat' 실행 권장.\n🤖 현재 번역 엔진: {currentEngine}";
                 else
                     TxtResult.Text = $"📍 기본 캡처 영역으로 세팅 완료.\n🤖 현재 번역 엔진: {currentEngine}";
+
+                PositionTranslationWindowNearCaptureArea(gameChatArea, gameChatCaptureArea);
             }
 
             UpdateCaptureBorder(!isLocked);
