@@ -278,6 +278,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | `ScaleFactor` | `3` | OCR 캡처 확대 배율, 1~4 |
 | `ResultDisplayMode` | `Latest` | `Latest` 또는 `History` |
 | `ResultHistoryLimit` | `5` | 누적 표시 최대 줄 수, 1~10 |
+| `TranslationResultAutoClearSeconds` | `0` | 번역 결과 자동 삭제 시간, 0~60초 (`0`은 사용 안 함) |
 | `SaveDebugImages` | `false` | 디버그 이미지 저장 여부 |
 | `CheckUpdatesOnStartup` | `true` | 실행 시 업데이트 확인 여부. 설치형은 앱 내 설치, ZIP은 릴리즈 페이지 안내 |
 

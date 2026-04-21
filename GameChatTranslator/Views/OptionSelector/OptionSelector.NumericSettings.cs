@@ -17,6 +17,7 @@ namespace GameTranslator
             RegisterNumericSettingInputGuard(TxtThreshold);
             RegisterNumericSettingInputGuard(TxtInterval);
             RegisterNumericSettingInputGuard(TxtResultHistoryLimit);
+            RegisterNumericSettingInputGuard(TxtTranslationResultAutoClearSeconds);
             RegisterNumericSettingInputGuard(TxtLocalLlmTimeout);
             RegisterNumericSettingInputGuard(TxtLocalLlmMaxTokens);
         }
@@ -99,6 +100,13 @@ namespace GameTranslator
                 SettingsValueNormalizer.MinResultHistoryLimit,
                 SettingsValueNormalizer.MaxResultHistoryLimit,
                 SettingsValueNormalizer.NormalizeResultHistoryLimit);
+            AddNumericSettingStatus(
+                messages,
+                "결과 자동 삭제",
+                TxtTranslationResultAutoClearSeconds?.Text,
+                SettingsValueNormalizer.MinTranslationResultAutoClearSeconds,
+                SettingsValueNormalizer.MaxTranslationResultAutoClearSeconds,
+                SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds);
             AddNumericSettingStatus(
                 messages,
                 "Local LLM Timeout",

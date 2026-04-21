@@ -124,6 +124,10 @@ namespace GameTranslator
             {
                 TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(_ini.Read("ResultHistoryLimit")).ToString();
             }
+            if (TxtTranslationResultAutoClearSeconds != null)
+            {
+                TxtTranslationResultAutoClearSeconds.Text = SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(_ini.Read("TranslationResultAutoClearSeconds")).ToString();
+            }
 
             GeminiKeySelection geminiKey = _settingsService.SelectGeminiKey(
                 _ini.Read("GeminiKey"),
@@ -527,6 +531,9 @@ namespace GameTranslator
             int historyLimit = SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text);
             _ini.Write("ResultHistoryLimit", historyLimit.ToString());
             if (TxtResultHistoryLimit != null) TxtResultHistoryLimit.Text = historyLimit.ToString();
+            int autoClearSeconds = SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(TxtTranslationResultAutoClearSeconds?.Text);
+            _ini.Write("TranslationResultAutoClearSeconds", autoClearSeconds.ToString());
+            if (TxtTranslationResultAutoClearSeconds != null) TxtTranslationResultAutoClearSeconds.Text = autoClearSeconds.ToString();
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
             _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");

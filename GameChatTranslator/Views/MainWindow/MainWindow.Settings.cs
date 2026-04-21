@@ -177,6 +177,11 @@ namespace GameTranslator
             {
                 ini.Write("ResultHistoryLimit", SettingsValueNormalizer.DefaultResultHistoryLimit.ToString());
             }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("TranslationResultAutoClearSeconds")))
+            {
+                ini.Write("TranslationResultAutoClearSeconds", SettingsValueNormalizer.DefaultTranslationResultAutoClearSeconds.ToString());
+            }
         }
 
         /// <summary>

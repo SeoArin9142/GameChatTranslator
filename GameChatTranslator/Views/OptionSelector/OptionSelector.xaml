@@ -348,6 +348,11 @@
                                 <TextBox x:Name="TxtResultHistoryLimit" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="기본값 5, 허용 범위 1~10" InputMethod.IsInputMethodEnabled="False" PreviewTextInput="NumericSetting_PreviewTextInput" TextChanged="NumericSetting_TextChanged"/>
                             </StackPanel>
 
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="결과 자동 삭제 (0~60초):" Width="180" VerticalAlignment="Center" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtTranslationResultAutoClearSeconds" Width="120" TextAlignment="Center" Background="#333" Foreground="White" BorderBrush="#555" ToolTip="기본값 0(사용 안 함), 허용 범위 0~60초" InputMethod.IsInputMethodEnabled="False" PreviewTextInput="NumericSetting_PreviewTextInput" TextChanged="NumericSetting_TextChanged"/>
+                            </StackPanel>
+
                             <TextBlock x:Name="TxtAdvancedValidationStatus" TextWrapping="Wrap" FontSize="11" Foreground="#8BE28B" Margin="0,0,0,10"/>
 
                             <CheckBox x:Name="CheckSaveDebugImages" Content="디버그 캡처 이미지 저장" Foreground="#CCC"/>
