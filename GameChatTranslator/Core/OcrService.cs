@@ -77,6 +77,31 @@ namespace GameTranslator
                 ? ChatTextAnalyzer.ScoreReadableTextCandidate(lineTexts)
                 : ChatTextAnalyzer.ScoreOcrCandidate(lineTexts, characterNames);
         }
+
+        /// <summary>
+        /// 언어별 OCR 병합 라인 후보 중 현재 모드에서 가장 읽기 좋은 결과를 선택합니다.
+        /// ETC 모드에서는 gameLang 고정 대신 언어별 결과를 비교해 더 읽을 만한 OCR 결과를 고르기 위해 사용합니다.
+        /// </summary>
+        public OcrLanguageSelection SelectBestLanguageSelection(
+            IEnumerable<OcrLanguageCandidate> candidates,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode = TranslationContentMode.Strinova)
+        {
+            OcrLanguageSelection bestSelection = null;
+
+            foreach (OcrLanguageCandidate candidate in candidates ?? Enumerable.Empty<OcrLanguageCandidate>())
+            {
+                List<OcrLine> lines = candidate?.Lines ?? new List<OcrLine>();
+                int score = ScoreLines(lines, characterNames, contentMode);
+
+                if (bestSelection == null || score > bestSelection.Score)
+                {
+                    bestSelection = new OcrLanguageSelection(candidate?.LanguageCode ?? "", lines, score);
+                }
+            }
+
+            return bestSelection;
+        }
     }
 
     /// <summary>
@@ -139,12 +164,40 @@ namespace GameTranslator
     }
 
     /// <summary>
+    /// 하나의 OCR 언어 결과를 병합 라인 기준으로 비교하기 위한 순수 모델입니다.
+    /// ETC 모드에서 언어별 OCR 결과를 읽기 점수로 비교할 때 사용합니다.
+    /// </summary>
+    public sealed class OcrLanguageCandidate
+    {
+        public string LanguageCode { get; set; }
+        public List<OcrLine> Lines { get; set; }
+    }
+
+    /// <summary>
+    /// 언어별 OCR 결과 비교 후 선택된 최종 언어와 점수를 담는 모델입니다.
+    /// </summary>
+    public sealed class OcrLanguageSelection
+    {
+        public OcrLanguageSelection(string languageCode, List<OcrLine> lines, int score)
+        {
+            LanguageCode = languageCode ?? "";
+            Lines = lines ?? new List<OcrLine>();
+            Score = score;
+        }
+
+        public string LanguageCode { get; }
+        public List<OcrLine> Lines { get; }
+        public int Score { get; }
+    }
+
+    /// <summary>
     /// 하나의 전처리 후보에 대한 OCR 결과, 병합 라인, 품질 점수를 묶는 모델입니다.
     /// TResults는 실제 앱에서는 언어별 Windows OCR 결과 딕셔너리이고, 테스트에서는 가짜 결과를 넣을 수 있습니다.
     /// </summary>
     public sealed class OcrCandidate<TResults>
     {
         public string PreprocessName { get; set; }
+        public string SelectedLanguageCode { get; set; }
         public TResults Results { get; set; }
         public List<OcrLine> Lines { get; set; }
         public int Score { get; set; }
