@@ -174,18 +174,21 @@ jobs:
             --skipVeloAppCheck `
             --noPortable
 
-          $setup = Join-Path $env:VELOPACK_DIR "$($env:VELOPACK_PACK_ID)-Setup.exe"
-          $full = Join-Path $env:VELOPACK_DIR "$($env:VELOPACK_PACK_ID)-$($env:APP_VERSION)-full.nupkg"
-          $delta = Join-Path $env:VELOPACK_DIR "$($env:VELOPACK_PACK_ID)-$($env:APP_VERSION)-delta.nupkg"
+          $setupItem = Get-ChildItem -Path $env:VELOPACK_DIR -Filter "*-Setup.exe" | Sort-Object Name | Select-Object -First 1
+          $fullItem = Get-ChildItem -Path $env:VELOPACK_DIR -Filter "*-$($env:APP_VERSION)-full.nupkg" | Sort-Object Name | Select-Object -First 1
+          $deltaItem = Get-ChildItem -Path $env:VELOPACK_DIR -Filter "*-$($env:APP_VERSION)-delta.nupkg" | Sort-Object Name | Select-Object -First 1
+          $setup = $setupItem?.FullName
+          $full = $fullItem?.FullName
+          $delta = $deltaItem?.FullName
           $releasesJson = Join-Path $env:VELOPACK_DIR "releases.win.json"
           $legacyReleases = Join-Path $env:VELOPACK_DIR "RELEASES"
           $assetsJson = Join-Path $env:VELOPACK_DIR "assets.win.json"
 
-          if (-not (Test-Path $setup)) {
+          if ([string]::IsNullOrWhiteSpace($setup) -or -not (Test-Path $setup)) {
             throw "Velopack Setup.exe was not generated."
           }
 
-          if (-not (Test-Path $full)) {
+          if ([string]::IsNullOrWhiteSpace($full) -or -not (Test-Path $full)) {
             throw "Velopack full package was not generated."
           }
 
