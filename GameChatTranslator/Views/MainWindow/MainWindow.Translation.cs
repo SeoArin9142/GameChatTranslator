@@ -773,6 +773,8 @@ namespace GameTranslator
         {
             if (contentMode == TranslationContentMode.Etc)
             {
+                // ETC는 "선택 점수"와 "실제 번역 입력"이 어긋나지 않게,
+                // 언어 선택에 사용한 cleaned lines 자체를 이후 번역 입력으로 그대로 넘깁니다.
                 OcrLanguageSelection cleanedSelection = ocrService.SelectBestLanguageSelection(
                     (mergedLinesByLanguage ?? new Dictionary<string, List<OcrLine>>())
                         .Select(kvp => new OcrLanguageCandidate
@@ -784,18 +786,12 @@ namespace GameTranslator
                     TranslationContentMode.Etc);
 
                 if (cleanedSelection == null ||
-                    cleanedSelection.Score <= 0 ||
-                    string.IsNullOrWhiteSpace(cleanedSelection.LanguageCode) ||
-                    mergedLinesByLanguage == null ||
-                    !mergedLinesByLanguage.TryGetValue(cleanedSelection.LanguageCode, out List<OcrLine> rawLines))
+                    string.IsNullOrWhiteSpace(cleanedSelection.LanguageCode))
                 {
                     return null;
                 }
 
-                return new OcrLanguageSelection(
-                    cleanedSelection.LanguageCode,
-                    rawLines,
-                    cleanedSelection.Score);
+                return cleanedSelection;
             }
 
             string selectedLanguageCode = GetPreferredMasterLanguageCode(candidateResults);

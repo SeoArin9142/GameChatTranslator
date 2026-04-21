@@ -187,6 +187,57 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void SelectBestLanguageSelection_ReturnsNullWhenAllCandidatesScoreZero()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "" } }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "!!!" } }
+                }
+            };
+
+            OcrLanguageSelection selected = _service.SelectBestLanguageSelection(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.Null(selected);
+        }
+
+        [Fact]
+        public void SelectBestLanguageSelection_TieUsesDeterministicLanguageOrder()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "hello world" } }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine> { new OcrLine { Text = "hello world" } }
+                }
+            };
+
+            OcrLanguageSelection selected = _service.SelectBestLanguageSelection(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.NotNull(selected);
+            Assert.Equal("ja", selected.LanguageCode);
+        }
+
+        [Fact]
         public void OcrService_DoesNotReferenceWinRtOrBitmapTypes()
         {
             string assemblyQualifiedNames = string.Join(

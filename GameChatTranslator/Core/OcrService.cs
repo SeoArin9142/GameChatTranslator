@@ -91,16 +91,20 @@ namespace GameTranslator
 
             foreach (OcrLanguageCandidate candidate in candidates ?? Enumerable.Empty<OcrLanguageCandidate>())
             {
+                string languageCode = candidate?.LanguageCode ?? "";
                 List<OcrLine> lines = candidate?.Lines ?? new List<OcrLine>();
                 int score = ScoreLines(lines, characterNames, contentMode);
 
-                if (bestSelection == null || score > bestSelection.Score)
+                if (bestSelection == null ||
+                    score > bestSelection.Score ||
+                    (score == bestSelection.Score &&
+                     string.Compare(languageCode, bestSelection.LanguageCode, System.StringComparison.OrdinalIgnoreCase) < 0))
                 {
-                    bestSelection = new OcrLanguageSelection(candidate?.LanguageCode ?? "", lines, score);
+                    bestSelection = new OcrLanguageSelection(languageCode, lines, score);
                 }
             }
 
-            return bestSelection;
+            return bestSelection != null && bestSelection.Score > 0 ? bestSelection : null;
         }
     }
 
