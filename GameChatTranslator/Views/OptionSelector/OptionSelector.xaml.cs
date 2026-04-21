@@ -8,6 +8,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Windows.Globalization;
 using Windows.Media.Ocr;
 
@@ -25,6 +26,7 @@ namespace GameTranslator
         private IniFile _ini;
         private readonly SettingsService _settingsService = new SettingsService();
         private readonly OcrLanguageStatusFormatter _ocrLanguageStatusFormatter = new OcrLanguageStatusFormatter();
+        private readonly DispatcherTimer _updateStatusResetTimer;
 
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
         {
@@ -45,6 +47,11 @@ namespace GameTranslator
             InitializeComponent(); // XAML 디자인 UI 요소들을 메모리에 로드
             _mainWindow = mainWindow;
             _ini = ini;
+            _updateStatusResetTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(3)
+            };
+            _updateStatusResetTimer.Tick += UpdateStatusResetTimer_Tick;
 
             RegisterNumericSettingInputGuards();
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
@@ -52,6 +59,16 @@ namespace GameTranslator
             RefreshInstallLocationStatus();
             RefreshOcrLanguageStatus();
             RefreshAdvancedSettingValidationStatus();
+        }
+
+        /// <summary>
+        /// 설정창이 닫힐 때 상태 문구 자동 초기화 타이머를 함께 정지합니다.
+        /// 닫힌 창에 늦게 Tick이 도착하는 경우를 막아 상태 갱신 흐름을 정리합니다.
+        /// </summary>
+        protected override void OnClosed(EventArgs e)
+        {
+            _updateStatusResetTimer.Stop();
+            base.OnClosed(e);
         }
 
         /// <summary>
@@ -270,12 +287,31 @@ namespace GameTranslator
         /// 업데이트 영역 상태 문구를 지정한 색상과 함께 갱신합니다.
         /// 경로 복사/폴더 열기/업데이트 확인 버튼이 같은 하단 상태 줄을 공유합니다.
         /// </summary>
-        private void SetUpdateStatusText(string text, System.Windows.Media.Brush brush)
+        private void SetUpdateStatusText(string text, System.Windows.Media.Brush brush, bool autoReset = false)
         {
             if (TxtUpdateStatus == null) return;
 
+            _updateStatusResetTimer.Stop();
             TxtUpdateStatus.Foreground = brush;
             TxtUpdateStatus.Text = text ?? "";
+
+            if (autoReset && !string.IsNullOrWhiteSpace(TxtUpdateStatus.Text))
+            {
+                _updateStatusResetTimer.Start();
+            }
+        }
+
+        /// <summary>
+        /// 경로 복사/폴더 열기 같은 일회성 상태 문구를 일정 시간 후 지웁니다.
+        /// 수동 업데이트 확인처럼 유지가 필요한 상태는 autoReset=false로 남깁니다.
+        /// </summary>
+        private void UpdateStatusResetTimer_Tick(object sender, EventArgs e)
+        {
+            _updateStatusResetTimer.Stop();
+            if (TxtUpdateStatus == null) return;
+
+            TxtUpdateStatus.Foreground = System.Windows.Media.Brushes.LightGray;
+            TxtUpdateStatus.Text = "";
         }
 
         /// <summary>
@@ -580,7 +616,7 @@ namespace GameTranslator
             string folderPath = _mainWindow?.GetInstallLocationPath();
             if (string.IsNullOrWhiteSpace(folderPath) || !System.IO.Directory.Exists(folderPath))
             {
-                SetUpdateStatusText("폴더를 찾지 못했습니다.", System.Windows.Media.Brushes.OrangeRed);
+                SetUpdateStatusText("폴더를 찾지 못했습니다.", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
                 System.Windows.MessageBox.Show("현재 실행 폴더를 찾지 못했습니다.", "현재 폴더 열기", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -594,11 +630,11 @@ namespace GameTranslator
                 };
                 startInfo.ArgumentList.Add(folderPath);
                 Process.Start(startInfo);
-                SetUpdateStatusText("현재 실행 폴더를 열었습니다.", System.Windows.Media.Brushes.LightGreen);
+                SetUpdateStatusText("현재 실행 폴더를 열었습니다.", System.Windows.Media.Brushes.LightGreen, autoReset: true);
             }
             catch (Exception ex)
             {
-                SetUpdateStatusText("폴더 열기 실패", System.Windows.Media.Brushes.OrangeRed);
+                SetUpdateStatusText("폴더 열기 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
                 System.Windows.MessageBox.Show($"현재 폴더를 열지 못했습니다.\n{ex.Message}", "현재 폴더 열기", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -612,7 +648,7 @@ namespace GameTranslator
             string folderPath = _mainWindow?.GetInstallLocationPath();
             if (string.IsNullOrWhiteSpace(folderPath))
             {
-                SetUpdateStatusText("경로 확인 실패", System.Windows.Media.Brushes.OrangeRed);
+                SetUpdateStatusText("경로 확인 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
                 System.Windows.MessageBox.Show("현재 실행 경로를 확인하지 못했습니다.", "경로 복사", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -620,11 +656,11 @@ namespace GameTranslator
             try
             {
                 System.Windows.Clipboard.SetText(folderPath);
-                SetUpdateStatusText("실행 경로를 복사했습니다.", System.Windows.Media.Brushes.LightGreen);
+                SetUpdateStatusText("실행 경로를 복사했습니다.", System.Windows.Media.Brushes.LightGreen, autoReset: true);
             }
             catch (Exception ex)
             {
-                SetUpdateStatusText("경로 복사 실패", System.Windows.Media.Brushes.OrangeRed);
+                SetUpdateStatusText("경로 복사 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
                 System.Windows.MessageBox.Show($"실행 경로를 복사하지 못했습니다.\n{ex.Message}", "경로 복사", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
