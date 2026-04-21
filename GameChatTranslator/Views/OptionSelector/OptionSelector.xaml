@@ -321,7 +321,7 @@
                     <GroupBox Header="캡처 영역 (Capture Area)" Foreground="White" BorderBrush="#555" Margin="0,0,0,10">
                         <StackPanel Margin="10" Orientation="Horizontal">
                             <TextBlock x:Name="TxtAreaInfo" Text="저장된 영역: 없음 (좌측 하단 기본값)" VerticalAlignment="Center" Foreground="#CCC" Width="280"/>
-                            <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" Padding="5,0" Height="25" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
+                            <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" MinWidth="118" Padding="10,0" Margin="12,0,0,0" Height="28" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
                         </StackPanel>
                     </GroupBox>
                 </StackPanel>
