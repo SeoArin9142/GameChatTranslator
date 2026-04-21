@@ -83,7 +83,12 @@ set /p "CLEAN_INPUTS=Keep only Korean and English keyboard inputs? (Y/N): "
 if /i "!CLEAN_INPUTS!"=="Y" (
     echo.
     echo Cleaning keyboard input language list...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "$list = Get-WinUserLanguageList; $list = $list | Where-Object { $_.LanguageTag -match 'ko-KR|en-US' }; Set-WinUserLanguageList -LanguageList $list -Force"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$list = New-WinUserLanguageList 'ko-KR';" ^
+      "if (@($list | Where-Object { $_.LanguageTag -eq 'en-US' }).Count -eq 0) {" ^
+      "  $list.Add((New-WinUserLanguageList 'en-US')[0]);" ^
+      "}" ^
+      "Set-WinUserLanguageList -LanguageList $list -Force"
     if errorlevel 1 (
         echo [WARN] Failed to clean keyboard input language list.
     ) else (
@@ -111,6 +116,7 @@ exit /b 0
 :InstallLanguage
 echo.
 echo [Install] %~1 (%~2)
+set "INSTALL_RESULT=[OK]"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lang = '%~2';" ^
   "$installed = $false;" ^
@@ -127,9 +133,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "}" ^
   "if ($installed) { exit 0 } else { exit 1 }"
 if errorlevel 1 (
-    echo [FAIL] %~1 (%~2)
     set "FAILED=Y"
-) else (
-    echo [OK] %~1 (%~2)
+    set "INSTALL_RESULT=[FAIL]"
 )
+echo !INSTALL_RESULT! %~1 (%~2)
 exit /b 0
