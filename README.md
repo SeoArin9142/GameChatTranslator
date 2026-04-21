@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.27-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.27-alpha/GameChatTranslator_v1.0.27-alpha.zip)
+[GameChatTranslator v1.0.28-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.28-alpha/GameChatTranslator_v1.0.28-alpha.zip)
 
 릴리즈 페이지:
 
@@ -348,8 +348,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v1.0.27-alpha
-git push origin v1.0.27-alpha
+git tag v1.0.28-alpha
+git push origin v1.0.28-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -362,6 +362,19 @@ git push origin v1.0.27-alpha
 
 ## 업데이트 내역
 
+### v1.0.28-alpha
+
+이번 버전에서는 OCR/ETC 경로 튜닝과 최근 사용성 개선을 한 번에 묶었습니다.
+
+- OCR 언어팩 상태를 capability 설치 여부와 OCR 엔진 사용 가능 여부로 나눠 진단할 수 있게 정리했습니다.
+- 환경설정창을 3열 배치로 확장하고 OCR 상태 표시와 단축키 순서를 정리했습니다.
+- ETC 모드에서는 원문 언어를 자동 감지하고, 게임 언어 설정이 실제 source language에 쓰이지 않음을 UI에서 바로 보이게 했습니다.
+- ETC 모드 OCR 전처리와 언어 선택을 강화해, 언어별 OCR 결과 중 더 읽을 만한 결과를 우선 번역하도록 조정했습니다.
+- 설치 경로 열기 / 경로 복사 / 업데이트 상태 자동 초기화 / 번역 결과 자동 삭제 옵션을 추가했습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
 ### v1.0.27-alpha
 
 이번 버전에서는 설치 경로 확인과 설치 경로 지정 안내를 정리했습니다.
@@ -369,9 +382,6 @@ git push origin v1.0.27-alpha
 - 환경설정창 업데이트 영역에서 현재 설치형 실행 경로 또는 ZIP 직접 실행 경로를 바로 확인할 수 있게 했습니다.
 - 설치형 배포 문서에 `GameChatTranslator-win-Setup.exe --installto <경로>` 사용법을 추가했습니다.
 - 설치 경로 지정은 `GameChatTranslator-win-Setup.exe --installto <경로>` 방식으로 안내를 정리했습니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v.1.0.26-alpha
 
