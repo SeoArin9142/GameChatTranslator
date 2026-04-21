@@ -25,6 +25,11 @@ jobs:
       PROJECT_PATH: GameChatTranslator/GameChatTranslator.csproj
       PUBLISH_DIR: ${{ github.workspace }}\artifacts\publish
       DIST_DIR: ${{ github.workspace }}\artifacts\dist
+      VELOPACK_DIR: ${{ github.workspace }}\artifacts\velopack
+      VPK_VERSION: 0.0.1298
+      VELOPACK_PACK_ID: GameChatTranslator
+      VELOPACK_PACK_TITLE: GameChatTranslator
+      VELOPACK_RUNTIME: win10.0.19041-x64
 
     steps:
       - name: Checkout release source
@@ -61,6 +66,7 @@ jobs:
           $assetVersion = $tag -replace '^v\.', 'v'
           $zipName = "GameChatTranslator_$assetVersion.zip"
 
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_TITLE=GameChatTranslator $tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "ASSET_VERSION=$assetVersion" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -99,7 +105,108 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o $env:PUBLISH_DIR
 
-      - name: Compress release files and calculate checksum
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: |
+          $toolDir = Join-Path $env:RUNNER_TEMP "vpk"
+          if (Test-Path $toolDir) {
+            Remove-Item $toolDir -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Force -Path $toolDir | Out-Null
+          dotnet tool install --tool-path $toolDir vpk --version $env:VPK_VERSION
+
+          $vpkExe = Join-Path $toolDir "vpk.exe"
+          if (-not (Test-Path $vpkExe)) {
+            throw "vpk.exe was not installed correctly."
+          }
+
+          "VPK_EXE=$vpkExe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Write Velopack package notes
+        id: velopack_notes
+        shell: pwsh
+        run: |
+          $notesPath = Join-Path $env:RUNNER_TEMP "velopack-release-notes.md"
+          $body = @"
+          # $env:RELEASE_TITLE
+
+          변경 내역은 README.md의 최신 업데이트 내역을 참고하세요.
+
+          이 패키지는 Velopack 설치형 배포용 메타데이터를 포함합니다.
+          - 권장 설치 파일: GameChatTranslator-Setup.exe
+          - 수동 실행 대안: $env:ZIP_NAME
+          "@
+
+          $body | Set-Content -Path $notesPath -Encoding utf8
+          "VELOPACK_NOTES_PATH=$notesPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "path=$notesPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build Velopack installer assets
+        id: velopack
+        shell: pwsh
+        run: |
+          if (Test-Path $env:VELOPACK_DIR) {
+            Remove-Item $env:VELOPACK_DIR -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Force -Path $env:VELOPACK_DIR | Out-Null
+
+          try {
+            & $env:VPK_EXE download github `
+              --outputDir $env:VELOPACK_DIR `
+              --repoUrl "https://github.com/${{ github.repository }}" `
+              --token "${{ secrets.GITHUB_TOKEN }}"
+          } catch {
+            Write-Host "No previous Velopack release assets were found. Continuing with full package only."
+          }
+
+          & $env:VPK_EXE pack `
+            --outputDir $env:VELOPACK_DIR `
+            --packId $env:VELOPACK_PACK_ID `
+            --packVersion $env:APP_VERSION `
+            --packDir $env:PUBLISH_DIR `
+            --packAuthors "SeoArin9142" `
+            --packTitle $env:VELOPACK_PACK_TITLE `
+            --runtime $env:VELOPACK_RUNTIME `
+            --mainExe "GameChatTranslator.exe" `
+            --releaseNotes $env:VELOPACK_NOTES_PATH `
+            --skipVeloAppCheck `
+            --noPortable
+
+          $setup = Join-Path $env:VELOPACK_DIR "$($env:VELOPACK_PACK_ID)-Setup.exe"
+          $full = Join-Path $env:VELOPACK_DIR "$($env:VELOPACK_PACK_ID)-$($env:APP_VERSION)-full.nupkg"
+          $delta = Join-Path $env:VELOPACK_DIR "$($env:VELOPACK_PACK_ID)-$($env:APP_VERSION)-delta.nupkg"
+          $releasesJson = Join-Path $env:VELOPACK_DIR "releases.win.json"
+          $legacyReleases = Join-Path $env:VELOPACK_DIR "RELEASES"
+          $assetsJson = Join-Path $env:VELOPACK_DIR "assets.win.json"
+
+          if (-not (Test-Path $setup)) {
+            throw "Velopack Setup.exe was not generated."
+          }
+
+          if (-not (Test-Path $full)) {
+            throw "Velopack full package was not generated."
+          }
+
+          foreach ($requiredFile in @($releasesJson, $legacyReleases, $assetsJson)) {
+            if (-not (Test-Path $requiredFile)) {
+              throw "Required Velopack artifact missing: $requiredFile"
+            }
+          }
+
+          "setup_path=$setup" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "full_path=$full" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          if (Test-Path $delta) {
+            "delta_path=$delta" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "delta_path=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+          "releases_json_path=$releasesJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "legacy_releases_path=$legacyReleases" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "assets_json_path=$assetsJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Compress release files and calculate checksums
         id: package
         shell: pwsh
         run: |
@@ -112,16 +219,31 @@ jobs:
 
           Compress-Archive -Path (Join-Path $env:PUBLISH_DIR '*') -DestinationPath $zipPath -Force
 
-          $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $zipHash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
           $checksumPath = Join-Path $env:DIST_DIR "sha256.txt"
-          "$hash  $env:ZIP_NAME" | Set-Content -Path $checksumPath -Encoding utf8
+          $filesToHash = @(
+            $zipPath,
+            "${{ steps.velopack.outputs.setup_path }}",
+            "${{ steps.velopack.outputs.full_path }}"
+          )
+
+          if (-not [string]::IsNullOrWhiteSpace("${{ steps.velopack.outputs.delta_path }}")) {
+            $filesToHash += "${{ steps.velopack.outputs.delta_path }}"
+          }
+
+          $checksumLines = foreach ($filePath in $filesToHash) {
+            $hash = (Get-FileHash $filePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $(Split-Path $filePath -Leaf)"
+          }
+
+          $checksumLines | Set-Content -Path $checksumPath -Encoding utf8
 
           "ZIP_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "CHECKSUM_PATH=$checksumPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SHA256=$zipHash" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "zip_path=$zipPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "checksum_path=$checksumPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sha256=$zipHash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Write release notes
         id: notes
@@ -138,8 +260,13 @@ jobs:
           - Publish: self-contained single-file
           - Commit: $targetCommit
 
+          Assets:
+          - 권장 설치 파일: $([System.IO.Path]::GetFileName('${{ steps.velopack.outputs.setup_path }}'))
+          - 수동 실행 ZIP: $env:ZIP_NAME
+          - Velopack 릴리즈 인덱스: releases.win.json
+
           SHA256:
-          $env:SHA256  $env:ZIP_NAME
+          $(Get-Content $env:CHECKSUM_PATH | Out-String)
           "@
 
           $notesPath = Join-Path $env:RUNNER_TEMP "release-notes.md"
@@ -156,7 +283,13 @@ jobs:
           files: |
             ${{ steps.package.outputs.zip_path }}
             ${{ steps.package.outputs.checksum_path }}
-          fail_on_unmatched_files: true
+            ${{ steps.velopack.outputs.setup_path }}
+            ${{ steps.velopack.outputs.full_path }}
+            ${{ steps.velopack.outputs.delta_path }}
+            ${{ steps.velopack.outputs.releases_json_path }}
+            ${{ steps.velopack.outputs.legacy_releases_path }}
+            ${{ steps.velopack.outputs.assets_json_path }}
+          fail_on_unmatched_files: false
           overwrite_files: true
           prerelease: false
           make_latest: true
@@ -170,4 +303,5 @@ jobs:
           path: |
             artifacts/dist/*.zip
             artifacts/dist/sha256.txt
+            artifacts/velopack/*
           if-no-files-found: error
