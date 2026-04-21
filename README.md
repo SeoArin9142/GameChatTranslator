@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.28-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.28-alpha/GameChatTranslator_v1.0.28-alpha.zip)
+[GameChatTranslator v1.0.29-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.29-alpha/GameChatTranslator_v1.0.29-alpha.zip)
 
 릴리즈 페이지:
 
@@ -348,8 +348,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v1.0.28-alpha
-git push origin v1.0.28-alpha
+git tag v1.0.29-alpha
+git push origin v1.0.29-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -362,6 +362,18 @@ git push origin v1.0.28-alpha
 
 ## 업데이트 내역
 
+### v1.0.29-alpha
+
+이번 버전에서는 이슈 #109 대응으로 캡처 영역 주변 UI와 번역창 배치를 정리했습니다.
+
+- 환경설정창의 `영역 초기화` 버튼이 잘리지 않도록 최소 폭과 패딩을 보정했습니다.
+- 번역창 위치를 캡처 영역 기준 고정 아래 배치에서 위/아래 스마트 배치로 바꿨습니다.
+- 캡처 영역과 번역창 사이 간격은 8px로 고정하고, 캡처 영역이 위치한 모니터의 work area 기준으로 화면 밖을 벗어나지 않게 clamp 처리했습니다.
+- `SizeToContent.Height` 상태에서 높이 계산이 비어 있을 때도 위치 계산이 깨지지 않도록 fallback 높이를 추가했습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
 ### v1.0.28-alpha
 
 이번 버전에서는 OCR/ETC 경로 튜닝과 최근 사용성 개선을 한 번에 묶었습니다.
@@ -371,9 +383,6 @@ git push origin v1.0.28-alpha
 - ETC 모드에서는 원문 언어를 자동 감지하고, 게임 언어 설정이 실제 source language에 쓰이지 않음을 UI에서 바로 보이게 했습니다.
 - ETC 모드 OCR 전처리와 언어 선택을 강화해, 언어별 OCR 결과 중 더 읽을 만한 결과를 우선 번역하도록 조정했습니다.
 - 설치 경로 열기 / 경로 복사 / 업데이트 상태 자동 초기화 / 번역 결과 자동 삭제 옵션을 추가했습니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v1.0.27-alpha
 
