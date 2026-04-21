@@ -267,6 +267,18 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 업데이트 영역 상태 문구를 지정한 색상과 함께 갱신합니다.
+        /// 경로 복사/폴더 열기/업데이트 확인 버튼이 같은 하단 상태 줄을 공유합니다.
+        /// </summary>
+        private void SetUpdateStatusText(string text, System.Windows.Media.Brush brush)
+        {
+            if (TxtUpdateStatus == null) return;
+
+            TxtUpdateStatus.Foreground = brush;
+            TxtUpdateStatus.Text = text ?? "";
+        }
+
+        /// <summary>
         /// PowerShell의 Get-WindowsCapability 결과를 이용해 OCR capability 설치 상태를 읽습니다.
         /// 반환 키는 앱 언어 태그(ko, en-US, zh-Hans-CN, ja, ru)이며 값은 Installed/NotPresent/Unknown 같은 상태 문자열입니다.
         /// </summary>
@@ -547,15 +559,73 @@ namespace GameTranslator
         private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
         {
             BtnCheckUpdate.IsEnabled = false;
-            TxtUpdateStatus.Text = "확인 중...";
+            SetUpdateStatusText("확인 중...", System.Windows.Media.Brushes.LightGray);
 
             try
             {
-                await _mainWindow.RunManualUpdateCheckAsync(this, status => TxtUpdateStatus.Text = status);
+                await _mainWindow.RunManualUpdateCheckAsync(this, status => SetUpdateStatusText(status, System.Windows.Media.Brushes.LightGray));
             }
             finally
             {
             BtnCheckUpdate.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// 현재 실행 중인 EXE 폴더를 탐색기로 엽니다.
+        /// 설치형이면 설치 폴더, ZIP 실행이면 압축을 푼 현재 실행 폴더가 열립니다.
+        /// </summary>
+        private void BtnOpenInstallFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string folderPath = _mainWindow?.GetInstallLocationPath();
+            if (string.IsNullOrWhiteSpace(folderPath) || !System.IO.Directory.Exists(folderPath))
+            {
+                SetUpdateStatusText("폴더를 찾지 못했습니다.", System.Windows.Media.Brushes.OrangeRed);
+                System.Windows.MessageBox.Show("현재 실행 폴더를 찾지 못했습니다.", "현재 폴더 열기", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    UseShellExecute = true
+                };
+                startInfo.ArgumentList.Add(folderPath);
+                Process.Start(startInfo);
+                SetUpdateStatusText("현재 실행 폴더를 열었습니다.", System.Windows.Media.Brushes.LightGreen);
+            }
+            catch (Exception ex)
+            {
+                SetUpdateStatusText("폴더 열기 실패", System.Windows.Media.Brushes.OrangeRed);
+                System.Windows.MessageBox.Show($"현재 폴더를 열지 못했습니다.\n{ex.Message}", "현재 폴더 열기", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 현재 실행 중인 EXE 폴더 경로를 클립보드에 복사합니다.
+        /// 사용자는 탐색기 주소창이나 Setup.exe --installto 경로 입력에 그대로 붙여넣을 수 있습니다.
+        /// </summary>
+        private void BtnCopyInstallPath_Click(object sender, RoutedEventArgs e)
+        {
+            string folderPath = _mainWindow?.GetInstallLocationPath();
+            if (string.IsNullOrWhiteSpace(folderPath))
+            {
+                SetUpdateStatusText("경로 확인 실패", System.Windows.Media.Brushes.OrangeRed);
+                System.Windows.MessageBox.Show("현재 실행 경로를 확인하지 못했습니다.", "경로 복사", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                System.Windows.Clipboard.SetText(folderPath);
+                SetUpdateStatusText("실행 경로를 복사했습니다.", System.Windows.Media.Brushes.LightGreen);
+            }
+            catch (Exception ex)
+            {
+                SetUpdateStatusText("경로 복사 실패", System.Windows.Media.Brushes.OrangeRed);
+                System.Windows.MessageBox.Show($"실행 경로를 복사하지 못했습니다.\n{ex.Message}", "경로 복사", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
