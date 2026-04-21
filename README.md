@@ -19,14 +19,14 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 권장 배포 방식:
 
 - 릴리즈 페이지에 `GameChatTranslator-win-Setup.exe`가 있으면 설치형 배포를 우선 사용합니다.
-- 설치 경로를 직접 고르고 싶으면 릴리즈의 `*.msi` 파일을 사용합니다.
+- 설치 경로를 직접 고르고 싶으면 릴리즈에 `*.msi` 파일이 함께 제공되는지 먼저 확인하세요.
 - 설치형으로 설치한 경우 이후 업데이트는 앱 안에서 바로 다운로드/설치/재시작할 수 있습니다.
 - ZIP 파일은 수동 실행/백업용으로 사용할 수 있습니다.
 
 ## 빠른 시작
 
 1. 릴리즈 페이지에 `GameChatTranslator-win-Setup.exe`가 있으면 먼저 실행해 설치합니다.
-   - 설치 경로를 직접 선택해야 하면 릴리즈의 `*.msi` 파일을 사용합니다.
+   - 설치 경로를 직접 선택해야 하면 릴리즈에 `*.msi` 파일이 함께 제공되는지 먼저 확인한 뒤 사용합니다.
    - `Setup.exe`를 명령줄로 실행하는 경우 `--installto <경로>` 옵션으로 경로를 지정할 수 있습니다.
    - 설치형 배포가 아직 없거나 수동 실행이 필요하면 ZIP 파일을 내려받아 압축을 풉니다.
    - 설치형으로 설치한 경우 이후 업데이트 확인 시 새 버전을 앱에서 바로 적용할 수 있습니다.
@@ -55,7 +55,7 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 | 진단 | OCR 진단 화면, 후보별 OCR 결과 비교, ZIP 저장, 요약/전체 텍스트 복사 |
 | 로그 | 실시간 로그창, CPU/메모리 표시, OCR 처리 시간 평균, API 오류 상세 안내 |
 | 설정 | 설정 프리셋, 추천 프리셋, 설정 내보내기/가져오기, 숫자 입력 검증 |
-| 배포 | GitHub Actions 자동 릴리즈, Velopack Setup.exe/MSI, win-x64 self-contained ZIP, SHA256 첨부 |
+| 배포 | GitHub Actions 자동 릴리즈, Velopack Setup.exe, win-x64 self-contained ZIP, SHA256 첨부 |
 
 ## 지원 범위와 제한
 
@@ -352,7 +352,7 @@ git tag v.1.0.26-alpha
 git push origin v.1.0.26-alpha
 ```
 
-자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / MSI / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
+자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다. MSI는 릴리즈 자산에 함께 생성되는지 실제 자산 목록으로 확인한 뒤 사용하면 됩니다.
 
 ## 기여 및 문의
 
