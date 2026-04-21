@@ -1,7 +1,7 @@
 ﻿<Window x:Class="GameTranslator.OptionSelector"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GameChatTranslator 환경 설정" Width="980" Height="860"
+        Title="GameChatTranslator 환경 설정" Width="1300" Height="900"
         WindowStartupLocation="CenterScreen" Topmost="True" Background="#1E1E1E" Foreground="White" ResizeMode="NoResize">
 
     <Window.Resources>
@@ -19,7 +19,7 @@
         </Style>
     </Window.Resources>
 
-    <!-- 설정 항목을 2열로 배치해 한 화면에 더 많은 항목을 표시하고, 화면보다 내용이 길면 세로 스크롤로 접근합니다. -->
+    <!-- 설정 항목을 3열로 배치해 Local LLM 추가 후 길어진 설정창을 더 짧고 넓게 정리합니다. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20">
             <TextBlock Text="⚙️ 초기 환경 설정" FontSize="20" FontWeight="Bold" Foreground="LimeGreen" HorizontalAlignment="Center" Margin="0,0,0,6"/>
@@ -31,16 +31,17 @@
 
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="0.95*"/>
+                    <ColumnDefinition Width="18"/>
+                    <ColumnDefinition Width="1.02*"/>
+                    <ColumnDefinition Width="18"/>
+                    <ColumnDefinition Width="1.23*"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="1. 설정 관리" Style="{StaticResource SectionTitleStyle}"/>
                     <TextBlock Text="프리셋, 설정 백업, 업데이트, 로그창처럼 프로그램 운영에 필요한 항목입니다." Style="{StaticResource SectionHintStyle}"/>
 
-                    <!-- 프리셋 영역: 사용자 저장 프리셋과 내장 추천 프리셋을 명확히 구분합니다. API 키는 저장하지 않습니다. -->
                     <GroupBox Header="사용자 프리셋 / 내장 추천 프리셋" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="내장 추천 프리셋"
@@ -108,7 +109,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- 설정 백업: config.ini 전체를 파일로 내보내거나 다른 PC/백업 파일에서 다시 가져옵니다. -->
                     <GroupBox Header="설정 백업 / 복원" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="현재 저장된 config.ini를 내보내거나, 백업한 config.ini를 가져옵니다. 프리셋도 함께 포함됩니다."
@@ -137,7 +137,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- 업데이트 영역: 시작 시 자동 확인 여부와 수동 릴리즈 확인 버튼을 제공합니다. -->
                     <GroupBox Header="업데이트 확인 (Update)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <CheckBox x:Name="CheckUpdatesOnStartup" Content="실행 시 업데이트 자동 확인" Foreground="#CCC" Margin="0,0,0,8"/>
@@ -167,7 +166,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- 로그창 영역: 현재 세션 로그를 별도 창에서 실시간으로 확인합니다. -->
                     <GroupBox Header="로그 확인 (Log Viewer)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="현재 세션 로그를 별도 창으로 열어 보조 모니터에서 실시간으로 확인할 수 있습니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
@@ -176,11 +174,12 @@
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
+                </StackPanel>
 
-                    <TextBlock Text="2. 언어 / OCR" Style="{StaticResource SectionTitleStyle}"/>
-                    <TextBlock Text="게임 채팅을 어떤 언어로 읽고, OCR 언어팩과 진단 화면을 어떻게 확인할지 설정합니다." Style="{StaticResource SectionHintStyle}"/>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="2. 언어 / OCR / 실행" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="게임 언어, OCR 상태, 진단, 실행 옵션을 한 열에서 조정합니다." Style="{StaticResource SectionHintStyle}"/>
 
-                    <!-- 언어 영역: OCR 기준 게임 언어와 최종 번역 출력 언어를 선택합니다. -->
                     <GroupBox Header="언어 설정 (Language)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="게임 언어 (채팅 인식 기준):" Margin="0,0,0,5" Foreground="#CCC"/>
@@ -203,7 +202,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- 번역기 방식: Strinova 전용 채팅 포맷 검증 또는 일반 OCR 전체 번역 모드를 선택합니다. -->
                     <GroupBox Header="번역기 방식" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <RadioButton x:Name="RadioTranslationContentStrinova"
@@ -230,10 +228,9 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- OCR 언어팩 상태: capability 설치 여부와 OCR 엔진 생성 가능 여부를 함께 보여줍니다. -->
                     <GroupBox Header="OCR 언어팩 설치 상태" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
-                            <TextBlock Text="Windows capability 설치 여부와 현재 세션의 OCR 엔진 생성 가능 여부를 함께 표시합니다. capability는 설치됐는데 엔진이 미감지면 재부팅이 필요할 수 있습니다."
+                            <TextBlock Text="기본은 OCR 엔진 사용 여부만 보여주고, capability는 재부팅이 필요해 보일 때만 경고로 덧붙입니다."
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,8"
                                        Foreground="#CCC"/>
@@ -256,7 +253,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- OCR 테스트/진단: 현재 캡처 영역의 원본/전처리 이미지와 OCR 결과를 별도 창에서 확인합니다. -->
                     <GroupBox Header="OCR 테스트 / 진단" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="현재 저장된 캡처 영역을 분석해 원본, 전처리 후보, OCR 결과, 후보 점수를 별도 창에서 비교합니다."
@@ -275,13 +271,7 @@
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
-                </StackPanel>
 
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="3. 실행 옵션" Style="{StaticResource SectionTitleStyle}"/>
-                    <TextBlock Text="번역창 표시, 자동 번역 주기, 결과 표시 방식, 단축키, 캡처 영역처럼 실행 중 동작을 조정합니다." Style="{StaticResource SectionHintStyle}"/>
-
-                    <!-- 고급 설정: 오버레이 투명도, OCR 확대 배율, 이진화 기준값, 자동 번역 주기, 디버그 이미지 저장 여부를 조정합니다. -->
                     <GroupBox Header="상세 설정 (Advanced Options)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
 
@@ -328,8 +318,19 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- 단축키 설정: 각 TextBox 클릭 후 키 조합을 누르면 OptionSelector.xaml.cs에서 문자열로 저장합니다. -->
-                    <GroupBox Header="단축키 설정 (클릭 후 키보드 입력)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+                    <GroupBox Header="캡처 영역 (Capture Area)" Foreground="White" BorderBrush="#555" Margin="0,0,0,10">
+                        <StackPanel Margin="10" Orientation="Horizontal">
+                            <TextBlock x:Name="TxtAreaInfo" Text="저장된 영역: 없음 (좌측 하단 기본값)" VerticalAlignment="Center" Foreground="#CCC" Width="280"/>
+                            <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" Padding="5,0" Height="25" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="3. 단축키 / 번역 엔진" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="기본 키 순서대로 단축키를 정리하고 Gemini / Local LLM 연결 정보를 입력합니다." Style="{StaticResource SectionHintStyle}"/>
+
+                    <GroupBox Header="단축키 설정 (기본 키 순서)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -348,51 +349,39 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Text="이동/잠금 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyMove" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+5  OCR 진단 화면 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyOcrDiagnostic" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="영역 설정 :" Grid.Row="1" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyArea" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+6  번역 복사 :" Grid.Row="1" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyCopy" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="수동 번역 :" Grid.Row="2" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyTrans" Grid.Row="2" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+7  이동/잠금 :" Grid.Row="2" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyMove" Grid.Row="2" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="자동 번역 모드 :" Grid.Row="3" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyAuto" Grid.Row="3" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+8  영역 설정 :" Grid.Row="3" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyArea" Grid.Row="3" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="엔진 전환 단축키 :" Grid.Row="4" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyToggle" Grid.Row="4" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+9  수동 번역 :" Grid.Row="4" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyTrans" Grid.Row="4" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="번역 복사 :" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyCopy" Grid.Row="5" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+0  자동 번역 모드 :" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyAuto" Grid.Row="5" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="로그창 ON/OFF :" Grid.Row="6" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyLog" Grid.Row="6" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+-  엔진 전환 :" Grid.Row="6" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyToggle" Grid.Row="6" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="OCR 진단 화면 :" Grid.Row="7" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
-                                <TextBox x:Name="TxtKeyOcrDiagnostic" Grid.Row="7" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
+                                <TextBlock Text="Ctrl+=  로그창 ON/OFF :" Grid.Row="7" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBox x:Name="TxtKeyLog" Grid.Row="7" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="단축키 안내 ON/OFF :" Grid.Row="8" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBlock Text="Ctrl+F10  단축키 안내 :" Grid.Row="8" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                                 <TextBox x:Name="TxtKeyHotkeyGuide" Grid.Row="8" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
                             </Grid>
 
-                            <!-- 입력칸만 기본값으로 되돌립니다. config.ini 저장은 아래 저장 버튼을 눌렀을 때만 수행됩니다. -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
                                 <Button x:Name="BtnResetHotkeys" Content="단축키 초기화" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetHotkeys_Click"/>
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
-
-                    <!-- 캡처 영역: 현재 저장된 채팅 영역을 보여주고 필요하면 초기화합니다. 실제 영역 지정은 Ctrl+8에서 수행합니다. -->
-                    <GroupBox Header="캡처 영역 (Capture Area)" Foreground="White" BorderBrush="#555" Margin="0,0,0,10">
-                        <StackPanel Margin="10" Orientation="Horizontal">
-                            <TextBlock x:Name="TxtAreaInfo" Text="저장된 영역: 없음 (좌측 하단 기본값)" VerticalAlignment="Center" Foreground="#CCC" Width="280"/>
-                            <Button x:Name="BtnResetArea" Content="🔄 영역 초기화" Padding="5,0" Height="25" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnResetArea_Click"/>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <TextBlock Text="4. 번역 엔진" Style="{StaticResource SectionTitleStyle}"/>
-                    <TextBlock Text="기본 번역 엔진을 선택하고 Gemini / Local LLM 연결 정보를 입력합니다." Style="{StaticResource SectionHintStyle}"/>
 
                     <GroupBox Header="기본 번역 엔진" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
@@ -405,7 +394,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- Gemini 영역: API 키와 모델명을 입력합니다. 프리셋 저장 대상에서 API 키는 제외됩니다. -->
                     <GroupBox Header="Gemini AI 번역 설정" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="API 키를 입력하면 Gemini AI 번역을 사용할 수 있습니다. 비워두면 Google 무료 번역으로 실행됩니다." TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#CCC"/>
@@ -419,7 +407,6 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <!-- Local LLM 영역: LM Studio/OpenAI 호환 로컬 서버 연결 정보를 입력합니다. 실제 번역 연결은 Local LLM 엔진에서 사용합니다. -->
                     <GroupBox Header="Local LLM 번역 설정 (실험)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="LM Studio Local Server를 켠 뒤 OpenAI 호환 endpoint와 모델명을 입력합니다. 실패 시 Google 번역으로 전환됩니다." TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#CCC"/>
@@ -456,7 +443,7 @@
 
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <Button x:Name="BtnTestLocalLlm" Content="Local LLM 연결 테스트" Padding="8,3" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnTestLocalLlm_Click"/>
-                                <TextBlock x:Name="TxtLocalLlmTestStatus" Text="서버를 켠 뒤 연결 테스트를 눌러주세요." Margin="10,2,0,0" Foreground="#AAA" TextWrapping="Wrap" Width="250"/>
+                                <TextBlock x:Name="TxtLocalLlmTestStatus" Text="서버를 켠 뒤 연결 테스트를 눌러주세요." Margin="10,2,0,0" Foreground="#AAA" TextWrapping="Wrap" Width="280"/>
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>

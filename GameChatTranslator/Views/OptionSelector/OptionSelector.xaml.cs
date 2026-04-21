@@ -191,8 +191,9 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// Windows OCR capability 설치 여부와 OCR 엔진 생성 가능 여부를 언어별로 나눠 표시합니다.
-        /// capability는 설치됐는데 엔진이 안 만들어지면 재부팅 필요 가능성을 함께 안내합니다.
+        /// Windows OCR capability 상태를 내부적으로 함께 확인하되,
+        /// 설정창에는 OCR 엔진 사용 가능 여부 중심으로 간결하게 표시합니다.
+        /// capability는 설치됐는데 엔진이 안 만들어지면 재부팅 필요 가능성만 보조 문구로 안내합니다.
         /// </summary>
         private void RefreshOcrLanguageStatus()
         {
