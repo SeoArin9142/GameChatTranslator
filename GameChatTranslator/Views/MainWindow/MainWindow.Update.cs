@@ -380,33 +380,46 @@ namespace GameTranslator
         /// 현재 실행 중인 앱의 설치/실행 경로를 사용자에게 보여줄 문자열로 반환합니다.
         /// 설치형이면 Velopack current 폴더 경로를, ZIP 직접 실행이면 현재 EXE 폴더 경로를 표시합니다.
         /// </summary>
-        internal string GetInstallLocationDisplayText()
+        internal string GetInstallLocationPath()
         {
-            string baseDirectory;
-
             try
             {
-                baseDirectory = Path.GetFullPath(AppContext.BaseDirectory)
+                return Path.GetFullPath(AppContext.BaseDirectory)
                     .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
             catch
             {
-                baseDirectory = AppContext.BaseDirectory ?? "";
+                return (AppContext.BaseDirectory ?? "").TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
+        }
 
+        /// <summary>
+        /// 현재 실행 중인 앱이 Velopack 설치형 환경인지 판단합니다.
+        /// 설치형이면 인앱 업데이트 가능 여부와 실행 경로 표시 문구가 함께 설치형 기준으로 바뀝니다.
+        /// </summary>
+        internal bool IsInstalledExecution()
+        {
             try
             {
                 UpdateManager updateManager = CreateUpdateManager();
-                if (CanUseVelopackDirectUpdate(updateManager))
-                {
-                    return $"설치형 실행 경로: {baseDirectory}";
-                }
+                return CanUseVelopackDirectUpdate(updateManager);
             }
             catch
             {
+                return false;
             }
+        }
 
-            return $"직접 실행 경로: {baseDirectory}";
+        /// <summary>
+        /// 현재 실행 중인 앱의 설치/실행 경로를 사용자에게 보여줄 문자열로 반환합니다.
+        /// 설치형이면 Velopack current 폴더 경로를, ZIP 직접 실행이면 현재 EXE 폴더 경로를 표시합니다.
+        /// </summary>
+        internal string GetInstallLocationDisplayText()
+        {
+            string baseDirectory = GetInstallLocationPath();
+            return IsInstalledExecution()
+                ? $"설치형 실행 경로: {baseDirectory}"
+                : $"직접 실행 경로: {baseDirectory}";
         }
 
         /// <summary>

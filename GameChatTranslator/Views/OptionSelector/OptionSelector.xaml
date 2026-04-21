@@ -154,7 +154,36 @@
                                        Foreground="#E6E6E6"
                                        FontFamily="Consolas"
                                        Margin="0,0,0,6"/>
-                            <TextBlock Text="Setup.exe는 one-click 설치이며, 설치 경로를 직접 지정하려면 명령줄에서 --installto 옵션을 사용하세요."
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button x:Name="BtnOpenInstallFolder"
+                                        Content="현재 폴더 열기"
+                                        Padding="8,2"
+                                        Margin="0,0,8,0"
+                                        Background="#444"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="BtnOpenInstallFolder_Click"/>
+                                <Button x:Name="BtnCopyInstallPath"
+                                        Content="경로 복사"
+                                        Padding="8,2"
+                                        Background="#444"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="BtnCopyInstallPath_Click"/>
+                            </StackPanel>
+                            <TextBlock Text="설치 경로 지정 예시"
+                                       Foreground="#8FE388"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="GameChatTranslator-win-Setup.exe --installto D:\Apps\GameChatTranslator"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,6"
+                                       Foreground="#E6E6E6"
+                                       FontFamily="Consolas"
+                                       FontSize="11"/>
+                            <TextBlock Text="Setup.exe는 one-click 설치입니다. 설치 경로를 직접 지정하려면 명령줄에서 --installto 옵션을 사용하세요."
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,8"
                                        Foreground="#AFAFAF"

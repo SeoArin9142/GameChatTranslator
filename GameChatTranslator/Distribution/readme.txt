@@ -7,7 +7,7 @@
 Google 무료 번역, Gemini AI 번역, Local LLM 번역을 사용해 한국어 등 원하는 언어로 표시하는 도구입니다.
 
 릴리즈 페이지에 GameChatTranslator-win-Setup.exe 설치형 파일이 함께 제공되는 버전에서는
-해당 설치형 파일 사용을 권장합니다. 설치 경로를 직접 지정하려면 `GameChatTranslator-win-Setup.exe --installto <경로>` 형식으로 실행하세요.
+해당 설치형 파일 사용을 권장합니다. 설치 경로를 직접 지정하려면 `GameChatTranslator-win-Setup.exe --installto D:\Apps\GameChatTranslator` 형식으로 실행하세요.
 현재 압축을 풀어 보고 있는 이 ZIP은 수동 실행용 배포본입니다.
 설치형으로 설치한 경우 이후 업데이트는 프로그램 안에서 바로 다운로드/설치/재시작할 수 있습니다.
 
@@ -27,7 +27,7 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
 
 - GameChatTranslator-win-Setup.exe
   릴리즈 페이지에 별도로 제공되는 설치형 배포 파일입니다.
-  명령줄에서는 `--installto <경로>` 옵션으로 설치 경로를 지정할 수 있습니다.
+  명령줄에서는 `GameChatTranslator-win-Setup.exe --installto D:\Apps\GameChatTranslator` 형식으로 설치 경로를 지정할 수 있습니다.
   ZIP 내부에는 포함되지 않으며, 릴리즈 페이지에서 직접 실행합니다.
   설치 시 프로그램 파일은 %LocalAppData%\\GameChatTranslator\\current 에 배치됩니다.
 
@@ -67,7 +67,8 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
   첫 실행 시 새 위치로 자동 복사됩니다.
 
 - 현재 실행 경로 확인
-  환경설정창의 업데이트 영역에서 현재 실행 중인 EXE 경로를 확인할 수 있습니다.
+  환경설정창의 업데이트 영역에서 현재 실행 중인 EXE 경로를 확인하고,
+  경로 복사와 현재 폴더 열기를 바로 사용할 수 있습니다.
 
 ------------------------------------------
 2. 필수 사전 설정
