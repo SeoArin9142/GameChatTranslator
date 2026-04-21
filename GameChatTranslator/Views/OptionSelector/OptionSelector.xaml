@@ -155,7 +155,7 @@
                                        Foreground="#E6E6E6"
                                        FontFamily="Consolas"
                                        Margin="0,0,0,6"/>
-                            <TextBlock Text="경로 지정 설치가 필요하면 릴리즈의 MSI를 사용하세요. Setup.exe는 one-click 설치이며, 명령줄에서는 --installto 경로 지정이 가능합니다."
+                            <TextBlock Text="Setup.exe는 one-click 설치이며, 설치 경로를 직접 지정하려면 명령줄에서 --installto 옵션을 사용하세요."
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,8"
                                        Foreground="#AFAFAF"

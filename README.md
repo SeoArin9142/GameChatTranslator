@@ -19,14 +19,13 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 권장 배포 방식:
 
 - 릴리즈 페이지에 `GameChatTranslator-win-Setup.exe`가 있으면 설치형 배포를 우선 사용합니다.
-- 설치 경로를 직접 고르고 싶으면 릴리즈에 `*.msi` 파일이 함께 제공되는지 먼저 확인하세요.
+- 설치 경로를 직접 지정하려면 `GameChatTranslator-win-Setup.exe --installto <경로>` 형식으로 실행합니다.
 - 설치형으로 설치한 경우 이후 업데이트는 앱 안에서 바로 다운로드/설치/재시작할 수 있습니다.
 - ZIP 파일은 수동 실행/백업용으로 사용할 수 있습니다.
 
 ## 빠른 시작
 
 1. 릴리즈 페이지에 `GameChatTranslator-win-Setup.exe`가 있으면 먼저 실행해 설치합니다.
-   - 설치 경로를 직접 선택해야 하면 릴리즈에 `*.msi` 파일이 함께 제공되는지 먼저 확인한 뒤 사용합니다.
    - `Setup.exe`를 명령줄로 실행하는 경우 `--installto <경로>` 옵션으로 경로를 지정할 수 있습니다.
    - 설치형 배포가 아직 없거나 수동 실행이 필요하면 ZIP 파일을 내려받아 압축을 풉니다.
    - 설치형으로 설치한 경우 이후 업데이트 확인 시 새 버전을 앱에서 바로 적용할 수 있습니다.
@@ -352,7 +351,7 @@ git tag v1.0.27-alpha
 git push origin v1.0.27-alpha
 ```
 
-자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다. MSI는 릴리즈 자산에 함께 생성되는지 실제 자산 목록으로 확인한 뒤 사용하면 됩니다.
+자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
 
 ## 기여 및 문의
 
@@ -368,7 +367,7 @@ git push origin v1.0.27-alpha
 
 - 환경설정창 업데이트 영역에서 현재 설치형 실행 경로 또는 ZIP 직접 실행 경로를 바로 확인할 수 있게 했습니다.
 - 설치형 배포 문서에 `GameChatTranslator-win-Setup.exe --installto <경로>` 사용법을 추가했습니다.
-- 릴리즈 workflow에서 MSI 생성 옵션을 준비해 설치 경로 선택 방식 검증 기반을 정리했습니다.
+- 설치 경로 지정은 `GameChatTranslator-win-Setup.exe --installto <경로>` 방식으로 안내를 정리했습니다.
 
 <details>
 <summary>지난 업데이트 요약</summary>
