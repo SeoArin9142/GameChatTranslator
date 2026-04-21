@@ -60,14 +60,7 @@ namespace GameTranslator
                 return "OCR 언어팩 상태 확인 실패";
             }
 
-            List<string> lines = items.Select(BuildLine).ToList();
-            if (items.Any(item => item.NeedsRebootHint))
-            {
-                lines.Add("");
-                lines.Add("안내: capability는 설치됐지만 OCR 엔진이 아직 생성되지 않은 언어가 있습니다. 재부팅 후 다시 확인하세요.");
-            }
-
-            return string.Join(Environment.NewLine, lines);
+            return string.Join(Environment.NewLine, items.Select(BuildLine));
         }
 
         public string BuildLine(OcrLanguageStatusEntry entry)
@@ -76,28 +69,13 @@ namespace GameTranslator
                 ? "OK"
                 : entry.IsCapabilityInstalled ? "WARN" : "NO";
 
-            string line = $"{marker}  {entry.Label} ({entry.AppLanguageTag}) - capability: {FormatCapabilityState(entry.CapabilityState)} / OCR 엔진: {(entry.EngineAvailable ? "사용 가능" : "미감지")}";
+            string line = $"{marker}  {entry.Label} ({entry.AppLanguageTag}) : {(entry.EngineAvailable ? "사용 가능" : "미감지")}";
             if (entry.NeedsRebootHint)
             {
-                line += " / 재부팅 필요 가능";
+                line += " (capability 설치됨, 재부팅 필요 가능)";
             }
 
             return line;
-        }
-
-        public string FormatCapabilityState(string capabilityState)
-        {
-            string state = string.IsNullOrWhiteSpace(capabilityState) ? "Unknown" : capabilityState.Trim();
-            return state switch
-            {
-                "Installed" => "설치됨(Installed)",
-                "NotPresent" => "미설치(NotPresent)",
-                "Removed" => "미설치(Removed)",
-                "InstallPending" => "설치 후 재시작 대기(InstallPending)",
-                "Staged" => "설치 준비됨(Staged)",
-                "Unknown" => "확인 실패",
-                _ => state
-            };
         }
     }
 }
