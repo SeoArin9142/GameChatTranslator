@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.29-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.29-alpha/GameChatTranslator_v1.0.29-alpha.zip)
+[GameChatTranslator v1.0.30-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.30-alpha/GameChatTranslator_v1.0.30-alpha.zip)
 
 릴리즈 페이지:
 
@@ -348,8 +348,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v1.0.29-alpha
-git push origin v1.0.29-alpha
+git tag v1.0.30-alpha
+git push origin v1.0.30-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -362,6 +362,15 @@ git push origin v1.0.29-alpha
 
 ## 업데이트 내역
 
+### v1.0.30-alpha
+
+이번 버전에서는 `영역 초기화` 버튼이 일부 릴리즈 환경에서 여전히 잘리던 문제를 보정했습니다.
+
+- `영역 초기화` 버튼의 최소 폭과 좌우 패딩을 다시 늘려, v1.0.29-alpha 설치본 기준 재현되던 글씨 잘림을 줄였습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
 ### v1.0.29-alpha
 
 이번 버전에서는 이슈 #109 대응으로 캡처 영역 주변 UI와 번역창 배치를 정리했습니다.
@@ -370,9 +379,6 @@ git push origin v1.0.29-alpha
 - PR #110: 번역창 위치를 캡처 영역 기준 고정 아래 배치에서 위/아래 스마트 배치로 바꿨습니다.
 - PR #110: 캡처 영역과 번역창 사이 간격은 8px로 고정하고, 캡처 영역이 위치한 모니터의 work area 기준으로 화면 밖을 벗어나지 않게 clamp 처리했습니다.
 - PR #111: `SizeToContent.Height` 상태에서 높이 계산이 비어 있을 때도 위치 계산이 깨지지 않도록 fallback 높이를 추가했습니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v1.0.28-alpha
 
