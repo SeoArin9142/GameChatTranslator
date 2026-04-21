@@ -6,10 +6,10 @@
 		<!-- Windows OCR/WinRT API 사용을 위해 Windows 10 19041 대상 프레임워크를 사용합니다. -->
 		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
 		<!-- 릴리즈/업데이트 확인에서 사용하는 제품 버전입니다. alpha 접미사는 InformationalVersion에 반영됩니다. -->
-		<Version>1.0.25-alpha</Version>
+		<Version>1.0.26-alpha</Version>
 		<!-- Windows 파일 속성과 어셈블리 바인딩에 쓰이는 숫자형 버전입니다. 접미사를 넣을 수 없어 1.0.25.0 형식을 사용합니다. -->
-		<AssemblyVersion>1.0.25.0</AssemblyVersion>
-		<FileVersion>1.0.25.0</FileVersion>
+		<AssemblyVersion>1.0.26.0</AssemblyVersion>
+		<FileVersion>1.0.26.0</FileVersion>
 		<Nullable>disable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<!-- WPF UI와 Windows Forms Screen/SystemInformation 계열 기능을 함께 사용합니다. -->

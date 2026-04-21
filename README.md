@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.25-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.25-alpha/GameChatTranslator_v1.0.25-alpha.zip)
+[GameChatTranslator v1.0.26-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v.1.0.26-alpha/GameChatTranslator_v1.0.26-alpha.zip)
 
 릴리즈 페이지:
 
@@ -344,8 +344,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v.1.0.25-alpha
-git push origin v.1.0.25-alpha
+git tag v.1.0.26-alpha
+git push origin v.1.0.26-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -358,6 +358,18 @@ git push origin v.1.0.25-alpha
 
 ## 업데이트 내역
 
+### v.1.0.26-alpha
+
+이번 버전에서는 OCR 언어팩 설치 배치파일을 실제 앱 기준에 맞게 정리했습니다.
+
+- LangInstall.bat가 `Install-Language` 대신 Windows OCR capability(`Language.OCR~~~<lang>`)를 직접 설치/검증하도록 변경했습니다.
+- 앱의 OCR 언어팩 상태 표시와 배치파일 설치 기준이 일치하도록 정리했습니다.
+- 언어팩 설치 결과 출력에서 `[FAIL]` / `[OK]`가 함께 나오던 혼란을 제거했습니다.
+- 키보드 입력기 정리 옵션은 `ko-KR`만 남기도록 정리해 Win+Space에서 영어 입력기가 남지 않게 했습니다.
+
+<details>
+<summary>지난 업데이트 요약</summary>
+
 ### v.1.0.25-alpha
 
 이번 버전에서는 설치형 배포 기준 인앱 자동 업데이트를 반영했습니다.
@@ -366,9 +378,6 @@ git push origin v.1.0.25-alpha
 - 설치형(Setup.exe) 배포에서는 앱 안에서 업데이트 확인, 다운로드, 재시작 적용을 수행합니다.
 - ZIP 직접 실행 버전은 기존처럼 릴리즈 페이지 안내를 유지합니다.
 - 환경설정창과 문서의 업데이트 안내 문구를 현재 동작 기준으로 정리했습니다.
-
-<details>
-<summary>지난 업데이트 요약</summary>
 
 ### v.1.0.24-alpha
 
