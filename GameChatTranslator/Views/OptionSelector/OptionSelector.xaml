@@ -141,7 +141,7 @@
                     <GroupBox Header="업데이트 확인 (Update)" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <CheckBox x:Name="CheckUpdatesOnStartup" Content="실행 시 업데이트 자동 확인" Foreground="#CCC" Margin="0,0,0,8"/>
-                            <TextBlock Text="새 버전이 있으면 릴리즈 페이지 이동 여부를 묻고, 이동 시 프로그램을 종료합니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
+                            <TextBlock Text="설치형(Setup.exe)으로 설치한 경우 새 버전을 앱에서 바로 다운로드/설치하고 재시작합니다. ZIP 직접 실행 버전은 릴리즈 페이지 안내를 유지합니다." TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#CCC"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                 <TextBlock x:Name="TxtUpdateStatus" Foreground="#CCC" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button x:Name="BtnCheckUpdate" Content="업데이트 확인" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnCheckUpdate_Click"/>

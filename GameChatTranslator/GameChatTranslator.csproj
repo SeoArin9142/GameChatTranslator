@@ -21,7 +21,20 @@
 		<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
 		<!-- self-contained single-file publish 시 네이티브 라이브러리를 실행 시점에 자체 추출할 수 있게 합니다. -->
 		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<!-- Velopack WPF 통합을 위해 App.Main을 진입점으로 사용합니다. -->
+		<StartupObject>GameChatTranslator.App</StartupObject>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <!-- Velopack 설치형/자동 업데이트 SDK입니다. release workflow의 vpk 버전과 맞춥니다. -->
+	  <PackageReference Include="Velopack" Version="0.0.1298" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <!-- App.xaml에 custom Main을 연결하기 위해 ApplicationDefinition 대신 Page로 포함합니다. -->
+	  <ApplicationDefinition Remove="App.xaml" />
+	  <Page Include="App.xaml" />
+	</ItemGroup>
 
 	<ItemGroup>
 	  <!-- OCR 캐릭터명 검증 파일입니다. 실행 폴더에 반드시 복사되어야 합니다. -->

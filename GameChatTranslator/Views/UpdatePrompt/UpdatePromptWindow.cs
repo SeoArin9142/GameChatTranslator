@@ -17,6 +17,7 @@ namespace GameTranslator
     public enum UpdatePromptResult
     {
         Later,
+        InstallNow,
         OpenReleasePage,
         DisableStartupCheck
     }
@@ -35,7 +36,7 @@ namespace GameTranslator
         /// <paramref name="latestVersion"/>은 GitHub 릴리즈에서 확인한 최신 버전,
         /// <paramref name="allowDisableStartupCheck"/>는 시작 시 자동 확인 비활성화 버튼을 보여줄지 여부입니다.
         /// </summary>
-        public UpdatePromptWindow(string currentVersion, string latestVersion, bool allowDisableStartupCheck)
+        public UpdatePromptWindow(string currentVersion, string latestVersion, bool allowDisableStartupCheck, bool canInstallDirectly)
         {
             Title = "업데이트 확인";
             Width = 420;
@@ -62,7 +63,9 @@ namespace GameTranslator
 
             root.Children.Add(new TextBlock
             {
-                Text = $"현재: {currentVersion}\n최신: {latestVersion}\n\n릴리즈 페이지로 이동하시겠습니까?",
+                Text = canInstallDirectly
+                    ? $"현재: {currentVersion}\n최신: {latestVersion}\n\n지금 업데이트를 다운로드하고 설치한 뒤 자동으로 다시 실행하시겠습니까?"
+                    : $"현재: {currentVersion}\n최신: {latestVersion}\n\n릴리즈 페이지로 이동하시겠습니까?",
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = WpfBrushes.White,
                 Margin = new Thickness(0, 0, 0, 16)
@@ -74,11 +77,22 @@ namespace GameTranslator
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Right
             };
 
-            buttons.Children.Add(CreateButton("릴리즈 페이지 열기", () =>
+            if (canInstallDirectly)
             {
-                Result = UpdatePromptResult.OpenReleasePage;
-                DialogResult = true;
-            }));
+                buttons.Children.Add(CreateButton("지금 설치", () =>
+                {
+                    Result = UpdatePromptResult.InstallNow;
+                    DialogResult = true;
+                }));
+            }
+            else
+            {
+                buttons.Children.Add(CreateButton("릴리즈 페이지 열기", () =>
+                {
+                    Result = UpdatePromptResult.OpenReleasePage;
+                    DialogResult = true;
+                }));
+            }
 
             buttons.Children.Add(CreateButton("나중에", () =>
             {

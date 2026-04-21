@@ -19,12 +19,14 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 권장 배포 방식:
 
 - 릴리즈 페이지에 `GameChatTranslator-Setup.exe`가 있으면 설치형 배포를 우선 사용합니다.
+- 설치형으로 설치한 경우 이후 업데이트는 앱 안에서 바로 다운로드/설치/재시작할 수 있습니다.
 - ZIP 파일은 수동 실행/백업용으로 사용할 수 있습니다.
 
 ## 빠른 시작
 
 1. 릴리즈 페이지에 `GameChatTranslator-Setup.exe`가 있으면 먼저 실행해 설치합니다.
    - 설치형 배포가 아직 없거나 수동 실행이 필요하면 ZIP 파일을 내려받아 압축을 풉니다.
+   - 설치형으로 설치한 경우 이후 업데이트 확인 시 새 버전을 앱에서 바로 적용할 수 있습니다.
 2. `LangInstall.bat`를 **관리자 권한**으로 실행해 필요한 Windows OCR 언어팩을 설치합니다.
    - 선택 가능: 영어, 일본어, 중국어 간체, 러시아어
 3. 언어팩 설치 후 Windows를 재부팅합니다.
@@ -194,6 +196,7 @@ qwen/qwen3.5-9b
 - 기존 ZIP 배포 버전에서 실행 폴더에 `config.ini`, `logs`, `Captures`, `characters.txt`가 있었다면 첫 실행 시 새 위치로 자동 복사합니다.
 - 이후 설정 변경, 로그 기록, 디버그 캡처 저장은 모두 `%LocalAppData%\GameChatTranslator` 아래를 사용합니다.
 - `characters.txt`를 직접 수정해 쓰는 경우에는 사용자 데이터 폴더 쪽 파일을 수정하면 됩니다.
+- 설치형 Velopack 배포는 `%LocalAppData%\GameChatTranslator\current` 폴더를 교체하므로, 설정/로그는 이 사용자 데이터 폴더에 유지됩니다.
 - 로컬 PC에서 실행되므로 외부 API 비용은 없지만, 모델 로드 용량과 GPU/CPU 자원을 사용합니다.
 
 ## 기본 단축키
@@ -273,7 +276,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | `ResultDisplayMode` | `Latest` | `Latest` 또는 `History` |
 | `ResultHistoryLimit` | `5` | 누적 표시 최대 줄 수, 1~10 |
 | `SaveDebugImages` | `false` | 디버그 이미지 저장 여부 |
-| `CheckUpdatesOnStartup` | `true` | 실행 시 업데이트 확인 여부 |
+| `CheckUpdatesOnStartup` | `true` | 실행 시 업데이트 확인 여부. 설치형은 앱 내 설치, ZIP은 릴리즈 페이지 안내 |
 
 <details>
 <summary>단축키 설정 키</summary>
@@ -363,6 +366,7 @@ git push origin v.1.0.24-alpha
 - 기존 ZIP 실행 폴더에 있던 설정/로그/캡처/characters 파일은 첫 실행 시 새 위치로 자동 복사합니다.
 - GitHub Actions 릴리즈 workflow에 Velopack 설치형 패키징 단계를 추가했습니다.
 - `GameChatTranslator-Setup.exe`, `releases.win.json`, `*.nupkg` 설치형 배포 자산을 릴리즈에 함께 업로드할 수 있도록 준비했습니다.
+- 설치형 배포에서는 앱 안에서 새 버전을 직접 다운로드하고 재시작해 적용할 수 있게 했습니다.
 
 <details>
 <summary>지난 업데이트 요약</summary>
