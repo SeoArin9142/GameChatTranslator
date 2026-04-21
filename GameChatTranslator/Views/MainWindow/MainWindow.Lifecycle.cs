@@ -198,6 +198,11 @@ namespace GameTranslator
         /// </summary>
         protected override void OnClosed(EventArgs e)
         {
+            autoTranslateTimer?.Stop();
+            topmostTimer?.Stop();
+            apiStatusTimer?.Stop();
+            autoModeStatusTimer?.Stop();
+            translationResultAutoClearTimer?.Stop();
             captureBorderWindow?.Close();
             logViewerWindow?.CloseForShutdown();
             ocrDiagnosticWindow?.Close();

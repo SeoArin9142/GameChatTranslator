@@ -55,6 +55,7 @@ namespace GameTranslator
         private DispatcherTimer topmostTimer;
         private DispatcherTimer apiStatusTimer;
         private DispatcherTimer autoModeStatusTimer;
+        private DispatcherTimer translationResultAutoClearTimer;
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
@@ -139,6 +140,9 @@ namespace GameTranslator
             autoModeStatusTimer = new DispatcherTimer();
             autoModeStatusTimer.Interval = TimeSpan.FromSeconds(2.5);
             autoModeStatusTimer.Tick += (s, e) => HideAutoModeStatus();
+
+            translationResultAutoClearTimer = new DispatcherTimer();
+            translationResultAutoClearTimer.Tick += (s, e) => ClearDisplayedTranslationResults();
         }
     }
 }

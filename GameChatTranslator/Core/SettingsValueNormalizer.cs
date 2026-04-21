@@ -22,6 +22,10 @@ namespace GameTranslator
         public const int MinResultHistoryLimit = 1;
         public const int MaxResultHistoryLimit = 10;
 
+        public const int DefaultTranslationResultAutoClearSeconds = 0;
+        public const int MinTranslationResultAutoClearSeconds = 0;
+        public const int MaxTranslationResultAutoClearSeconds = 60;
+
         /// <summary>
         /// OCR 이진화 기준값을 1~255 범위로 보정합니다.
         /// 숫자가 아니거나 비어 있으면 기본값 120을 사용합니다.
@@ -88,6 +92,24 @@ namespace GameTranslator
         public static int NormalizeResultHistoryLimit(int value)
         {
             return Clamp(value, MinResultHistoryLimit, MaxResultHistoryLimit);
+        }
+
+        /// <summary>
+        /// 번역 결과 자동 삭제 시간을 0~60초 범위로 보정합니다.
+        /// 0은 자동 삭제를 사용하지 않는다는 의미입니다.
+        /// </summary>
+        public static int NormalizeTranslationResultAutoClearSeconds(string rawValue)
+        {
+            return NormalizeInteger(rawValue, DefaultTranslationResultAutoClearSeconds, MinTranslationResultAutoClearSeconds, MaxTranslationResultAutoClearSeconds);
+        }
+
+        /// <summary>
+        /// 번역 결과 자동 삭제 시간을 0~60초 범위로 보정합니다.
+        /// 0은 자동 삭제를 사용하지 않는다는 의미입니다.
+        /// </summary>
+        public static int NormalizeTranslationResultAutoClearSeconds(int value)
+        {
+            return Clamp(value, MinTranslationResultAutoClearSeconds, MaxTranslationResultAutoClearSeconds);
         }
 
         /// <summary>

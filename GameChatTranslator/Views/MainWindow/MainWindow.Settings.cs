@@ -103,25 +103,10 @@ namespace GameTranslator
                 ini.Write("TranslationContentMode", SettingsService.DefaultTranslationContentMode);
             }
 
-            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmEndpoint")))
-            {
-                ini.Write("LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint);
-            }
-
-            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmModel")))
-            {
-                ini.Write("LocalLlmModel", SettingsService.DefaultLocalLlmModel);
-            }
-
-            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmTimeoutSeconds")))
-            {
-                ini.Write("LocalLlmTimeoutSeconds", SettingsService.DefaultLocalLlmTimeoutSeconds.ToString());
-            }
-
-            if (string.IsNullOrWhiteSpace(ini.Read("LocalLlmMaxTokens")))
-            {
-                ini.Write("LocalLlmMaxTokens", SettingsService.DefaultLocalLlmMaxTokens.ToString());
-            }
+            EnsureNormalizedSetting("LocalLlmEndpoint", settingsService.NormalizeLocalLlmEndpoint(ini.Read("LocalLlmEndpoint")));
+            EnsureNormalizedSetting("LocalLlmModel", settingsService.NormalizeLocalLlmModel(ini.Read("LocalLlmModel")));
+            EnsureNormalizedSetting("LocalLlmTimeoutSeconds", settingsService.NormalizeLocalLlmTimeoutSeconds(ini.Read("LocalLlmTimeoutSeconds")).ToString());
+            EnsureNormalizedSetting("LocalLlmMaxTokens", settingsService.NormalizeLocalLlmMaxTokens(ini.Read("LocalLlmMaxTokens")).ToString());
 
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
             {
@@ -133,20 +118,9 @@ namespace GameTranslator
                 ini.Write("CheckUpdatesOnStartup", "true");
             }
 
-            if (string.IsNullOrWhiteSpace(ini.Read("Threshold")))
-            {
-                ini.Write("Threshold", SettingsValueNormalizer.DefaultThreshold.ToString());
-            }
-
-            if (string.IsNullOrWhiteSpace(ini.Read("AutoTranslateInterval")))
-            {
-                ini.Write("AutoTranslateInterval", SettingsValueNormalizer.DefaultAutoTranslateInterval.ToString());
-            }
-
-            if (string.IsNullOrWhiteSpace(ini.Read("ScaleFactor")))
-            {
-                ini.Write("ScaleFactor", SettingsValueNormalizer.DefaultScaleFactor.ToString());
-            }
+            EnsureNormalizedSetting("Threshold", SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold")).ToString());
+            EnsureNormalizedSetting("AutoTranslateInterval", SettingsValueNormalizer.NormalizeAutoTranslateInterval(ini.Read("AutoTranslateInterval")).ToString());
+            EnsureNormalizedSetting("ScaleFactor", SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor")).ToString());
 
             if (string.IsNullOrWhiteSpace(ini.Read("Key_CopyResult")))
             {
@@ -173,9 +147,22 @@ namespace GameTranslator
                 ini.Write("ResultDisplayMode", SettingsService.DefaultResultDisplayMode);
             }
 
-            if (string.IsNullOrWhiteSpace(ini.Read("ResultHistoryLimit")))
+            EnsureNormalizedSetting("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(ini.Read("ResultHistoryLimit")).ToString());
+            EnsureNormalizedSetting("TranslationResultAutoClearSeconds", SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(ini.Read("TranslationResultAutoClearSeconds")).ToString());
+        }
+
+        /// <summary>
+        /// 설정 문자열이 비어 있거나 허용 범위를 벗어난 경우, 보정된 값을 즉시 config.ini에 다시 기록합니다.
+        /// 런타임 보정값과 파일 내용이 어긋나지 않게 유지하기 위한 공통 헬퍼입니다.
+        /// </summary>
+        private void EnsureNormalizedSetting(string key, string normalizedValue)
+        {
+            string currentValue = ini.Read(key) ?? "";
+            string nextValue = normalizedValue ?? "";
+
+            if (!string.Equals(currentValue, nextValue, StringComparison.Ordinal))
             {
-                ini.Write("ResultHistoryLimit", SettingsValueNormalizer.DefaultResultHistoryLimit.ToString());
+                ini.Write(key, nextValue);
             }
         }
 

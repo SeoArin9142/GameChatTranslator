@@ -54,12 +54,14 @@ namespace GameTranslator
 
                 TrimTranslationDisplayHistory();
                 RenderTranslationDisplayHistory();
+                RestartTranslationResultAutoClearTimer();
                 return;
             }
 
             AddTranslationResultRun(characterName, translatedText);
             AddClipboardTranslationLine(characterName, translatedText);
             ScrollResultToEnd();
+            RestartTranslationResultAutoClearTimer();
         }
 
         /// <summary>
@@ -127,6 +129,44 @@ namespace GameTranslator
         private int ReadResultHistoryLimit()
         {
             return SettingsValueNormalizer.NormalizeResultHistoryLimit(ini.Read("ResultHistoryLimit"));
+        }
+
+        /// <summary>
+        /// 번역 결과 자동 삭제 시간을 읽습니다.
+        /// 0이면 자동 삭제를 사용하지 않습니다.
+        /// </summary>
+        private int ReadTranslationResultAutoClearSeconds()
+        {
+            return SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(ini.Read("TranslationResultAutoClearSeconds"));
+        }
+
+        /// <summary>
+        /// 현재 화면에 표시된 번역 결과만 비웁니다.
+        /// 최근 복사용 버퍼는 유지해 자동 삭제 후에도 직전 번역 복사가 가능하게 둡니다.
+        /// </summary>
+        private void ClearDisplayedTranslationResults()
+        {
+            translationResultAutoClearTimer.Stop();
+            translationDisplayHistory.Clear();
+            TxtResult.Inlines.Clear();
+        }
+
+        /// <summary>
+        /// 새 번역 결과를 표시한 뒤 자동 삭제 타이머를 다시 시작합니다.
+        /// 설정값이 0이면 타이머를 사용하지 않습니다.
+        /// </summary>
+        private void RestartTranslationResultAutoClearTimer()
+        {
+            translationResultAutoClearTimer.Stop();
+
+            int seconds = ReadTranslationResultAutoClearSeconds();
+            if (seconds <= 0)
+            {
+                return;
+            }
+
+            translationResultAutoClearTimer.Interval = TimeSpan.FromSeconds(seconds);
+            translationResultAutoClearTimer.Start();
         }
     }
 }
