@@ -116,14 +116,24 @@ echo [Install] %~1 (%~2)
 set "INSTALL_RESULT=[OK]"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lang = '%~2';" ^
+  "$capabilityName = 'Language.OCR~~~' + $lang + '~0.0.1.0';" ^
   "$installed = $false;" ^
   "try {" ^
-  "  Install-Language -Language $lang -ErrorAction Stop | Out-Null;" ^
+  "  $capability = Get-WindowsCapability -Online | Where-Object { $_.Name -eq $capabilityName } | Select-Object -First 1;" ^
+  "  if ($null -eq $capability) {" ^
+  "    Write-Host ('OCR capability not found: ' + $capabilityName);" ^
+  "    exit 1;" ^
+  "  }" ^
+  "  if ($capability.State -ne 'Installed') {" ^
+  "    Add-WindowsCapability -Online -Name $capability.Name -ErrorAction Stop | Out-Null;" ^
+  "  }" ^
   "} catch {" ^
   "  Write-Host $_.Exception.Message;" ^
   "}" ^
   "try {" ^
-  "  $installed = @(Get-InstalledLanguage | Where-Object { $_.Language -eq $lang }).Count -gt 0;" ^
+  "  $installed = @(" ^
+  "    Get-WindowsCapability -Online | Where-Object { $_.Name -eq $capabilityName -and $_.State -eq 'Installed' }" ^
+  "  ).Count -gt 0;" ^
   "} catch {" ^
   "  Write-Host $_.Exception.Message;" ^
   "  exit 1;" ^
