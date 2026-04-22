@@ -238,6 +238,110 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void MergeBestLinesByIndex_StrinovaMode_PicksBestLinePerIndex()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "[미셸]: hello" },
+                        new OcrLine { Text = "[미셸]: !!!" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "[미셸]: !!!" },
+                        new OcrLine { Text = "[미셸]: world" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Equal(2, merged.Count);
+            Assert.Equal("[미셸]: hello", merged[0].Text);
+            Assert.Equal("[미셸]: world", merged[1].Text);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_TieUsesDeterministicLanguageOrder()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Top = 10, Bottom = 20, Text = "[미셸]: hello" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Top = 30, Bottom = 40, Text = "[미셸]: hello" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Single(merged);
+            Assert.Equal("[미셸]: hello", merged[0].Text);
+            Assert.Equal(30, merged[0].Top);
+            Assert.Equal(40, merged[0].Bottom);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_EtcMode_PicksMostReadableLinePerIndex()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "!!!" },
+                        new OcrLine { Text = "猫 は 可 愛 い" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "猫很可爱!" },
+                        new OcrLine { Text = "..." }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.Equal(2, merged.Count);
+            Assert.Equal("猫很可爱!", merged[0].Text);
+            Assert.Equal("猫 は 可 愛 い", merged[1].Text);
+        }
+
+        [Fact]
         public void OcrService_DoesNotReferenceWinRtOrBitmapTypes()
         {
             string assemblyQualifiedNames = string.Join(

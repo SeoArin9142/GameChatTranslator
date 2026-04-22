@@ -218,9 +218,7 @@ namespace GameTranslator
                     CroppedPng = croppedPng
                 };
 
-                List<OcrLine> bestLines = null;
-                int bestScore = int.MinValue;
-                string bestLanguageCode = "";
+                var languageCandidates = new List<OcrLanguageCandidate>();
 
                 foreach (string languageCombination in languageCombinations)
                 {
@@ -271,17 +269,11 @@ namespace GameTranslator
                             Text = text
                         })
                         .ToList();
-                    int score = ScoreOcrCandidate(lines, contentMode);
-
-                    if (bestLines == null ||
-                        score > bestScore ||
-                        (score == bestScore &&
-                         string.Compare(languageCombination, bestLanguageCode, StringComparison.OrdinalIgnoreCase) < 0))
+                    languageCandidates.Add(new OcrLanguageCandidate
                     {
-                        bestLines = lines;
-                        bestScore = score;
-                        bestLanguageCode = languageCombination;
-                    }
+                        LanguageCode = languageCombination,
+                        Lines = lines
+                    });
                 }
 
                 if (executableMissing)
@@ -289,10 +281,11 @@ namespace GameTranslator
                     break;
                 }
 
-                if (bestLines != null && candidate.Languages.Count > 0)
+                List<OcrLine> mergedLines = ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
+                if (mergedLines.Count > 0 && candidate.Languages.Count > 0)
                 {
-                    candidate.MergedLines.AddRange(bestLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                    candidate.Score = bestScore;
+                    candidate.MergedLines.AddRange(mergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Score = ScoreOcrCandidate(mergedLines, contentMode);
                     candidates.Add(candidate);
                 }
             }

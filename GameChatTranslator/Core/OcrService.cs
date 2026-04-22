@@ -106,6 +106,77 @@ namespace GameTranslator
 
             return bestSelection != null && bestSelection.Score > 0 ? bestSelection : null;
         }
+
+        /// <summary>
+        /// 여러 언어 조합이 반환한 OCR 라인을 줄 인덱스별로 비교해 가장 읽기 좋은 줄만 병합합니다.
+        /// 실험용 외부 OCR 비교에서 전체 언어 조합 하나를 통째로 선택하지 않고, 줄마다 더 나은 결과를 섞어 보기 위해 사용합니다.
+        /// </summary>
+        public List<OcrLine> MergeBestLinesByIndex(
+            IEnumerable<OcrLanguageCandidate> candidates,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode = TranslationContentMode.Strinova)
+        {
+            List<OcrLanguageCandidate> candidateList = (candidates ?? Enumerable.Empty<OcrLanguageCandidate>())
+                .Where(candidate => candidate != null && candidate.Lines != null)
+                .ToList();
+
+            if (candidateList.Count == 0)
+            {
+                return new List<OcrLine>();
+            }
+
+            int maxLineCount = candidateList.Max(candidate => candidate.Lines.Count);
+            var mergedLines = new List<OcrLine>();
+
+            for (int lineIndex = 0; lineIndex < maxLineCount; lineIndex++)
+            {
+                OcrLine bestLine = null;
+                string bestLanguageCode = "";
+                int bestScore = int.MinValue;
+
+                foreach (OcrLanguageCandidate candidate in candidateList)
+                {
+                    if (lineIndex >= candidate.Lines.Count)
+                    {
+                        continue;
+                    }
+
+                    OcrLine currentLine = candidate.Lines[lineIndex];
+                    string currentText = currentLine?.Text ?? "";
+                    if (string.IsNullOrWhiteSpace(currentText))
+                    {
+                        continue;
+                    }
+
+                    int currentScore = ScoreLines(
+                        new[] { new OcrLine { Top = currentLine.Top, Bottom = currentLine.Bottom, Text = currentText } },
+                        characterNames,
+                        contentMode);
+
+                    if (bestLine == null ||
+                        currentScore > bestScore ||
+                        (currentScore == bestScore &&
+                         string.Compare(candidate.LanguageCode, bestLanguageCode, System.StringComparison.OrdinalIgnoreCase) < 0))
+                    {
+                        bestLine = currentLine;
+                        bestLanguageCode = candidate.LanguageCode ?? "";
+                        bestScore = currentScore;
+                    }
+                }
+
+                if (bestLine != null)
+                {
+                    mergedLines.Add(new OcrLine
+                    {
+                        Top = bestLine.Top,
+                        Bottom = bestLine.Bottom,
+                        Text = bestLine.Text
+                    });
+                }
+            }
+
+            return mergedLines;
+        }
     }
 
     /// <summary>
