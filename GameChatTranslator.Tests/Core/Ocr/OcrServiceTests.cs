@@ -342,6 +342,70 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void MergeBestLinesByIndex_StrinovaMode_PrefersReadableMessageOverWeakLabeledLine()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [치요]: ROE! |" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [치요]: 猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Single(merged);
+            Assert.Equal("SeoArin [치요]: 猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_StrinovaMode_PrefersLabeledLineWhenMessageQualityMatches()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "猫は可愛い" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [치요]: 猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Single(merged);
+            Assert.Equal("SeoArin [치요]: 猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
         public void OcrService_DoesNotReferenceWinRtOrBitmapTypes()
         {
             string assemblyQualifiedNames = string.Join(

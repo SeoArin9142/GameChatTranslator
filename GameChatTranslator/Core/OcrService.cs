@@ -9,6 +9,8 @@ namespace GameTranslator
     /// </summary>
     public sealed class OcrService
     {
+        private const int MergeChatLabelBonus = 300;
+
         /// <summary>
         /// 처리 모드별 OCR 평가 순서를 만듭니다.
         /// Fast/Auto의 첫 단계는 Color + 게임 언어 OCR만 실행하는 fast path입니다.
@@ -148,10 +150,7 @@ namespace GameTranslator
                         continue;
                     }
 
-                    int currentScore = ScoreLines(
-                        new[] { new OcrLine { Top = currentLine.Top, Bottom = currentLine.Bottom, Text = currentText } },
-                        characterNames,
-                        contentMode);
+                    int currentScore = ScoreMergedLineForSelection(currentLine, characterNames, contentMode);
 
                     if (bestLine == null ||
                         currentScore > bestScore ||
@@ -176,6 +175,34 @@ namespace GameTranslator
             }
 
             return mergedLines;
+        }
+
+        private int ScoreMergedLineForSelection(
+            OcrLine line,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode)
+        {
+            string text = line?.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return 0;
+            }
+
+            if (contentMode == TranslationContentMode.Etc)
+            {
+                return ScoreLines(
+                    new[] { new OcrLine { Top = line.Top, Bottom = line.Bottom, Text = text } },
+                    characterNames,
+                    TranslationContentMode.Etc);
+            }
+
+            if (ChatTextAnalyzer.TryParseChatLine(text, out ChatTextAnalyzer.ChatLine parsedLine))
+            {
+                return MergeChatLabelBonus +
+                       ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { parsedLine.Message });
+            }
+
+            return ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { text });
         }
     }
 
