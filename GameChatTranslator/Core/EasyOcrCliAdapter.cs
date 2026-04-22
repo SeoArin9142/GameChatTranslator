@@ -174,7 +174,7 @@ namespace GameTranslator
                 return EasyOcrCliBatchResult.CreateFailure(
                     SettingsService.DefaultEasyOcrPythonPath,
                     languageCombinations,
-                    "python 실행 파일을 찾지 못했습니다. PATH 또는 config.ini의 EasyOcrPythonPath를 확인해 주세요.",
+                    "python 또는 py 실행 파일을 찾지 못했습니다. PATH 또는 config.ini의 EasyOcrPythonPath를 확인해 주세요.",
                     isPythonMissing: true);
             }
             finally
@@ -228,10 +228,15 @@ namespace GameTranslator
             string stderr = EmptyToFallback(standardError, "");
             return exitCode switch
             {
-                3 => "EasyOCR 모듈을 찾지 못했습니다. python -m pip install torch torchvision easyocr 후 다시 실행해 주세요.",
+                3 => "EasyOCR 모듈을 찾지 못했습니다. py -m pip install torch torchvision easyocr 또는 python -m pip install torch torchvision easyocr 후 다시 실행해 주세요.",
                 4 => EmptyToFallback(stderr, "EasyOCR 실행 중 오류가 발생했습니다."),
                 _ => EmptyToFallback(stderr, $"EasyOCR 종료 코드: {exitCode}")
             };
+        }
+
+        internal IReadOnlyList<string> GetPythonCandidatesForTesting(string configuredPythonPath)
+        {
+            return GetPythonCandidates(configuredPythonPath).ToList();
         }
 
         private IEnumerable<string> GetPythonCandidates(string configuredPythonPath)
@@ -250,6 +255,7 @@ namespace GameTranslator
             }
 
             candidates.Add(SettingsService.DefaultEasyOcrPythonPath);
+            candidates.Add("py");
             candidates.Add("python3");
 
             return candidates
@@ -344,7 +350,7 @@ namespace GameTranslator
                 return EasyOcrCliBatchResult.CreateFailure(
                     pythonExecutablePath,
                     languageCombinations,
-                    "python 실행 파일을 찾지 못했습니다.",
+                    "python 또는 py 실행 파일을 찾지 못했습니다.",
                     isPythonMissing: true);
             }
             catch (Exception ex)

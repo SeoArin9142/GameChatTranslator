@@ -52,6 +52,16 @@ namespace GameChatTranslator.Tests
                 values);
         }
 
+        [Fact]
+        public void BuildPythonCandidates_IncludesPyLauncherFallback()
+        {
+            var values = _adapter.GetPythonCandidatesForTesting("");
+
+            Assert.Contains("python", values);
+            Assert.Contains("py", values);
+            Assert.Contains("python3", values);
+        }
+
         [Theory]
         [InlineData("ko", "ko")]
         [InlineData("en-US", "en")]
@@ -70,6 +80,7 @@ namespace GameChatTranslator.Tests
 
             Assert.Contains("easyocr", message, System.StringComparison.OrdinalIgnoreCase);
             Assert.Contains("torch", message, System.StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("py -m pip", message, System.StringComparison.OrdinalIgnoreCase);
         }
     }
 }
