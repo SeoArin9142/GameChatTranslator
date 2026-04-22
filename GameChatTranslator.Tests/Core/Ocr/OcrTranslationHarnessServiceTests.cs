@@ -47,5 +47,36 @@ namespace GameChatTranslator.Tests
             Assert.True(request.Skipped);
             Assert.Equal("파싱 실패 / 노이즈", request.SkipReason);
         }
+
+        [Fact]
+        public void BuildRequests_SkipsSystemUiLineWhenSystemLabelAndUiKeywordAreCombined()
+        {
+            var request = _service.BuildRequests(new[] { "[팀]! 빔을 클릭해 채널 변경" }).Single();
+
+            Assert.True(request.Skipped);
+            Assert.Equal("시스템/UI 문구", request.SkipReason);
+        }
+
+        [Fact]
+        public void BuildRequests_KeepsExclamationSeparatedChatLineWhenItIsNotSystemUiText()
+        {
+            var request = _service.BuildRequests(new[] { "[치요]! 공격 시작" }).Single();
+
+            Assert.False(request.Skipped);
+            Assert.Equal("[치요]: ", request.Prefix);
+            Assert.Equal("공격 시작", request.ContentToTranslate);
+            Assert.Equal(TranslationContentMode.Strinova, request.ContentMode);
+        }
+
+        [Fact]
+        public void BuildRequests_KeepsTeamLineWhenItDoesNotContainUiKeyword()
+        {
+            var request = _service.BuildRequests(new[] { "[팀]! 공격 집결" }).Single();
+
+            Assert.False(request.Skipped);
+            Assert.Equal("[팀]: ", request.Prefix);
+            Assert.Equal("공격 집결", request.ContentToTranslate);
+            Assert.Equal(TranslationContentMode.Strinova, request.ContentMode);
+        }
     }
 }

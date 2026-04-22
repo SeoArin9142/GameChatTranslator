@@ -10,6 +10,23 @@ namespace GameTranslator
     /// </summary>
     public sealed class OcrTranslationHarnessService
     {
+        private static readonly HashSet<string> SystemLabelCandidates = new HashSet<string>(new[]
+        {
+            "팀",
+            "공지",
+            "시스템"
+        });
+
+        private static readonly string[] UiKeywords =
+        {
+            "클릭",
+            "채널 변경",
+            "선택",
+            "설정",
+            "닫기",
+            "확인"
+        };
+
         private readonly TranslationPromptBuilder translationPromptBuilder;
 
         public OcrTranslationHarnessService(TranslationPromptBuilder translationPromptBuilder = null)
@@ -38,6 +55,12 @@ namespace GameTranslator
                 if (ChatTextAnalyzer.TryParseChatLine(text, out ChatTextAnalyzer.ChatLine chatLine) &&
                     !string.IsNullOrWhiteSpace(chatLine.Message))
                 {
+                    if (ShouldSkipSystemUiLine(chatLine))
+                    {
+                        requests.Add(OcrTranslationHarnessRequest.Skip(text, "시스템/UI 문구"));
+                        continue;
+                    }
+
                     requests.Add(OcrTranslationHarnessRequest.Chat(text, chatLine.CharacterLabel, chatLine.Message));
                     continue;
                 }
@@ -53,6 +76,22 @@ namespace GameTranslator
             }
 
             return requests;
+        }
+
+        private static bool ShouldSkipSystemUiLine(ChatTextAnalyzer.ChatLine chatLine)
+        {
+            if (chatLine == null)
+            {
+                return false;
+            }
+
+            if (!SystemLabelCandidates.Contains((chatLine.CharacterName ?? "").Trim()))
+            {
+                return false;
+            }
+
+            string message = chatLine.Message ?? "";
+            return UiKeywords.Any(keyword => message.Contains(keyword));
         }
     }
 
