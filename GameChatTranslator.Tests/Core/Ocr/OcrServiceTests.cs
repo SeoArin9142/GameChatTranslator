@@ -422,6 +422,62 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void NormalizeMergedLinesForSelection_StrinovaMode_RecoversCloseKnownLabel()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var lines = new[]
+            {
+                new OcrLine { Top = 10, Bottom = 20, Text = "SeoArin [지요]: 猫は可愛い" }
+            };
+
+            List<OcrLine> normalized = _service.NormalizeMergedLinesForSelection(lines, characters, TranslationContentMode.Strinova);
+
+            Assert.Single(normalized);
+            Assert.Equal(10, normalized[0].Top);
+            Assert.Equal(20, normalized[0].Bottom);
+            Assert.Equal("[치요]: 猫は可愛い", normalized[0].Text);
+        }
+
+        [Fact]
+        public void NormalizeMergedLinesForSelection_StrinovaMode_DoesNotGuessAsciiNoiseLabel()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var lines = new[]
+            {
+                new OcrLine { Text = "SeoArin [AQ]: 猫は可愛い" }
+            };
+
+            List<OcrLine> normalized = _service.NormalizeMergedLinesForSelection(lines, characters, TranslationContentMode.Strinova);
+
+            Assert.Single(normalized);
+            Assert.Equal("SeoArin [AQ]: 猫は可愛い", normalized[0].Text);
+        }
+
+        [Fact]
+        public void ScoreMergedLinesForSelection_StrinovaMode_UsesKnownCharacterScaleWhenRecoveredLabelExists()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var lines = new[]
+            {
+                new OcrLine { Text = "SeoArin [지요]: 猫は可愛い" },
+                new OcrLine { Text = "SeoArin [치요]: KowKu munpie.!!!" }
+            };
+
+            int mergedScore = _service.ScoreMergedLinesForSelection(lines, characters, TranslationContentMode.Strinova);
+
+            Assert.True(mergedScore > 20000);
+        }
+
+        [Fact]
         public void ScoreMergedLinesForSelection_EtcMode_UsesSameScoreAsScoreLines()
         {
             var lines = new[]
