@@ -113,6 +113,24 @@ namespace GameChatTranslator.Tests
         }
 
         [Theory]
+        [InlineData(null, SettingsService.DefaultPaddleOcrPythonPath)]
+        [InlineData("", SettingsService.DefaultPaddleOcrPythonPath)]
+        [InlineData("  C:\\Python311\\python.exe  ", "C:\\Python311\\python.exe")]
+        public void NormalizePaddleOcrPythonPath_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizePaddleOcrPythonPath(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultPaddleOcrLanguageCodes)]
+        [InlineData("", SettingsService.DefaultPaddleOcrLanguageCodes)]
+        [InlineData("  korean|japan|ch  ", "korean|japan|ch")]
+        public void NormalizePaddleOcrLanguageCodes_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizePaddleOcrLanguageCodes(rawValue));
+        }
+
+        [Theory]
         [InlineData(null, TranslationEngineMode.Google)]
         [InlineData("", TranslationEngineMode.Google)]
         [InlineData("Google", TranslationEngineMode.Google)]

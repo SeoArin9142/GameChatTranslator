@@ -61,11 +61,17 @@
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
 	    <TargetPath>easyocr_runner.py</TargetPath>
 	  </None>
+	  <!-- PaddleOCR 비교 실험용 Python 러너입니다. 진단 경로에서만 사용합니다. -->
+	  <None Update="Distribution/paddleocr_runner.py">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>paddleocr_runner.py</TargetPath>
+	  </None>
 	</ItemGroup>
 
 	<ItemGroup>
 	  <!-- Visual Studio 게시 프로필에서도 배포 보조 파일이 누락되지 않도록 Publish 후 루트 출력 폴더에 한 번 더 복사합니다. -->
-	  <DistributionPublishFile Include="Distribution/characters.txt;Distribution/LangInstall.bat;Distribution/readme.txt;Distribution/easyocr_runner.py" />
+	  <DistributionPublishFile Include="Distribution/characters.txt;Distribution/LangInstall.bat;Distribution/readme.txt;Distribution/easyocr_runner.py;Distribution/paddleocr_runner.py" />
 	</ItemGroup>
 
 	<Target Name="CopyDistributionFilesToPublishDirectory" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">

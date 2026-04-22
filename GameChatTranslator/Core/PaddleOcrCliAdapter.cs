@@ -8,84 +8,75 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace GameTranslator
 {
     /// <summary>
-    /// 실험 브랜치에서 EasyOCR를 외부 Python 프로세스로 호출합니다.
-    /// 메인 번역 경로는 건드리지 않고, OCR 진단 화면에서 Win OCR/Tesseract와 비교하기 위한 배치 실행만 담당합니다.
+    /// 실험 브랜치에서 PaddleOCR를 외부 Python 프로세스로 호출합니다.
+    /// 메인 번역 경로는 건드리지 않고, OCR 진단 화면에서 Win OCR/Tesseract/EasyOCR와 비교하기 위한 배치 실행만 담당합니다.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public sealed class EasyOcrCliAdapter
+    public sealed class PaddleOcrCliAdapter
     {
-        private const string RunnerFileName = "easyocr_runner.py";
+        private const string RunnerFileName = "paddleocr_runner.py";
 
-        private static readonly Dictionary<string, string> AppLanguageToEasyOcrMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, string> AppLanguageToPaddleOcrMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["ko"] = "ko",
-            ["ko-KR"] = "ko",
+            ["ko"] = "korean",
+            ["ko-KR"] = "korean",
             ["en"] = "en",
             ["en-US"] = "en",
-            ["ja"] = "ja",
-            ["ja-JP"] = "ja",
-            ["zh-Hans-CN"] = "ch_sim",
-            ["zh-CN"] = "ch_sim",
+            ["ja"] = "japan",
+            ["ja-JP"] = "japan",
+            ["zh-Hans-CN"] = "ch",
+            ["zh-CN"] = "ch",
             ["ru"] = "ru",
             ["ru-RU"] = "ru"
         };
 
         private static readonly string[] DefaultLanguagePriority =
         {
-            "ja",
-            "ko",
-            "ch_sim"
+            "en",
+            "korean",
+            "japan",
+            "ch"
         };
 
         public string BuildLanguageCodes(string configuredValue, string gameLanguage)
         {
             if (!string.IsNullOrWhiteSpace(configuredValue) &&
-                !string.Equals(configuredValue.Trim(), SettingsService.DefaultEasyOcrLanguageCodes, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(configuredValue.Trim(), SettingsService.DefaultPaddleOcrLanguageCodes, StringComparison.OrdinalIgnoreCase))
             {
                 return NormalizeLanguageCodes(configuredValue);
             }
 
             var codes = new List<string>();
-            string mappedGameLanguage = MapAppLanguageTagToEasyOcr(gameLanguage);
+            string mappedGameLanguage = MapAppLanguageTagToPaddleOcr(gameLanguage);
             if (!string.IsNullOrWhiteSpace(mappedGameLanguage))
             {
                 codes.Add(mappedGameLanguage);
             }
 
-            codes.Add("en");
-            codes.Add("ko");
-            codes.Add("ja");
-            codes.Add("ch_sim");
-
+            codes.AddRange(DefaultLanguagePriority);
             return string.Join("+", codes.Distinct(StringComparer.OrdinalIgnoreCase));
         }
 
-        public IReadOnlyList<string> BuildLanguageCombinations(string configuredValue, string gameLanguage)
+        public IReadOnlyList<string> BuildLanguageCandidates(string configuredValue, string gameLanguage)
         {
             string normalizedConfiguredValue = (configuredValue ?? "").Trim();
 
             if (string.IsNullOrWhiteSpace(normalizedConfiguredValue) ||
-                string.Equals(normalizedConfiguredValue, SettingsService.DefaultEasyOcrLanguageCodes, StringComparison.OrdinalIgnoreCase))
+                string.Equals(normalizedConfiguredValue, SettingsService.DefaultPaddleOcrLanguageCodes, StringComparison.OrdinalIgnoreCase))
             {
-                var combinations = new List<string>();
-                string mappedGameLanguage = MapAppLanguageTagToEasyOcr(gameLanguage);
-                if (!string.IsNullOrWhiteSpace(mappedGameLanguage) &&
-                    !string.Equals(mappedGameLanguage, "en", StringComparison.OrdinalIgnoreCase))
+                var candidates = new List<string>();
+                string mappedGameLanguage = MapAppLanguageTagToPaddleOcr(gameLanguage);
+                if (!string.IsNullOrWhiteSpace(mappedGameLanguage))
                 {
-                    combinations.Add(BuildPair(mappedGameLanguage));
+                    candidates.Add(mappedGameLanguage);
                 }
 
-                foreach (string languageCode in DefaultLanguagePriority)
-                {
-                    combinations.Add(BuildPair(languageCode));
-                }
-
-                return combinations
+                candidates.AddRange(DefaultLanguagePriority);
+                return candidates
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
@@ -100,22 +91,25 @@ namespace GameTranslator
                     .ToList();
             }
 
-            return new[] { NormalizeLanguageCodes(normalizedConfiguredValue) };
+            return NormalizeLanguageCodes(normalizedConfiguredValue)
+                .Split(new[] { '+' }, StringSplitOptions.RemoveEmptyEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         public string NormalizeLanguageCodes(string rawValue)
         {
             IEnumerable<string> tokens = (rawValue ?? "")
                 .Split(new[] { '+', ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(token => MapAppLanguageTagToEasyOcr(token.Trim()))
+                .Select(token => MapAppLanguageTagToPaddleOcr(token.Trim()))
                 .Where(token => !string.IsNullOrWhiteSpace(token))
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 
             string normalized = string.Join("+", tokens);
-            return string.IsNullOrWhiteSpace(normalized) ? SettingsService.DefaultEasyOcrLanguageCodes : normalized;
+            return string.IsNullOrWhiteSpace(normalized) ? SettingsService.DefaultPaddleOcrLanguageCodes : normalized;
         }
 
-        public string MapAppLanguageTagToEasyOcr(string languageTag)
+        public string MapAppLanguageTagToPaddleOcr(string languageTag)
         {
             if (string.IsNullOrWhiteSpace(languageTag))
             {
@@ -123,12 +117,12 @@ namespace GameTranslator
             }
 
             string normalized = languageTag.Trim();
-            return AppLanguageToEasyOcrMap.TryGetValue(normalized, out string mapped)
+            return AppLanguageToPaddleOcrMap.TryGetValue(normalized, out string mapped)
                 ? mapped
                 : normalized;
         }
 
-        public EasyOcrCliBatchResult Recognize(
+        public PaddleOcrCliBatchResult Recognize(
             Bitmap bitmap,
             string configuredPythonPath,
             string configuredLanguageCodes,
@@ -137,20 +131,20 @@ namespace GameTranslator
         {
             if (bitmap == null)
             {
-                return EasyOcrCliBatchResult.CreateFailure("", new List<string>(), "OCR 입력 이미지가 없습니다.");
+                return PaddleOcrCliBatchResult.CreateFailure("", new List<string>(), "OCR 입력 이미지가 없습니다.");
             }
 
-            IReadOnlyList<string> languageCombinations = BuildLanguageCombinations(configuredLanguageCodes, gameLanguage);
+            IReadOnlyList<string> languageCandidates = BuildLanguageCandidates(configuredLanguageCodes, gameLanguage);
             string runnerScriptPath = GetRunnerScriptPath();
             if (!File.Exists(runnerScriptPath))
             {
-                return EasyOcrCliBatchResult.CreateFailure(
+                return PaddleOcrCliBatchResult.CreateFailure(
                     "",
-                    languageCombinations,
-                    "easyocr_runner.py를 찾지 못했습니다. 게시 산출물에 EasyOCR 러너가 포함됐는지 확인해 주세요.");
+                    languageCandidates,
+                    "paddleocr_runner.py를 찾지 못했습니다. 게시 산출물에 PaddleOCR 러너가 포함됐는지 확인해 주세요.");
             }
 
-            string inputDirectory = Path.Combine(Path.GetTempPath(), "GameChatTranslator", "EasyOCR");
+            string inputDirectory = Path.Combine(Path.GetTempPath(), "GameChatTranslator", "PaddleOCR");
             Directory.CreateDirectory(inputDirectory);
 
             string inputFilePath = Path.Combine(inputDirectory, $"ocr_{Guid.NewGuid():N}.png");
@@ -160,11 +154,11 @@ namespace GameTranslator
             {
                 foreach (string pythonPath in GetPythonCandidates(configuredPythonPath))
                 {
-                    EasyOcrCliBatchResult runResult = TryRecognizeInternal(
+                    PaddleOcrCliBatchResult runResult = TryRecognizeInternal(
                         pythonPath,
                         runnerScriptPath,
                         inputFilePath,
-                        languageCombinations,
+                        languageCandidates,
                         timeoutMs);
                     if (runResult.Success || !runResult.IsPythonMissing)
                     {
@@ -172,10 +166,10 @@ namespace GameTranslator
                     }
                 }
 
-                return EasyOcrCliBatchResult.CreateFailure(
-                    SettingsService.DefaultEasyOcrPythonPath,
-                    languageCombinations,
-                    "python 또는 py 실행 파일을 찾지 못했습니다. PATH 또는 config.ini의 EasyOcrPythonPath를 확인해 주세요.",
+                return PaddleOcrCliBatchResult.CreateFailure(
+                    SettingsService.DefaultPaddleOcrPythonPath,
+                    languageCandidates,
+                    "python 또는 py 실행 파일을 찾지 못했습니다. PATH 또는 config.ini의 PaddleOcrPythonPath를 확인해 주세요.",
                     isPythonMissing: true);
             }
             finally
@@ -201,7 +195,7 @@ namespace GameTranslator
         internal IReadOnlyList<string> BuildArguments(
             string runnerScriptPath,
             string inputFilePath,
-            IReadOnlyList<string> languageCombinations)
+            IReadOnlyList<string> languageCandidates)
         {
             return new[]
             {
@@ -211,17 +205,10 @@ namespace GameTranslator
                 "--image",
                 inputFilePath,
                 "--groups",
-                string.Join("|", languageCombinations ?? Array.Empty<string>()),
+                string.Join("|", languageCandidates ?? Array.Empty<string>()),
                 "--gpu",
                 "false"
             };
-        }
-
-        internal string BuildPair(string languageCode)
-        {
-            return string.Equals(languageCode, "en", StringComparison.OrdinalIgnoreCase)
-                ? "en"
-                : $"{languageCode}+en";
         }
 
         internal string GetFailureMessageForExitCode(int exitCode, string standardError)
@@ -229,9 +216,9 @@ namespace GameTranslator
             string stderr = EmptyToFallback(standardError, "");
             return exitCode switch
             {
-                3 => "EasyOCR 모듈을 찾지 못했습니다. py -m pip install torch torchvision easyocr 또는 python -m pip install torch torchvision easyocr 후 다시 실행해 주세요.",
-                4 => EmptyToFallback(stderr, "EasyOCR 실행 중 오류가 발생했습니다."),
-                _ => EmptyToFallback(stderr, $"EasyOCR 종료 코드: {exitCode}")
+                3 => "PaddleOCR 모듈을 찾지 못했습니다. py -m pip install paddlepaddle 및 py -m pip install \"paddleocr[all]\" 후 다시 실행해 주세요.",
+                4 => EmptyToFallback(stderr, "PaddleOCR 실행 중 오류가 발생했습니다."),
+                _ => EmptyToFallback(stderr, $"PaddleOCR 종료 코드: {exitCode}")
             };
         }
 
@@ -249,13 +236,13 @@ namespace GameTranslator
                 candidates.Add(configuredPythonPath.Trim());
             }
 
-            string environmentPath = Environment.GetEnvironmentVariable("EASYOCR_PYTHON_PATH");
+            string environmentPath = Environment.GetEnvironmentVariable("PADDLEOCR_PYTHON_PATH");
             if (!string.IsNullOrWhiteSpace(environmentPath))
             {
                 candidates.Add(environmentPath.Trim());
             }
 
-            candidates.Add(SettingsService.DefaultEasyOcrPythonPath);
+            candidates.Add(SettingsService.DefaultPaddleOcrPythonPath);
             candidates.Add("py");
             candidates.Add("python3");
 
@@ -264,11 +251,11 @@ namespace GameTranslator
                 .Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
-        private EasyOcrCliBatchResult TryRecognizeInternal(
+        private PaddleOcrCliBatchResult TryRecognizeInternal(
             string pythonExecutablePath,
             string runnerScriptPath,
             string inputFilePath,
-            IReadOnlyList<string> languageCombinations,
+            IReadOnlyList<string> languageCandidates,
             int timeoutMs)
         {
             var processStartInfo = new ProcessStartInfo
@@ -282,7 +269,7 @@ namespace GameTranslator
                 StandardErrorEncoding = Encoding.UTF8
             };
 
-            foreach (string argument in BuildArguments(runnerScriptPath, inputFilePath, languageCombinations))
+            foreach (string argument in BuildArguments(runnerScriptPath, inputFilePath, languageCandidates))
             {
                 processStartInfo.ArgumentList.Add(argument);
             }
@@ -292,7 +279,7 @@ namespace GameTranslator
                 using Process process = Process.Start(processStartInfo);
                 if (process == null)
                 {
-                    return EasyOcrCliBatchResult.CreateFailure(pythonExecutablePath, languageCombinations, "EasyOCR Python 프로세스를 시작하지 못했습니다.");
+                    return PaddleOcrCliBatchResult.CreateFailure(pythonExecutablePath, languageCandidates, "PaddleOCR Python 프로세스를 시작하지 못했습니다.");
                 }
 
                 string standardOutput = process.StandardOutput.ReadToEnd();
@@ -308,28 +295,28 @@ namespace GameTranslator
                     {
                     }
 
-                    return EasyOcrCliBatchResult.CreateFailure(
+                    return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
-                        languageCombinations,
-                        $"EasyOCR 실행이 {timeoutMs}ms 안에 끝나지 않았습니다.");
+                        languageCandidates,
+                        $"PaddleOCR 실행이 {timeoutMs}ms 안에 끝나지 않았습니다.");
                 }
 
                 if (process.ExitCode != 0)
                 {
-                    return EasyOcrCliBatchResult.CreateFailure(
+                    return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
-                        languageCombinations,
+                        languageCandidates,
                         GetFailureMessageForExitCode(process.ExitCode, standardError),
                         isModuleMissing: process.ExitCode == 3);
                 }
 
-                List<EasyOcrCliGroupResult> groupResults = ParseGroupResults(standardOutput);
+                List<PaddleOcrCliGroupResult> groupResults = ParseGroupResults(standardOutput);
                 if (groupResults.Count == 0)
                 {
-                    return EasyOcrCliBatchResult.CreateFailure(
+                    return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
-                        languageCombinations,
-                        EmptyToFallback(standardError, "EasyOCR 결과를 읽지 못했습니다."));
+                        languageCandidates,
+                        EmptyToFallback(standardError, "PaddleOCR 결과를 읽지 못했습니다."));
                 }
 
                 int successCount = groupResults.Count(group => group.Success);
@@ -338,40 +325,40 @@ namespace GameTranslator
                     string firstErrorMessage = groupResults
                         .Select(group => group.ErrorMessage)
                         .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
-                    return EasyOcrCliBatchResult.CreateFailure(
+                    return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
-                        languageCombinations,
-                        EmptyToFallback(firstErrorMessage, "EasyOCR 결과가 모두 실패했습니다."));
+                        languageCandidates,
+                        EmptyToFallback(firstErrorMessage, "PaddleOCR 결과가 모두 실패했습니다."));
                 }
 
-                return EasyOcrCliBatchResult.CreateSuccess(pythonExecutablePath, languageCombinations, groupResults, standardError);
+                return PaddleOcrCliBatchResult.CreateSuccess(pythonExecutablePath, languageCandidates, groupResults, standardError);
             }
             catch (System.ComponentModel.Win32Exception)
             {
-                return EasyOcrCliBatchResult.CreateFailure(
+                return PaddleOcrCliBatchResult.CreateFailure(
                     pythonExecutablePath,
-                    languageCombinations,
+                    languageCandidates,
                     "python 또는 py 실행 파일을 찾지 못했습니다.",
                     isPythonMissing: true);
             }
             catch (Exception ex)
             {
-                return EasyOcrCliBatchResult.CreateFailure(pythonExecutablePath, languageCombinations, ex.Message);
+                return PaddleOcrCliBatchResult.CreateFailure(pythonExecutablePath, languageCandidates, ex.Message);
             }
         }
 
-        internal static List<EasyOcrCliGroupResult> ParseGroupResults(string json)
+        private static List<PaddleOcrCliGroupResult> ParseGroupResults(string json)
         {
-            EasyOcrRunnerResponse response = JsonSerializer.Deserialize<EasyOcrRunnerResponse>(json ?? "", new JsonSerializerOptions
+            PaddleOcrRunnerResponse response = JsonSerializer.Deserialize<PaddleOcrRunnerResponse>(json ?? "", new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
-            return (response?.Groups ?? new List<EasyOcrRunnerGroup>())
-                .Select(group => new EasyOcrCliGroupResult(
+            return (response?.Groups ?? new List<PaddleOcrRunnerGroup>())
+                .Select(group => new PaddleOcrCliGroupResult(
                     group?.LanguageCodes ?? "",
                     group?.Success ?? false,
-                    (group?.Lines ?? new List<EasyOcrRunnerLine>())
+                    (group?.Lines ?? new List<PaddleOcrRunnerLine>())
                         .Where(line => !string.IsNullOrWhiteSpace(line?.Text))
                         .Select(line => new OcrLine
                         {
@@ -389,21 +376,20 @@ namespace GameTranslator
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         }
 
-        private sealed class EasyOcrRunnerResponse
+        private sealed class PaddleOcrRunnerResponse
         {
-            public List<EasyOcrRunnerGroup> Groups { get; set; } = new List<EasyOcrRunnerGroup>();
+            public List<PaddleOcrRunnerGroup> Groups { get; set; } = new List<PaddleOcrRunnerGroup>();
         }
 
-        private sealed class EasyOcrRunnerGroup
+        private sealed class PaddleOcrRunnerGroup
         {
-            [JsonPropertyName("language_codes")]
             public string LanguageCodes { get; set; } = "";
             public bool Success { get; set; }
             public string Error { get; set; } = "";
-            public List<EasyOcrRunnerLine> Lines { get; set; } = new List<EasyOcrRunnerLine>();
+            public List<PaddleOcrRunnerLine> Lines { get; set; } = new List<PaddleOcrRunnerLine>();
         }
 
-        private sealed class EasyOcrRunnerLine
+        private sealed class PaddleOcrRunnerLine
         {
             public double Top { get; set; }
             public double Bottom { get; set; }
@@ -411,21 +397,21 @@ namespace GameTranslator
         }
     }
 
-    public sealed class EasyOcrCliBatchResult
+    public sealed class PaddleOcrCliBatchResult
     {
-        private EasyOcrCliBatchResult(
+        private PaddleOcrCliBatchResult(
             bool success,
             string pythonExecutablePath,
-            IReadOnlyList<string> languageCombinations,
-            IReadOnlyList<EasyOcrCliGroupResult> groupResults,
+            IReadOnlyList<string> languageCandidates,
+            IReadOnlyList<PaddleOcrCliGroupResult> groupResults,
             string errorMessage,
             bool isPythonMissing,
             bool isModuleMissing)
         {
             Success = success;
             PythonExecutablePath = pythonExecutablePath ?? "";
-            LanguageCombinations = languageCombinations ?? Array.Empty<string>();
-            GroupResults = groupResults ?? Array.Empty<EasyOcrCliGroupResult>();
+            LanguageCandidates = languageCandidates ?? Array.Empty<string>();
+            GroupResults = groupResults ?? Array.Empty<PaddleOcrCliGroupResult>();
             ErrorMessage = errorMessage ?? "";
             IsPythonMissing = isPythonMissing;
             IsModuleMissing = isModuleMissing;
@@ -433,35 +419,35 @@ namespace GameTranslator
 
         public bool Success { get; }
         public string PythonExecutablePath { get; }
-        public IReadOnlyList<string> LanguageCombinations { get; }
-        public IReadOnlyList<EasyOcrCliGroupResult> GroupResults { get; }
+        public IReadOnlyList<string> LanguageCandidates { get; }
+        public IReadOnlyList<PaddleOcrCliGroupResult> GroupResults { get; }
         public string ErrorMessage { get; }
         public bool IsPythonMissing { get; }
         public bool IsModuleMissing { get; }
 
-        public static EasyOcrCliBatchResult CreateSuccess(
+        public static PaddleOcrCliBatchResult CreateSuccess(
             string pythonExecutablePath,
-            IReadOnlyList<string> languageCombinations,
-            IReadOnlyList<EasyOcrCliGroupResult> groupResults,
+            IReadOnlyList<string> languageCandidates,
+            IReadOnlyList<PaddleOcrCliGroupResult> groupResults,
             string errorMessage = "")
         {
-            return new EasyOcrCliBatchResult(true, pythonExecutablePath, languageCombinations, groupResults, errorMessage, false, false);
+            return new PaddleOcrCliBatchResult(true, pythonExecutablePath, languageCandidates, groupResults, errorMessage, false, false);
         }
 
-        public static EasyOcrCliBatchResult CreateFailure(
+        public static PaddleOcrCliBatchResult CreateFailure(
             string pythonExecutablePath,
-            IReadOnlyList<string> languageCombinations,
+            IReadOnlyList<string> languageCandidates,
             string errorMessage,
             bool isPythonMissing = false,
             bool isModuleMissing = false)
         {
-            return new EasyOcrCliBatchResult(false, pythonExecutablePath, languageCombinations, Array.Empty<EasyOcrCliGroupResult>(), errorMessage, isPythonMissing, isModuleMissing);
+            return new PaddleOcrCliBatchResult(false, pythonExecutablePath, languageCandidates, Array.Empty<PaddleOcrCliGroupResult>(), errorMessage, isPythonMissing, isModuleMissing);
         }
     }
 
-    public sealed class EasyOcrCliGroupResult
+    public sealed class PaddleOcrCliGroupResult
     {
-        public EasyOcrCliGroupResult(string languageCodes, bool success, IReadOnlyList<OcrLine> lines, string errorMessage)
+        public PaddleOcrCliGroupResult(string languageCodes, bool success, IReadOnlyList<OcrLine> lines, string errorMessage)
         {
             LanguageCodes = languageCodes ?? "";
             Success = success;

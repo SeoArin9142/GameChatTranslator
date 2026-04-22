@@ -111,6 +111,8 @@ namespace GameTranslator
             EnsureNormalizedSetting("TesseractLanguageCodes", settingsService.NormalizeTesseractLanguageCodes(ini.Read("TesseractLanguageCodes")));
             EnsureNormalizedSetting("EasyOcrPythonPath", settingsService.NormalizeEasyOcrPythonPath(ini.Read("EasyOcrPythonPath")));
             EnsureNormalizedSetting("EasyOcrLanguageCodes", settingsService.NormalizeEasyOcrLanguageCodes(ini.Read("EasyOcrLanguageCodes")));
+            EnsureNormalizedSetting("PaddleOcrPythonPath", settingsService.NormalizePaddleOcrPythonPath(ini.Read("PaddleOcrPythonPath")));
+            EnsureNormalizedSetting("PaddleOcrLanguageCodes", settingsService.NormalizePaddleOcrLanguageCodes(ini.Read("PaddleOcrLanguageCodes")));
 
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
             {
@@ -291,6 +293,24 @@ namespace GameTranslator
         private string ReadEasyOcrLanguageCodes()
         {
             return settingsService.NormalizeEasyOcrLanguageCodes(ini.Read("EasyOcrLanguageCodes"));
+        }
+
+        /// <summary>
+        /// 외부 OCR 실험용 PaddleOCR Python 실행 경로를 읽습니다.
+        /// 비어 있으면 PATH의 python 명령을 기본값으로 사용합니다.
+        /// </summary>
+        private string ReadPaddleOcrPythonPath()
+        {
+            return settingsService.NormalizePaddleOcrPythonPath(ini.Read("PaddleOcrPythonPath"));
+        }
+
+        /// <summary>
+        /// 외부 OCR 실험용 PaddleOCR 언어 코드 조합을 읽습니다.
+        /// 비어 있으면 en+korean+japan+ch 기본 조합을 사용합니다.
+        /// </summary>
+        private string ReadPaddleOcrLanguageCodes()
+        {
+            return settingsService.NormalizePaddleOcrLanguageCodes(ini.Read("PaddleOcrLanguageCodes"));
         }
 
         /// <summary>
