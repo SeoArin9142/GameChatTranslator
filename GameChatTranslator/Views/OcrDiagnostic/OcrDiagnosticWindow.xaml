@@ -36,6 +36,16 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="BtnRunHarness"
+                        Content="선택 후보 번역 테스트"
+                        Padding="12,5"
+                        Margin="0,0,8,0"
+                        Background="#5C4A7A"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        IsEnabled="False"
+                        Click="BtnRunHarness_Click"/>
                 <Button x:Name="BtnCopySummary"
                         Content="요약 복사"
                         Padding="12,5"
@@ -104,6 +114,42 @@
                     <TextBlock Text="OCR 호출" Foreground="#AAAAAA" FontSize="11"/>
                     <TextBlock x:Name="TxtOcrCalls" Text="-" Foreground="#9CDCFE" FontWeight="Bold" FontSize="16"/>
                 </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border DockPanel.Dock="Top"
+                BorderBrush="#555"
+                BorderThickness="1"
+                Background="#252525"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Name="TxtHarnessStatus"
+                           Text="선택 후보 번역 테스트 준비"
+                           Foreground="#CCCCCC"
+                           FontWeight="Bold"
+                           Margin="0,0,0,8"/>
+
+                <TextBox x:Name="TxtHarnessPreview"
+                         Grid.Row="1"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         Background="#111111"
+                         Foreground="#E6E6E6"
+                         BorderBrush="#555555"
+                         FontFamily="Consolas"
+                         FontSize="12"
+                         Padding="8"
+                         MinHeight="160"
+                         Text="선택 후보를 대상으로 [캐릭터이름]: 내용 형식을 우선 파싱하고, 내용만 현재 번역 엔진으로 테스트합니다."/>
             </Grid>
         </Border>
 

@@ -70,6 +70,7 @@ namespace GameTranslator
         private readonly TranslationPromptBuilder translationPromptBuilder = new TranslationPromptBuilder();
         private readonly TranslationResultParser translationResultParser = new TranslationResultParser();
         private readonly TranslationService translationService = new TranslationService();
+        private readonly OcrTranslationHarnessService ocrTranslationHarnessService = new OcrTranslationHarnessService();
         private readonly TranslationApiErrorDescriber translationApiErrorDescriber = new TranslationApiErrorDescriber();
         private readonly TranslationApiClient translationApiClient;
         private AppDataPaths appDataPaths;
