@@ -406,6 +406,37 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void ScoreMergedLinesForSelection_StrinovaMode_RewardsReadableMessageEvenWithBrokenLabel()
+        {
+            var lines = new[]
+            {
+                new OcrLine { Text = "SeoArin [AQ]: 猫很可爱!" },
+                new OcrLine { Text = "SeoArin [AQ]: 猫は可愛い" }
+            };
+
+            int legacyScore = _service.ScoreLines(lines, KnownCharacters, TranslationContentMode.Strinova);
+            int mergedScore = _service.ScoreMergedLinesForSelection(lines, KnownCharacters, TranslationContentMode.Strinova);
+
+            Assert.True(mergedScore > 0);
+            Assert.True(mergedScore > legacyScore);
+        }
+
+        [Fact]
+        public void ScoreMergedLinesForSelection_EtcMode_UsesSameScoreAsScoreLines()
+        {
+            var lines = new[]
+            {
+                new OcrLine { Text = "猫很可爱!" },
+                new OcrLine { Text = "hello world" }
+            };
+
+            int baseScore = _service.ScoreLines(lines, KnownCharacters, TranslationContentMode.Etc);
+            int mergedScore = _service.ScoreMergedLinesForSelection(lines, KnownCharacters, TranslationContentMode.Etc);
+
+            Assert.Equal(baseScore, mergedScore);
+        }
+
+        [Fact]
         public void OcrService_DoesNotReferenceWinRtOrBitmapTypes()
         {
             string assemblyQualifiedNames = string.Join(

@@ -285,7 +285,7 @@ namespace GameTranslator
                 if (mergedLines.Count > 0 && candidate.Languages.Count > 0)
                 {
                     candidate.MergedLines.AddRange(mergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                    candidate.Score = ScoreOcrCandidate(mergedLines, contentMode);
+                    candidate.Score = ocrService.ScoreMergedLinesForSelection(mergedLines, characterNames, contentMode);
                     candidates.Add(candidate);
                 }
             }
