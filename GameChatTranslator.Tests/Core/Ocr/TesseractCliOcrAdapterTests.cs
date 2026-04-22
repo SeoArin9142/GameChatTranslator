@@ -25,6 +25,27 @@ namespace GameChatTranslator.Tests
             Assert.Equal("jpn+eng+chi_sim", value);
         }
 
+        [Fact]
+        public void BuildLanguageCombinations_DefaultValue_ReturnsThreeComparisonGroups()
+        {
+            var values = _adapter.BuildLanguageCombinations(SettingsService.DefaultTesseractLanguageCodes, "ko");
+
+            Assert.Equal(3, values.Count);
+            Assert.Equal("kor+eng", values[0]);
+            Assert.Contains("jpn+eng", values);
+            Assert.Contains("chi_sim+eng", values);
+        }
+
+        [Fact]
+        public void BuildLanguageCombinations_CustomGroups_PreservesExplicitMatrix()
+        {
+            var values = _adapter.BuildLanguageCombinations("kor+eng|jpn+eng", "ko");
+
+            Assert.Equal(2, values.Count);
+            Assert.Equal("kor+eng", values[0]);
+            Assert.Equal("jpn+eng", values[1]);
+        }
+
         [Theory]
         [InlineData("ko", "kor")]
         [InlineData("en-US", "eng")]
