@@ -177,6 +177,24 @@ namespace GameTranslator
             return mergedLines;
         }
 
+        /// <summary>
+        /// 줄 단위 병합으로 만들어진 OCR 결과를 진단 비교용 점수로 환산합니다.
+        /// 메인 번역 경로의 후보 점수화와 분리해서, 외부 OCR이 깨진 라벨을 반환해도 본문 가독성을 더 공정하게 반영합니다.
+        /// </summary>
+        public int ScoreMergedLinesForSelection(
+            IEnumerable<OcrLine> lines,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode = TranslationContentMode.Strinova)
+        {
+            if (contentMode == TranslationContentMode.Etc)
+            {
+                return ScoreLines(lines, characterNames, TranslationContentMode.Etc);
+            }
+
+            return (lines ?? Enumerable.Empty<OcrLine>())
+                .Sum(line => ScoreMergedLineForSelection(line, characterNames, contentMode));
+        }
+
         private int ScoreMergedLineForSelection(
             OcrLine line,
             ISet<string> characterNames,
