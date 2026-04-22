@@ -196,6 +196,7 @@ namespace GameTranslator
             string configuredExecutablePath = ReadTesseractExecutablePath();
             string configuredLanguageCodes = ReadTesseractLanguageCodes();
             IReadOnlyList<string> languageCombinations = tesseractCliOcrAdapter.BuildLanguageCombinations(configuredLanguageCodes, gameLang);
+            IReadOnlyList<TesseractCliOcrAdapter.TesseractCliProfile> diagnosticProfiles = tesseractCliOcrAdapter.BuildDiagnosticProfiles();
 
             int totalCallCount = 0;
             long totalElapsedMs = 0;
@@ -211,86 +212,89 @@ namespace GameTranslator
                 byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
                 byte[] preprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap);
 
-                var candidate = new OcrDiagnosticCandidate
+                foreach (TesseractCliOcrAdapter.TesseractCliProfile profile in diagnosticProfiles)
                 {
-                    Name = $"Tesseract-{preprocessedImage.Name}",
-                    PreprocessedPng = preprocessedPng,
-                    CroppedPng = croppedPng
-                };
-
-                var languageCandidates = new List<OcrLanguageCandidate>();
-
-                foreach (string languageCombination in languageCombinations)
-                {
-                    totalCallCount++;
-
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-                    using Bitmap tesseractInputBitmap = (Bitmap)croppedBitmap.Clone();
-                    TesseractCliOcrResult runResult = await Task.Run(() =>
-                        tesseractCliOcrAdapter.Recognize(
-                            tesseractInputBitmap,
-                            configuredExecutablePath,
-                            languageCombination,
-                            TesseractDiagnosticTimeoutMs));
-                    stopwatch.Stop();
-                    totalElapsedMs += stopwatch.ElapsedMilliseconds;
-
-                    if (!runResult.Success)
+                    var candidate = new OcrDiagnosticCandidate
                     {
-                        failureCount++;
-                        if (string.IsNullOrWhiteSpace(firstErrorMessage))
+                        Name = $"Tesseract-{preprocessedImage.Name}-{profile.CandidateSuffix}",
+                        PreprocessedPng = preprocessedPng,
+                        CroppedPng = croppedPng
+                    };
+                    var languageCandidates = new List<OcrLanguageCandidate>();
+
+                    foreach (string languageCombination in languageCombinations)
+                    {
+                        totalCallCount++;
+
+                        Stopwatch stopwatch = Stopwatch.StartNew();
+                        using Bitmap tesseractInputBitmap = (Bitmap)croppedBitmap.Clone();
+                        TesseractCliOcrResult runResult = await Task.Run(() =>
+                            tesseractCliOcrAdapter.Recognize(
+                                tesseractInputBitmap,
+                                configuredExecutablePath,
+                                languageCombination,
+                                profile,
+                                TesseractDiagnosticTimeoutMs));
+                        stopwatch.Stop();
+                        totalElapsedMs += stopwatch.ElapsedMilliseconds;
+
+                        if (!runResult.Success)
                         {
-                            firstErrorMessage = runResult.ErrorMessage;
+                            failureCount++;
+                            if (string.IsNullOrWhiteSpace(firstErrorMessage))
+                            {
+                                firstErrorMessage = runResult.ErrorMessage;
+                            }
+
+                            if (runResult.IsExecutableMissing)
+                            {
+                                executableMissing = true;
+                                break;
+                            }
+
+                            continue;
                         }
 
-                        if (runResult.IsExecutableMissing)
-                        {
-                            executableMissing = true;
-                            break;
-                        }
+                        successCount++;
 
-                        continue;
+                        var languageResult = new OcrDiagnosticLanguageResult
+                        {
+                            LanguageTag = $"tesseract:{profile.CandidateSuffix}:{runResult.LanguageCodes}"
+                        };
+                        languageResult.Lines.AddRange(runResult.Lines);
+                        candidate.Languages.Add(languageResult);
+
+                        List<OcrLine> lines = runResult.Lines
+                            .Select((text, index) => new OcrLine
+                            {
+                                Top = index * 20,
+                                Bottom = index * 20 + 12,
+                                Text = text
+                            })
+                            .ToList();
+                        languageCandidates.Add(new OcrLanguageCandidate
+                        {
+                            LanguageCode = languageCombination,
+                            Lines = lines
+                        });
                     }
 
-                    successCount++;
-
-                    var languageResult = new OcrDiagnosticLanguageResult
+                    if (executableMissing)
                     {
-                        LanguageTag = $"tesseract:{runResult.LanguageCodes}"
-                    };
-                    languageResult.Lines.AddRange(runResult.Lines);
-                    candidate.Languages.Add(languageResult);
+                        break;
+                    }
 
-                    List<OcrLine> lines = runResult.Lines
-                        .Select((text, index) => new OcrLine
-                        {
-                            Top = index * 20,
-                            Bottom = index * 20 + 12,
-                            Text = text
-                        })
-                        .ToList();
-                    languageCandidates.Add(new OcrLanguageCandidate
+                    List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
+                        ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
+                        : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
+                    List<OcrLine> filteredMergedLines = ocrTranslationHarnessService.FilterMergedLinesForDiagnostics(mergedLines, characterNames);
+                    List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(filteredMergedLines, characterNames, contentMode);
+                    if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
                     {
-                        LanguageCode = languageCombination,
-                        Lines = lines
-                    });
-                }
-
-                if (executableMissing)
-                {
-                    break;
-                }
-
-                List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
-                    ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
-                    : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
-                List<OcrLine> filteredMergedLines = ocrTranslationHarnessService.FilterMergedLinesForDiagnostics(mergedLines, characterNames);
-                List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(filteredMergedLines, characterNames, contentMode);
-                if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
-                {
-                    candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                    candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
-                    candidates.Add(candidate);
+                        candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                        candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
+                        candidates.Add(candidate);
+                    }
                 }
             }
 
