@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace GameTranslator
 {
@@ -10,6 +11,10 @@ namespace GameTranslator
     /// </summary>
     public sealed class OcrTranslationHarnessService
     {
+        private static readonly Regex BangDelimitedBracketLabelPattern = new Regex(
+            @"^[^\[\]\(\)]*[\[\(]([^\]\)]+)[\]\)]\s*!\s*.+$",
+            RegexOptions.Compiled);
+
         private static readonly HashSet<string> SystemLabelCandidates = new HashSet<string>(new[]
         {
             "팀",
@@ -34,7 +39,9 @@ namespace GameTranslator
             this.translationPromptBuilder = translationPromptBuilder ?? new TranslationPromptBuilder();
         }
 
-        public IReadOnlyList<OcrTranslationHarnessRequest> BuildRequests(IEnumerable<string> mergedLines)
+        public IReadOnlyList<OcrTranslationHarnessRequest> BuildRequests(
+            IEnumerable<string> mergedLines,
+            ISet<string> characterNames = null)
         {
             var requests = new List<OcrTranslationHarnessRequest>();
 
@@ -61,8 +68,11 @@ namespace GameTranslator
                         continue;
                     }
 
-                    requests.Add(OcrTranslationHarnessRequest.Chat(text, chatLine.CharacterLabel, chatLine.Message));
-                    continue;
+                    if (ShouldTreatAsKnownCharacterBangChat(text, chatLine, characterNames))
+                    {
+                        requests.Add(OcrTranslationHarnessRequest.Chat(text, chatLine.CharacterLabel, chatLine.Message));
+                        continue;
+                    }
                 }
 
                 string cleaned = translationPromptBuilder.CleanEtcOcrLine(text);
@@ -76,6 +86,71 @@ namespace GameTranslator
             }
 
             return requests;
+        }
+
+        public List<OcrLine> FilterMergedLinesForDiagnostics(
+            IEnumerable<OcrLine> mergedLines,
+            ISet<string> characterNames = null)
+        {
+            return (mergedLines ?? Enumerable.Empty<OcrLine>())
+                .Where(line => !ShouldExcludeFromDiagnosticLine(line?.Text, characterNames))
+                .Select(line => new OcrLine
+                {
+                    Top = line.Top,
+                    Bottom = line.Bottom,
+                    Text = line.Text
+                })
+                .ToList();
+        }
+
+        private bool ShouldExcludeFromDiagnosticLine(string rawText, ISet<string> characterNames)
+        {
+            string text = (rawText ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return true;
+            }
+
+            if (ChatTextAnalyzer.TryParseChatLine(text, out ChatTextAnalyzer.ChatLine chatLine) &&
+                !string.IsNullOrWhiteSpace(chatLine.Message))
+            {
+                if (ShouldSkipSystemUiLine(chatLine))
+                {
+                    return true;
+                }
+
+                if (!ShouldTreatAsKnownCharacterBangChat(text, chatLine, characterNames))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ShouldTreatAsKnownCharacterBangChat(
+            string rawText,
+            ChatTextAnalyzer.ChatLine chatLine,
+            ISet<string> characterNames)
+        {
+            if (chatLine == null || string.IsNullOrWhiteSpace(chatLine.Message))
+            {
+                return false;
+            }
+
+            if (!LooksLikeBangDelimitedBracketLabel(rawText))
+            {
+                return true;
+            }
+
+            return characterNames != null &&
+                   characterNames.Count > 0 &&
+                   characterNames.Contains((chatLine.CharacterName ?? "").Trim());
+        }
+
+        private static bool LooksLikeBangDelimitedBracketLabel(string rawText)
+        {
+            return BangDelimitedBracketLabelPattern.IsMatch((rawText ?? "").Trim());
         }
 
         private static bool ShouldSkipSystemUiLine(ChatTextAnalyzer.ChatLine chatLine)

@@ -19,7 +19,7 @@ namespace GameTranslator
                 CandidateName = candidateName ?? ""
             };
 
-            IReadOnlyList<OcrTranslationHarnessRequest> requests = ocrTranslationHarnessService.BuildRequests(mergedLines);
+            IReadOnlyList<OcrTranslationHarnessRequest> requests = ocrTranslationHarnessService.BuildRequests(mergedLines, characterNames);
             result.TotalLineCount = requests.Count;
 
             var performanceStats = new OcrPerformanceStats();
