@@ -17,6 +17,20 @@ namespace GameTranslator
     [SupportedOSPlatform("windows")]
     public sealed class TesseractCliOcrAdapter
     {
+        public sealed class TesseractCliProfile
+        {
+            public TesseractCliProfile(string candidateSuffix, int? pageSegmentationMode, int? ocrEngineMode)
+            {
+                CandidateSuffix = candidateSuffix ?? "";
+                PageSegmentationMode = pageSegmentationMode;
+                OcrEngineMode = ocrEngineMode;
+            }
+
+            public string CandidateSuffix { get; }
+            public int? PageSegmentationMode { get; }
+            public int? OcrEngineMode { get; }
+        }
+
         private static readonly Dictionary<string, string> AppLanguageToTesseractMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["ko"] = "kor",
@@ -43,6 +57,8 @@ namespace GameTranslator
             "kor",
             "chi_sim"
         };
+
+        private static readonly TesseractCliProfile DefaultRecognitionProfile = new TesseractCliProfile("Default", 6, 3);
 
         public string BuildLanguageCodes(string configuredValue, string gameLanguage)
         {
@@ -105,6 +121,16 @@ namespace GameTranslator
             return new[] { NormalizeLanguageCodes(normalizedConfiguredValue) };
         }
 
+        public IReadOnlyList<TesseractCliProfile> BuildDiagnosticProfiles()
+        {
+            return new[]
+            {
+                new TesseractCliProfile("Baseline", null, null),
+                new TesseractCliProfile("PSM6-LSTM", 6, 1),
+                new TesseractCliProfile("PSM11-LSTM", 11, 1)
+            };
+        }
+
         public string NormalizeLanguageCodes(string rawValue)
         {
             IEnumerable<string> tokens = (rawValue ?? "")
@@ -142,6 +168,16 @@ namespace GameTranslator
 
         public TesseractCliOcrResult Recognize(Bitmap bitmap, string configuredExecutablePath, string configuredLanguageCodes, int timeoutMs = 15000)
         {
+            return Recognize(bitmap, configuredExecutablePath, configuredLanguageCodes, DefaultRecognitionProfile, timeoutMs);
+        }
+
+        public TesseractCliOcrResult Recognize(
+            Bitmap bitmap,
+            string configuredExecutablePath,
+            string configuredLanguageCodes,
+            TesseractCliProfile profile,
+            int timeoutMs = 15000)
+        {
             if (bitmap == null)
             {
                 return TesseractCliOcrResult.CreateFailure("", "", "OCR 입력 이미지가 없습니다.");
@@ -158,7 +194,7 @@ namespace GameTranslator
             {
                 foreach (string executablePath in GetExecutableCandidates(configuredExecutablePath))
                 {
-                    TesseractCliOcrResult runResult = TryRecognizeInternal(executablePath, languageCodes, inputFilePath, timeoutMs);
+                    TesseractCliOcrResult runResult = TryRecognizeInternal(executablePath, languageCodes, inputFilePath, profile, timeoutMs);
                     if (runResult.Success || !runResult.IsExecutableMissing)
                     {
                         return runResult;
@@ -209,7 +245,37 @@ namespace GameTranslator
                 .Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
-        private TesseractCliOcrResult TryRecognizeInternal(string executablePath, string languageCodes, string inputFilePath, int timeoutMs)
+        internal IReadOnlyList<string> BuildArguments(string inputFilePath, string languageCodes, TesseractCliProfile profile)
+        {
+            var arguments = new List<string>
+            {
+                inputFilePath,
+                "stdout",
+                "-l",
+                languageCodes
+            };
+
+            if (profile?.PageSegmentationMode is int psm)
+            {
+                arguments.Add("--psm");
+                arguments.Add(psm.ToString());
+            }
+
+            if (profile?.OcrEngineMode is int oem)
+            {
+                arguments.Add("--oem");
+                arguments.Add(oem.ToString());
+            }
+
+            return arguments;
+        }
+
+        private TesseractCliOcrResult TryRecognizeInternal(
+            string executablePath,
+            string languageCodes,
+            string inputFilePath,
+            TesseractCliProfile profile,
+            int timeoutMs)
         {
             var processStartInfo = new ProcessStartInfo
             {
@@ -221,14 +287,10 @@ namespace GameTranslator
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
-            processStartInfo.ArgumentList.Add(inputFilePath);
-            processStartInfo.ArgumentList.Add("stdout");
-            processStartInfo.ArgumentList.Add("-l");
-            processStartInfo.ArgumentList.Add(languageCodes);
-            processStartInfo.ArgumentList.Add("--psm");
-            processStartInfo.ArgumentList.Add("6");
-            processStartInfo.ArgumentList.Add("--oem");
-            processStartInfo.ArgumentList.Add("3");
+            foreach (string argument in BuildArguments(inputFilePath, languageCodes, profile))
+            {
+                processStartInfo.ArgumentList.Add(argument);
+            }
 
             try
             {
