@@ -12,6 +12,8 @@ namespace GameTranslator
 {
     public partial class MainWindow
     {
+        private const int TesseractDiagnosticTimeoutMs = 2500;
+
         /// <summary>
         /// OCR 테스트/진단 창을 열거나 이미 열린 창을 앞으로 가져옵니다.
         /// 진단 창은 현재 캡처 영역을 실제 번역 로직과 같은 전처리/OCR 기준으로 분석합니다.
@@ -139,16 +141,12 @@ namespace GameTranslator
                     }
                 }
 
-                (OcrDiagnosticCandidate tesseractCandidate, string tesseractStatus, long tesseractElapsedMs) =
-                    await TryBuildTesseractDiagnosticCandidateAsync(resizedBitmap, ReadTranslationContentMode());
-                result.ExternalOcrStatus = tesseractStatus;
-                if (tesseractElapsedMs > 0)
-                {
-                    stats.OcrMs += tesseractElapsedMs;
-                    stats.OcrLanguageCallCount++;
-                }
+                TesseractDiagnosticSummary tesseractSummary = await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode());
+                result.ExternalOcrStatus = tesseractSummary.Status;
+                stats.OcrMs += tesseractSummary.ElapsedMs;
+                stats.OcrLanguageCallCount += tesseractSummary.CallCount;
 
-                if (tesseractCandidate != null)
+                foreach (OcrDiagnosticCandidate tesseractCandidate in tesseractSummary.Candidates)
                 {
                     result.Candidates.Add(tesseractCandidate);
                     if (bestCandidate == null || tesseractCandidate.Score > bestCandidate.Score)
@@ -193,57 +191,130 @@ namespace GameTranslator
             return result;
         }
 
-        private async Task<(OcrDiagnosticCandidate Candidate, string Status, long ElapsedMs)> TryBuildTesseractDiagnosticCandidateAsync(Bitmap resizedBitmap, TranslationContentMode contentMode)
+        private async Task<TesseractDiagnosticSummary> TryBuildTesseractDiagnosticCandidatesAsync(IEnumerable<PreprocessedOcrImage> preprocessedImages, TranslationContentMode contentMode)
         {
             string configuredExecutablePath = ReadTesseractExecutablePath();
             string configuredLanguageCodes = ReadTesseractLanguageCodes();
-            string effectiveLanguageCodes = tesseractCliOcrAdapter.BuildLanguageCodes(configuredLanguageCodes, gameLang);
+            IReadOnlyList<string> languageCombinations = tesseractCliOcrAdapter.BuildLanguageCombinations(configuredLanguageCodes, gameLang);
 
-            using Bitmap croppedBitmap = CropForOcr(resizedBitmap);
-            using Bitmap tesseractInputBitmap = (Bitmap)croppedBitmap.Clone();
-            byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
-            byte[] preprocessedPng = BitmapToPngBytes(resizedBitmap);
+            int totalCallCount = 0;
+            long totalElapsedMs = 0;
+            int successCount = 0;
+            int failureCount = 0;
+            bool executableMissing = false;
+            string firstErrorMessage = "";
+            var candidates = new List<OcrDiagnosticCandidate>();
 
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            TesseractCliOcrResult runResult = await Task.Run(() =>
-                tesseractCliOcrAdapter.Recognize(tesseractInputBitmap, configuredExecutablePath, effectiveLanguageCodes));
-            stopwatch.Stop();
-
-            if (!runResult.Success)
+            foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
             {
-                string failedStatus = $"Tesseract 미사용: {runResult.ErrorMessage}";
-                AppendLog($"[OCR DIAG] {failedStatus}");
-                return (null, failedStatus, 0);
+                using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
+                byte[] preprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap);
+
+                var candidate = new OcrDiagnosticCandidate
+                {
+                    Name = $"Tesseract-{preprocessedImage.Name}",
+                    PreprocessedPng = preprocessedPng,
+                    CroppedPng = croppedPng
+                };
+
+                List<OcrLine> bestLines = null;
+                int bestScore = int.MinValue;
+                string bestLanguageCode = "";
+
+                foreach (string languageCombination in languageCombinations)
+                {
+                    totalCallCount++;
+
+                    Stopwatch stopwatch = Stopwatch.StartNew();
+                    using Bitmap tesseractInputBitmap = (Bitmap)croppedBitmap.Clone();
+                    TesseractCliOcrResult runResult = await Task.Run(() =>
+                        tesseractCliOcrAdapter.Recognize(
+                            tesseractInputBitmap,
+                            configuredExecutablePath,
+                            languageCombination,
+                            TesseractDiagnosticTimeoutMs));
+                    stopwatch.Stop();
+                    totalElapsedMs += stopwatch.ElapsedMilliseconds;
+
+                    if (!runResult.Success)
+                    {
+                        failureCount++;
+                        if (string.IsNullOrWhiteSpace(firstErrorMessage))
+                        {
+                            firstErrorMessage = runResult.ErrorMessage;
+                        }
+
+                        if (runResult.IsExecutableMissing)
+                        {
+                            executableMissing = true;
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    successCount++;
+
+                    var languageResult = new OcrDiagnosticLanguageResult
+                    {
+                        LanguageTag = $"tesseract:{runResult.LanguageCodes}"
+                    };
+                    languageResult.Lines.AddRange(runResult.Lines);
+                    candidate.Languages.Add(languageResult);
+
+                    List<OcrLine> lines = runResult.Lines
+                        .Select((text, index) => new OcrLine
+                        {
+                            Top = index * 20,
+                            Bottom = index * 20 + 12,
+                            Text = text
+                        })
+                        .ToList();
+                    int score = ScoreOcrCandidate(lines, contentMode);
+
+                    if (bestLines == null ||
+                        score > bestScore ||
+                        (score == bestScore &&
+                         string.Compare(languageCombination, bestLanguageCode, StringComparison.OrdinalIgnoreCase) < 0))
+                    {
+                        bestLines = lines;
+                        bestScore = score;
+                        bestLanguageCode = languageCombination;
+                    }
+                }
+
+                if (executableMissing)
+                {
+                    break;
+                }
+
+                if (bestLines != null && candidate.Languages.Count > 0)
+                {
+                    candidate.MergedLines.AddRange(bestLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Score = bestScore;
+                    candidates.Add(candidate);
+                }
             }
 
-            var candidate = new OcrDiagnosticCandidate
+            if (executableMissing)
             {
-                Name = "Tesseract",
-                PreprocessedPng = preprocessedPng,
-                CroppedPng = croppedPng
-            };
+                string failedStatus = $"Tesseract 미사용: {firstErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return new TesseractDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+            }
 
-            candidate.MergedLines.AddRange(runResult.Lines);
-            candidate.Languages.Add(new OcrDiagnosticLanguageResult
+            if (successCount == 0)
             {
-                LanguageTag = $"tesseract:{runResult.LanguageCodes}"
-            });
-            candidate.Languages[0].Lines.AddRange(runResult.Lines);
+                string failedStatus = $"Tesseract 실패: {firstErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return new TesseractDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+            }
 
-            List<OcrLine> lines = runResult.Lines
-                .Select((text, index) => new OcrLine
-                {
-                    Top = index * 20,
-                    Bottom = index * 20 + 12,
-                    Text = text
-                })
-                .ToList();
-
-            candidate.Score = ScoreOcrCandidate(lines, contentMode);
-
-            string successStatus = $"Tesseract 후보 추가 ({runResult.LanguageCodes})";
+            string successStatus =
+                $"Tesseract 후보 {candidates.Count}개 추가 / {successCount}회 성공 / {failureCount}회 실패 / timeout {TesseractDiagnosticTimeoutMs}ms";
             AppendLog($"[OCR DIAG] {successStatus}");
-            return (candidate, successStatus, stopwatch.ElapsedMilliseconds);
+            return new TesseractDiagnosticSummary(candidates, successStatus, totalElapsedMs, totalCallCount);
         }
 
         /// <summary>
@@ -403,6 +474,22 @@ namespace GameTranslator
         private static string EmptyToDash(string value)
         {
             return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
+        }
+
+        private sealed class TesseractDiagnosticSummary
+        {
+            public TesseractDiagnosticSummary(List<OcrDiagnosticCandidate> candidates, string status, long elapsedMs, int callCount)
+            {
+                Candidates = candidates ?? new List<OcrDiagnosticCandidate>();
+                Status = status ?? "";
+                ElapsedMs = elapsedMs;
+                CallCount = callCount;
+            }
+
+            public List<OcrDiagnosticCandidate> Candidates { get; }
+            public string Status { get; }
+            public long ElapsedMs { get; }
+            public int CallCount { get; }
         }
     }
 }
