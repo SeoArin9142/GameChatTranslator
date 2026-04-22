@@ -1,6 +1,7 @@
 import argparse
 import json
 import sys
+import warnings
 
 
 def parse_args():
@@ -30,8 +31,8 @@ def make_word(result):
     if not text:
         return None
 
-    xs = [point[0] for point in bbox]
-    ys = [point[1] for point in bbox]
+    xs = [float(point[0]) for point in bbox]
+    ys = [float(point[1]) for point in bbox]
     return {
         "left": min(xs),
         "right": max(xs),
@@ -155,6 +156,12 @@ def main():
     except Exception:
         print("EasyOCR module is not installed.", file=sys.stderr)
         return 3
+
+    warnings.filterwarnings(
+        "ignore",
+        message=".*pin_memory.*",
+        category=UserWarning,
+    )
 
     response = {"groups": []}
 
