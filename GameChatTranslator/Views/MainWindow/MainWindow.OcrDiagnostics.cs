@@ -14,6 +14,7 @@ namespace GameTranslator
     {
         private const int TesseractDiagnosticTimeoutMs = 2500;
         private const int EasyOcrDiagnosticTimeoutMs = 120000;
+        private const int PaddleOcrDiagnosticTimeoutMs = 120000;
 
         /// <summary>
         /// OCR 테스트/진단 창을 열거나 이미 열린 창을 앞으로 가져옵니다.
@@ -145,7 +146,8 @@ namespace GameTranslator
                 var externalSummaries = new List<ExternalOcrDiagnosticSummary>
                 {
                     await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()),
-                    await TryBuildEasyOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode())
+                    await TryBuildEasyOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()),
+                    await TryBuildPaddleOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode())
                 };
                 result.ExternalOcrStatus = BuildExternalOcrStatusText(externalSummaries);
 
@@ -446,6 +448,129 @@ namespace GameTranslator
 
             string successStatus =
                 $"EasyOCR 후보 {candidates.Count}개 추가 / {successCount}개 그룹 성공 / {failureCount}개 그룹 실패 / timeout {EasyOcrDiagnosticTimeoutMs}ms";
+            AppendLog($"[OCR DIAG] {successStatus}");
+            return new ExternalOcrDiagnosticSummary(candidates, successStatus, totalElapsedMs, totalCallCount);
+        }
+
+        private async Task<ExternalOcrDiagnosticSummary> TryBuildPaddleOcrDiagnosticCandidatesAsync(IEnumerable<PreprocessedOcrImage> preprocessedImages, TranslationContentMode contentMode)
+        {
+            string configuredPythonPath = ReadPaddleOcrPythonPath();
+            string configuredLanguageCodes = ReadPaddleOcrLanguageCodes();
+
+            int totalCallCount = 0;
+            long totalElapsedMs = 0;
+            int successCount = 0;
+            int failureCount = 0;
+            bool pythonMissing = false;
+            bool moduleMissing = false;
+            string firstErrorMessage = "";
+            var candidates = new List<OcrDiagnosticCandidate>();
+
+            foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+            {
+                using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
+                byte[] preprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap);
+
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                using Bitmap paddleOcrInputBitmap = (Bitmap)croppedBitmap.Clone();
+                PaddleOcrCliBatchResult batchResult = await Task.Run(() =>
+                    paddleOcrCliAdapter.Recognize(
+                        paddleOcrInputBitmap,
+                        configuredPythonPath,
+                        configuredLanguageCodes,
+                        gameLang,
+                        PaddleOcrDiagnosticTimeoutMs));
+                stopwatch.Stop();
+                totalElapsedMs += stopwatch.ElapsedMilliseconds;
+                totalCallCount += batchResult.LanguageCandidates.Count;
+
+                if (!batchResult.Success)
+                {
+                    failureCount += Math.Max(1, batchResult.LanguageCandidates.Count);
+                    if (string.IsNullOrWhiteSpace(firstErrorMessage))
+                    {
+                        firstErrorMessage = batchResult.ErrorMessage;
+                    }
+
+                    if (batchResult.IsPythonMissing)
+                    {
+                        pythonMissing = true;
+                        break;
+                    }
+
+                    if (batchResult.IsModuleMissing)
+                    {
+                        moduleMissing = true;
+                        break;
+                    }
+
+                    continue;
+                }
+
+                successCount += batchResult.GroupResults.Count(group => group.Success);
+                failureCount += batchResult.GroupResults.Count(group => !group.Success);
+
+                var candidate = new OcrDiagnosticCandidate
+                {
+                    Name = $"PaddleOCR-{preprocessedImage.Name}",
+                    PreprocessedPng = preprocessedPng,
+                    CroppedPng = croppedPng
+                };
+                var languageCandidates = new List<OcrLanguageCandidate>();
+
+                foreach (PaddleOcrCliGroupResult groupResult in batchResult.GroupResults.Where(group => group.Success))
+                {
+                    var languageResult = new OcrDiagnosticLanguageResult
+                    {
+                        LanguageTag = $"paddleocr:{groupResult.LanguageCodes}"
+                    };
+                    languageResult.Lines.AddRange(groupResult.Lines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Languages.Add(languageResult);
+
+                    languageCandidates.Add(new OcrLanguageCandidate
+                    {
+                        LanguageCode = groupResult.LanguageCodes,
+                        Lines = groupResult.Lines
+                            .Select(line => new OcrLine
+                            {
+                                Top = line.Top,
+                                Bottom = line.Bottom,
+                                Text = line.Text
+                            })
+                            .ToList()
+                    });
+                }
+
+                List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
+                    ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
+                    : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
+                List<OcrLine> filteredMergedLines = ocrTranslationHarnessService.FilterMergedLinesForDiagnostics(mergedLines, characterNames);
+                List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(filteredMergedLines, characterNames, contentMode);
+                if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
+                {
+                    candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
+                    candidates.Add(candidate);
+                }
+            }
+
+            if (pythonMissing || moduleMissing)
+            {
+                string failedStatus = $"PaddleOCR 미사용: {firstErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+            }
+
+            if (successCount == 0)
+            {
+                string failedStatus = $"PaddleOCR 실패: {firstErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+            }
+
+            string successStatus =
+                $"PaddleOCR 후보 {candidates.Count}개 추가 / {successCount}개 그룹 성공 / {failureCount}개 그룹 실패 / timeout {PaddleOcrDiagnosticTimeoutMs}ms";
             AppendLog($"[OCR DIAG] {successStatus}");
             return new ExternalOcrDiagnosticSummary(candidates, successStatus, totalElapsedMs, totalCallCount);
         }

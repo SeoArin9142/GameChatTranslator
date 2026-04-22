@@ -73,6 +73,7 @@ namespace GameTranslator
         private readonly OcrTranslationHarnessService ocrTranslationHarnessService = new OcrTranslationHarnessService();
         private readonly TesseractCliOcrAdapter tesseractCliOcrAdapter = new TesseractCliOcrAdapter();
         private readonly EasyOcrCliAdapter easyOcrCliAdapter = new EasyOcrCliAdapter();
+        private readonly PaddleOcrCliAdapter paddleOcrCliAdapter = new PaddleOcrCliAdapter();
         private readonly TranslationApiErrorDescriber translationApiErrorDescriber = new TranslationApiErrorDescriber();
         private readonly TranslationApiClient translationApiClient;
         private AppDataPaths appDataPaths;

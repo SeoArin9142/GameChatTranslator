@@ -82,5 +82,30 @@ namespace GameChatTranslator.Tests
             Assert.Contains("torch", message, System.StringComparison.OrdinalIgnoreCase);
             Assert.Contains("py -m pip", message, System.StringComparison.OrdinalIgnoreCase);
         }
+
+        [Fact]
+        public void ParseGroupResults_ReadsSnakeCaseLanguageCodes()
+        {
+            var groups = EasyOcrCliAdapter.ParseGroupResults(
+                """
+                {
+                  "groups": [
+                    {
+                      "language_codes": "ja+en",
+                      "success": true,
+                      "error": "",
+                      "lines": [
+                        { "top": 1, "bottom": 2, "text": "猫は可愛い" }
+                      ]
+                    }
+                  ]
+                }
+                """);
+
+            EasyOcrCliGroupResult group = Assert.Single(groups);
+            Assert.Equal("ja+en", group.LanguageCodes);
+            Assert.True(group.Success);
+            Assert.Equal("猫は可愛い", Assert.Single(group.Lines).Text);
+        }
     }
 }
