@@ -12,6 +12,8 @@ namespace GameTranslator
     {
         private const int MergeChatLabelBonus = 300;
         private const double FuzzyCharacterSimilarityThreshold = 0.6d;
+        private const int ExactCharacterMatchScore = 2000;
+        private const int FuzzyCharacterMatchBaseScore = 1000;
 
         /// <summary>
         /// 처리 모드별 OCR 평가 순서를 만듭니다.
@@ -134,45 +136,50 @@ namespace GameTranslator
 
             for (int lineIndex = 0; lineIndex < maxLineCount; lineIndex++)
             {
-                OcrLine bestLine = null;
-                string bestLanguageCode = "";
-                int bestScore = int.MinValue;
-
-                foreach (OcrLanguageCandidate candidate in candidateList)
-                {
-                    if (lineIndex >= candidate.Lines.Count)
-                    {
-                        continue;
-                    }
-
-                    OcrLine currentLine = candidate.Lines[lineIndex];
-                    string currentText = currentLine?.Text ?? "";
-                    if (string.IsNullOrWhiteSpace(currentText))
-                    {
-                        continue;
-                    }
-
-                    int currentScore = ScoreMergedLineForSelection(currentLine, characterNames, contentMode);
-
-                    if (bestLine == null ||
-                        currentScore > bestScore ||
-                        (currentScore == bestScore &&
-                         string.Compare(candidate.LanguageCode, bestLanguageCode, System.StringComparison.OrdinalIgnoreCase) < 0))
-                    {
-                        bestLine = currentLine;
-                        bestLanguageCode = candidate.LanguageCode ?? "";
-                        bestScore = currentScore;
-                    }
-                }
+                OcrLine bestLine = SelectBestLineCandidate(candidateList, lineIndex, characterNames, contentMode);
 
                 if (bestLine != null)
                 {
-                    mergedLines.Add(new OcrLine
-                    {
-                        Top = bestLine.Top,
-                        Bottom = bestLine.Bottom,
-                        Text = bestLine.Text
-                    });
+                    mergedLines.Add(CloneLine(bestLine));
+                }
+            }
+
+            return mergedLines;
+        }
+
+        /// <summary>
+        /// 진단용 외부 OCR 비교에서 라벨과 본문을 분리해서 병합합니다.
+        /// 파싱 가능한 채팅 줄이면 characters.txt 기준으로 가장 안정적인 라벨과 가장 읽을 만한 본문을 조합합니다.
+        /// 조합에 실패하면 기존 줄 단위 선택 결과로 되돌립니다.
+        /// </summary>
+        public List<OcrLine> MergeBestChatLinesByComponents(
+            IEnumerable<OcrLanguageCandidate> candidates,
+            ISet<string> characterNames)
+        {
+            List<OcrLanguageCandidate> candidateList = (candidates ?? Enumerable.Empty<OcrLanguageCandidate>())
+                .Where(candidate => candidate != null && candidate.Lines != null)
+                .ToList();
+
+            if (candidateList.Count == 0)
+            {
+                return new List<OcrLine>();
+            }
+
+            int maxLineCount = candidateList.Max(candidate => candidate.Lines.Count);
+            var mergedLines = new List<OcrLine>();
+
+            for (int lineIndex = 0; lineIndex < maxLineCount; lineIndex++)
+            {
+                OcrLine fallbackLine = SelectBestLineCandidate(candidateList, lineIndex, characterNames, TranslationContentMode.Strinova);
+                if (TryBuildMergedChatLineByComponents(candidateList, lineIndex, characterNames, out OcrLine mergedLine))
+                {
+                    mergedLines.Add(mergedLine);
+                    continue;
+                }
+
+                if (fallbackLine != null)
+                {
+                    mergedLines.Add(CloneLine(fallbackLine));
                 }
             }
 
@@ -265,6 +272,113 @@ namespace GameTranslator
             return ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { text });
         }
 
+        private OcrLine SelectBestLineCandidate(
+            IEnumerable<OcrLanguageCandidate> candidates,
+            int lineIndex,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode)
+        {
+            OcrLine bestLine = null;
+            string bestLanguageCode = "";
+            int bestScore = int.MinValue;
+
+            foreach (OcrLanguageCandidate candidate in candidates ?? Enumerable.Empty<OcrLanguageCandidate>())
+            {
+                if (candidate == null || candidate.Lines == null || lineIndex >= candidate.Lines.Count)
+                {
+                    continue;
+                }
+
+                OcrLine currentLine = candidate.Lines[lineIndex];
+                string currentText = currentLine?.Text ?? "";
+                if (string.IsNullOrWhiteSpace(currentText))
+                {
+                    continue;
+                }
+
+                int currentScore = ScoreMergedLineForSelection(currentLine, characterNames, contentMode);
+                if (bestLine == null ||
+                    currentScore > bestScore ||
+                    (currentScore == bestScore &&
+                     string.Compare(candidate.LanguageCode, bestLanguageCode, StringComparison.OrdinalIgnoreCase) < 0))
+                {
+                    bestLine = currentLine;
+                    bestLanguageCode = candidate.LanguageCode ?? "";
+                    bestScore = currentScore;
+                }
+            }
+
+            return bestLine;
+        }
+
+        private bool TryBuildMergedChatLineByComponents(
+            IEnumerable<OcrLanguageCandidate> candidates,
+            int lineIndex,
+            ISet<string> characterNames,
+            out OcrLine mergedLine)
+        {
+            mergedLine = null;
+            var parsedCandidates = new List<ParsedChatLineCandidate>();
+
+            foreach (OcrLanguageCandidate candidate in candidates ?? Enumerable.Empty<OcrLanguageCandidate>())
+            {
+                if (candidate == null || candidate.Lines == null || lineIndex >= candidate.Lines.Count)
+                {
+                    continue;
+                }
+
+                OcrLine sourceLine = candidate.Lines[lineIndex];
+                string text = sourceLine?.Text ?? "";
+                if (!ChatTextAnalyzer.TryParseChatLine(text, out ChatTextAnalyzer.ChatLine parsedLine) ||
+                    string.IsNullOrWhiteSpace(parsedLine.Message))
+                {
+                    continue;
+                }
+
+                string recoveredCharacterName;
+                int labelScore = ScoreKnownCharacterMatch(parsedLine.CharacterName, characterNames, out recoveredCharacterName);
+                int messageScore = ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { parsedLine.Message });
+
+                parsedCandidates.Add(new ParsedChatLineCandidate(
+                    candidate.LanguageCode ?? "",
+                    sourceLine,
+                    parsedLine,
+                    recoveredCharacterName,
+                    labelScore,
+                    messageScore));
+            }
+
+            if (parsedCandidates.Count == 0)
+            {
+                return false;
+            }
+
+            ParsedChatLineCandidate bestLabelCandidate = parsedCandidates
+                .Where(candidate => candidate.LabelScore > 0 && !string.IsNullOrWhiteSpace(candidate.RecoveredCharacterName))
+                .OrderByDescending(candidate => candidate.LabelScore)
+                .ThenBy(candidate => candidate.LanguageCode, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+
+            ParsedChatLineCandidate bestMessageCandidate = parsedCandidates
+                .Where(candidate => candidate.MessageScore > 0)
+                .OrderByDescending(candidate => candidate.MessageScore)
+                .ThenBy(candidate => candidate.LanguageCode, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+
+            if (bestLabelCandidate == null || bestMessageCandidate == null)
+            {
+                return false;
+            }
+
+            mergedLine = new OcrLine
+            {
+                Top = bestMessageCandidate.SourceLine.Top,
+                Bottom = bestMessageCandidate.SourceLine.Bottom,
+                Text = $"[{bestLabelCandidate.RecoveredCharacterName}]: {bestMessageCandidate.ParsedLine.Message}"
+            };
+            return true;
+        }
+
         private bool TryNormalizeMergedChatLine(string text, ISet<string> characterNames, out string normalizedText)
         {
             normalizedText = text ?? "";
@@ -283,6 +397,42 @@ namespace GameTranslator
 
             normalizedText = $"[{recoveredCharacterName}]: {parsedLine.Message}";
             return true;
+        }
+
+        private int ScoreKnownCharacterMatch(
+            string candidateCharacterName,
+            ISet<string> characterNames,
+            out string recoveredCharacterName)
+        {
+            recoveredCharacterName = RecoverClosestKnownCharacterName(candidateCharacterName, characterNames);
+            if (string.IsNullOrWhiteSpace(recoveredCharacterName))
+            {
+                return 0;
+            }
+
+            string candidateKey = BuildFuzzyCharacterKey(candidateCharacterName);
+            string recoveredKey = BuildFuzzyCharacterKey(recoveredCharacterName);
+            if (string.IsNullOrWhiteSpace(candidateKey) || string.IsNullOrWhiteSpace(recoveredKey))
+            {
+                return 0;
+            }
+
+            if (string.Equals(candidateKey, recoveredKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return ExactCharacterMatchScore;
+            }
+
+            int distance = ComputeLevenshteinDistance(candidateKey, recoveredKey);
+            int maxLength = Math.Max(candidateKey.Length, recoveredKey.Length);
+            if (maxLength <= 0)
+            {
+                return 0;
+            }
+
+            double similarity = 1d - ((double)distance / maxLength);
+            return FuzzyCharacterMatchBaseScore +
+                (int)Math.Round(similarity * 200d) -
+                (distance * 50);
         }
 
         private string RecoverClosestKnownCharacterName(string candidateCharacterName, ISet<string> characterNames)
@@ -389,6 +539,42 @@ namespace GameTranslator
             }
 
             return distances[source.Length, target.Length];
+        }
+
+        private static OcrLine CloneLine(OcrLine line)
+        {
+            return new OcrLine
+            {
+                Top = line.Top,
+                Bottom = line.Bottom,
+                Text = line.Text
+            };
+        }
+
+        private sealed class ParsedChatLineCandidate
+        {
+            public ParsedChatLineCandidate(
+                string languageCode,
+                OcrLine sourceLine,
+                ChatTextAnalyzer.ChatLine parsedLine,
+                string recoveredCharacterName,
+                int labelScore,
+                int messageScore)
+            {
+                LanguageCode = languageCode ?? "";
+                SourceLine = sourceLine;
+                ParsedLine = parsedLine;
+                RecoveredCharacterName = recoveredCharacterName ?? "";
+                LabelScore = labelScore;
+                MessageScore = messageScore;
+            }
+
+            public string LanguageCode { get; }
+            public OcrLine SourceLine { get; }
+            public ChatTextAnalyzer.ChatLine ParsedLine { get; }
+            public string RecoveredCharacterName { get; }
+            public int LabelScore { get; }
+            public int MessageScore { get; }
         }
     }
 

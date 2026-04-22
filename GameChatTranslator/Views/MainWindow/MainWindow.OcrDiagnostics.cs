@@ -281,7 +281,9 @@ namespace GameTranslator
                     break;
                 }
 
-                List<OcrLine> mergedLines = ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
+                List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
+                    ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
+                    : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
                 List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(mergedLines, characterNames, contentMode);
                 if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
                 {
