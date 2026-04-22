@@ -58,6 +58,7 @@ namespace GameTranslator
             BtnRunDiagnostic.IsEnabled = false;
             SetResultActionButtonsEnabled(false);
             TxtStatus.Text = "OCR 진단 실행 중...";
+            SetExternalOcrStatus("");
             TxtHarnessStatus.Text = "선택 후보 번역 테스트 준비";
             TxtHarnessPreview.Text = "선택 후보를 대상으로 [캐릭터이름]: 내용 형식을 우선 파싱하고, 내용만 현재 번역 엔진으로 테스트합니다.";
             lastHarnessPreviewResult = null;
@@ -69,10 +70,8 @@ namespace GameTranslator
                 RenderResult(result);
                 lastDiagnosticResult = result;
                 SetResultActionButtonsEnabled(true);
-                string externalStatus = string.IsNullOrWhiteSpace(result.ExternalOcrStatus)
-                    ? ""
-                    : $" / {result.ExternalOcrStatus}";
-                TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms{externalStatus} / 요약·전체 복사 또는 ZIP 저장 가능";
+                SetExternalOcrStatus(result.ExternalOcrStatus);
+                TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms / 요약·전체 복사 또는 ZIP 저장 가능";
             }
             catch (Exception ex)
             {
@@ -81,6 +80,7 @@ namespace GameTranslator
                 TabDiagnostics.Items.Clear();
                 TabDiagnostics.Items.Add(CreateTextTab("오류", ex.Message));
                 SetResultActionButtonsEnabled(false);
+                SetExternalOcrStatus("");
                 UpdateSummaryHeader(null);
                 TxtStatus.Text = $"실패: {ex.Message}";
             }
@@ -590,6 +590,36 @@ namespace GameTranslator
             BtnCopySummary.IsEnabled = enabled;
             BtnCopyDiagnostic.IsEnabled = enabled;
             BtnSaveDiagnostic.IsEnabled = enabled;
+        }
+
+        private void SetExternalOcrStatus(string status)
+        {
+            string text = EmptyToDash(status);
+            if (text == "-")
+            {
+                BorderExternalOcrStatus.Visibility = Visibility.Collapsed;
+                TxtExternalOcrStatus.Text = "";
+                return;
+            }
+
+            BorderExternalOcrStatus.Visibility = Visibility.Visible;
+            TxtExternalOcrStatus.Text = text;
+
+            if (text.Contains("미사용"))
+            {
+                TxtExternalOcrStatus.Foreground = new SolidColorBrush(MediaColor.FromRgb(230, 192, 123));
+                BorderExternalOcrStatus.BorderBrush = new SolidColorBrush(MediaColor.FromRgb(140, 120, 72));
+            }
+            else if (text.Contains("후보 추가"))
+            {
+                TxtExternalOcrStatus.Foreground = new SolidColorBrush(MediaColor.FromRgb(143, 227, 136));
+                BorderExternalOcrStatus.BorderBrush = new SolidColorBrush(MediaColor.FromRgb(77, 115, 73));
+            }
+            else
+            {
+                TxtExternalOcrStatus.Foreground = new SolidColorBrush(MediaColor.FromRgb(230, 230, 230));
+                BorderExternalOcrStatus.BorderBrush = new SolidColorBrush(MediaColor.FromRgb(106, 106, 106));
+            }
         }
 
         private string BuildHarnessPreviewText(OcrTranslationHarnessPreviewResult result)
