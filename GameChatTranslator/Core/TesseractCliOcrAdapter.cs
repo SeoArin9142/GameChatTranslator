@@ -37,6 +37,13 @@ namespace GameTranslator
             @"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"
         };
 
+        private static readonly string[] DefaultLanguagePriority =
+        {
+            "jpn",
+            "kor",
+            "chi_sim"
+        };
+
         public string BuildLanguageCodes(string configuredValue, string gameLanguage)
         {
             if (!string.IsNullOrWhiteSpace(configuredValue) &&
@@ -58,6 +65,44 @@ namespace GameTranslator
             codes.Add("chi_sim");
 
             return string.Join("+", codes.Distinct(StringComparer.OrdinalIgnoreCase));
+        }
+
+        public IReadOnlyList<string> BuildLanguageCombinations(string configuredValue, string gameLanguage)
+        {
+            string normalizedConfiguredValue = (configuredValue ?? "").Trim();
+
+            if (string.IsNullOrWhiteSpace(normalizedConfiguredValue) ||
+                string.Equals(normalizedConfiguredValue, SettingsService.DefaultTesseractLanguageCodes, StringComparison.OrdinalIgnoreCase))
+            {
+                var combinations = new List<string>();
+                string mappedGameLanguage = MapAppLanguageTagToTesseract(gameLanguage);
+                if (!string.IsNullOrWhiteSpace(mappedGameLanguage) &&
+                    !string.Equals(mappedGameLanguage, "eng", StringComparison.OrdinalIgnoreCase))
+                {
+                    combinations.Add(BuildPair(mappedGameLanguage));
+                }
+
+                foreach (string languageCode in DefaultLanguagePriority)
+                {
+                    combinations.Add(BuildPair(languageCode));
+                }
+
+                return combinations
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            if (normalizedConfiguredValue.Contains('|') || normalizedConfiguredValue.Contains('\n'))
+            {
+                return normalizedConfiguredValue
+                    .Split(new[] { '|', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(NormalizeLanguageCodes)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            return new[] { NormalizeLanguageCodes(normalizedConfiguredValue) };
         }
 
         public string NormalizeLanguageCodes(string rawValue)
@@ -230,6 +275,17 @@ namespace GameTranslator
         private static string EmptyToFallback(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        }
+
+        private static string BuildPair(string primaryLanguageCode)
+        {
+            if (string.IsNullOrWhiteSpace(primaryLanguageCode) ||
+                string.Equals(primaryLanguageCode, "eng", StringComparison.OrdinalIgnoreCase))
+            {
+                return "eng";
+            }
+
+            return $"{primaryLanguageCode}+eng";
         }
     }
 
