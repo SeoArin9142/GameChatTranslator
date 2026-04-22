@@ -282,10 +282,11 @@ namespace GameTranslator
                 }
 
                 List<OcrLine> mergedLines = ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
-                if (mergedLines.Count > 0 && candidate.Languages.Count > 0)
+                List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(mergedLines, characterNames, contentMode);
+                if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
                 {
-                    candidate.MergedLines.AddRange(mergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                    candidate.Score = ocrService.ScoreMergedLinesForSelection(mergedLines, characterNames, contentMode);
+                    candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
                     candidates.Add(candidate);
                 }
             }

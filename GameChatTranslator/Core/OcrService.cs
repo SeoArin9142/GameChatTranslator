@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,6 +11,7 @@ namespace GameTranslator
     public sealed class OcrService
     {
         private const int MergeChatLabelBonus = 300;
+        private const double FuzzyCharacterSimilarityThreshold = 0.6d;
 
         /// <summary>
         /// 처리 모드별 OCR 평가 순서를 만듭니다.
@@ -178,6 +180,42 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 진단용 병합 라인에서 characters.txt 기반으로만 캐릭터 라벨을 보정합니다.
+        /// 메인 번역 경로에는 영향을 주지 않으며, 퍼지 매칭에 성공한 경우에만 "[캐릭터명]: 본문" 형태로 정규화합니다.
+        /// </summary>
+        public List<OcrLine> NormalizeMergedLinesForSelection(
+            IEnumerable<OcrLine> lines,
+            ISet<string> characterNames,
+            TranslationContentMode contentMode = TranslationContentMode.Strinova)
+        {
+            var normalizedLines = new List<OcrLine>();
+
+            foreach (OcrLine line in lines ?? Enumerable.Empty<OcrLine>())
+            {
+                if (line == null)
+                {
+                    continue;
+                }
+
+                string normalizedText = line.Text ?? "";
+                if (contentMode == TranslationContentMode.Strinova &&
+                    TryNormalizeMergedChatLine(normalizedText, characterNames, out string recoveredText))
+                {
+                    normalizedText = recoveredText;
+                }
+
+                normalizedLines.Add(new OcrLine
+                {
+                    Top = line.Top,
+                    Bottom = line.Bottom,
+                    Text = normalizedText
+                });
+            }
+
+            return normalizedLines;
+        }
+
+        /// <summary>
         /// 줄 단위 병합으로 만들어진 OCR 결과를 진단 비교용 점수로 환산합니다.
         /// 메인 번역 경로의 후보 점수화와 분리해서, 외부 OCR이 깨진 라벨을 반환해도 본문 가독성을 더 공정하게 반영합니다.
         /// </summary>
@@ -191,8 +229,12 @@ namespace GameTranslator
                 return ScoreLines(lines, characterNames, TranslationContentMode.Etc);
             }
 
-            return (lines ?? Enumerable.Empty<OcrLine>())
+            List<OcrLine> normalizedLines = NormalizeMergedLinesForSelection(lines, characterNames, contentMode);
+            int normalizedCandidateScore = ScoreLines(normalizedLines, characterNames, contentMode);
+            int readableFallbackScore = normalizedLines
                 .Sum(line => ScoreMergedLineForSelection(line, characterNames, contentMode));
+
+            return Math.Max(normalizedCandidateScore, readableFallbackScore);
         }
 
         private int ScoreMergedLineForSelection(
@@ -221,6 +263,132 @@ namespace GameTranslator
             }
 
             return ChatTextAnalyzer.ScoreReadableTextCandidate(new[] { text });
+        }
+
+        private bool TryNormalizeMergedChatLine(string text, ISet<string> characterNames, out string normalizedText)
+        {
+            normalizedText = text ?? "";
+            if (!ChatTextAnalyzer.TryParseChatLine(text, out ChatTextAnalyzer.ChatLine parsedLine) ||
+                string.IsNullOrWhiteSpace(parsedLine.Message))
+            {
+                return false;
+            }
+
+            string recoveredCharacterName = RecoverClosestKnownCharacterName(parsedLine.CharacterName, characterNames);
+            if (string.IsNullOrWhiteSpace(recoveredCharacterName) ||
+                string.Equals(recoveredCharacterName, parsedLine.CharacterName?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            normalizedText = $"[{recoveredCharacterName}]: {parsedLine.Message}";
+            return true;
+        }
+
+        private string RecoverClosestKnownCharacterName(string candidateCharacterName, ISet<string> characterNames)
+        {
+            string candidateKey = BuildFuzzyCharacterKey(candidateCharacterName);
+            if (string.IsNullOrWhiteSpace(candidateKey) || candidateKey.Length < 2 || characterNames == null || characterNames.Count == 0)
+            {
+                return "";
+            }
+
+            string bestMatch = "";
+            int bestDistance = int.MaxValue;
+            double bestSimilarity = 0d;
+
+            foreach (string rawKnownName in characterNames)
+            {
+                string knownName = rawKnownName?.Trim() ?? "";
+                string knownKey = BuildFuzzyCharacterKey(knownName);
+                if (string.IsNullOrWhiteSpace(knownKey))
+                {
+                    continue;
+                }
+
+                if (string.Equals(candidateKey, knownKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    return knownName;
+                }
+
+                int distance = ComputeLevenshteinDistance(candidateKey, knownKey);
+                int maxLength = Math.Max(candidateKey.Length, knownKey.Length);
+                int maxAllowedDistance = maxLength <= 4 ? 1 : 2;
+                if (distance > maxAllowedDistance)
+                {
+                    continue;
+                }
+
+                double similarity = 1d - ((double)distance / maxLength);
+                bool isShortLabelMatch = maxLength <= 4 && distance <= 1;
+                if (!isShortLabelMatch && similarity < FuzzyCharacterSimilarityThreshold)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(bestMatch) ||
+                    distance < bestDistance ||
+                    (distance == bestDistance && similarity > bestSimilarity) ||
+                    (distance == bestDistance &&
+                     Math.Abs(similarity - bestSimilarity) < double.Epsilon &&
+                     string.Compare(knownName, bestMatch, StringComparison.OrdinalIgnoreCase) < 0))
+                {
+                    bestMatch = knownName;
+                    bestDistance = distance;
+                    bestSimilarity = similarity;
+                }
+            }
+
+            return bestMatch;
+        }
+
+        private static string BuildFuzzyCharacterKey(string value)
+        {
+            return new string((value ?? "")
+                .Trim()
+                .Where(char.IsLetterOrDigit)
+                .Select(char.ToUpperInvariant)
+                .ToArray());
+        }
+
+        private static int ComputeLevenshteinDistance(string source, string target)
+        {
+            if (string.IsNullOrEmpty(source))
+            {
+                return target?.Length ?? 0;
+            }
+
+            if (string.IsNullOrEmpty(target))
+            {
+                return source.Length;
+            }
+
+            var distances = new int[source.Length + 1, target.Length + 1];
+
+            for (int i = 0; i <= source.Length; i++)
+            {
+                distances[i, 0] = i;
+            }
+
+            for (int j = 0; j <= target.Length; j++)
+            {
+                distances[0, j] = j;
+            }
+
+            for (int i = 1; i <= source.Length; i++)
+            {
+                for (int j = 1; j <= target.Length; j++)
+                {
+                    int substitutionCost = source[i - 1] == target[j - 1] ? 0 : 1;
+                    distances[i, j] = Math.Min(
+                        Math.Min(
+                            distances[i - 1, j] + 1,
+                            distances[i, j - 1] + 1),
+                        distances[i - 1, j - 1] + substitutionCost);
+                }
+            }
+
+            return distances[source.Length, target.Length];
         }
     }
 
