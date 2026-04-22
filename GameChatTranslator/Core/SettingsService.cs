@@ -19,6 +19,8 @@ namespace GameTranslator
         public const int MaxLocalLlmMaxTokens = 512;
         public const string DefaultTesseractExecutablePath = "tesseract";
         public const string DefaultTesseractLanguageCodes = "eng+kor+jpn+chi_sim";
+        public const string DefaultEasyOcrPythonPath = "python";
+        public const string DefaultEasyOcrLanguageCodes = "en+ko+ja+ch_sim";
         public const string DefaultTranslationEngine = "Google";
         public const string DefaultTranslationContentMode = "Strinova";
         public const string DefaultResultDisplayMode = "Latest";
@@ -107,6 +109,22 @@ namespace GameTranslator
         public string NormalizeTesseractLanguageCodes(string value)
         {
             return string.IsNullOrWhiteSpace(value) ? DefaultTesseractLanguageCodes : value.Trim();
+        }
+
+        /// <summary>
+        /// EasyOCR Python 실행 경로가 비어 있으면 기본 python 명령을 반환합니다.
+        /// </summary>
+        public string NormalizeEasyOcrPythonPath(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultEasyOcrPythonPath : value.Trim();
+        }
+
+        /// <summary>
+        /// EasyOCR 언어 코드 문자열이 비어 있으면 기본 다국어 조합을 반환합니다.
+        /// </summary>
+        public string NormalizeEasyOcrLanguageCodes(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultEasyOcrLanguageCodes : value.Trim();
         }
 
         /// <summary>

@@ -25,6 +25,7 @@
     <Compile Include="../GameChatTranslator/Core/OcrLanguageStatusFormatter.cs" Link="Core/OcrLanguageStatusFormatter.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrService.cs" Link="Core/OcrService.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrDiagnosticExporter.cs" Link="Core/OcrDiagnosticExporter.cs" />
+    <Compile Include="../GameChatTranslator/Core/EasyOcrCliAdapter.cs" Link="Core/EasyOcrCliAdapter.cs" />
     <Compile Include="../GameChatTranslator/Core/TesseractCliOcrAdapter.cs" Link="Core/TesseractCliOcrAdapter.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrTranslationHarnessService.cs" Link="Core/OcrTranslationHarnessService.cs" />
     <Compile Include="../GameChatTranslator/Models/OcrDiagnosticModels.cs" Link="Models/OcrDiagnosticModels.cs" />

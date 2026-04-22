@@ -109,6 +109,8 @@ namespace GameTranslator
             EnsureNormalizedSetting("LocalLlmMaxTokens", settingsService.NormalizeLocalLlmMaxTokens(ini.Read("LocalLlmMaxTokens")).ToString());
             EnsureNormalizedSetting("TesseractExePath", settingsService.NormalizeTesseractExecutablePath(ini.Read("TesseractExePath")));
             EnsureNormalizedSetting("TesseractLanguageCodes", settingsService.NormalizeTesseractLanguageCodes(ini.Read("TesseractLanguageCodes")));
+            EnsureNormalizedSetting("EasyOcrPythonPath", settingsService.NormalizeEasyOcrPythonPath(ini.Read("EasyOcrPythonPath")));
+            EnsureNormalizedSetting("EasyOcrLanguageCodes", settingsService.NormalizeEasyOcrLanguageCodes(ini.Read("EasyOcrLanguageCodes")));
 
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
             {
@@ -271,6 +273,24 @@ namespace GameTranslator
         private string ReadTesseractLanguageCodes()
         {
             return settingsService.NormalizeTesseractLanguageCodes(ini.Read("TesseractLanguageCodes"));
+        }
+
+        /// <summary>
+        /// 외부 OCR 실험용 EasyOCR Python 실행 경로를 읽습니다.
+        /// 비어 있으면 PATH의 python 명령을 기본값으로 사용합니다.
+        /// </summary>
+        private string ReadEasyOcrPythonPath()
+        {
+            return settingsService.NormalizeEasyOcrPythonPath(ini.Read("EasyOcrPythonPath"));
+        }
+
+        /// <summary>
+        /// 외부 OCR 실험용 EasyOCR 언어 코드 조합을 읽습니다.
+        /// 비어 있으면 en+ko+ja+ch_sim 기본 조합을 사용합니다.
+        /// </summary>
+        private string ReadEasyOcrLanguageCodes()
+        {
+            return settingsService.NormalizeEasyOcrLanguageCodes(ini.Read("EasyOcrLanguageCodes"));
         }
 
         /// <summary>
