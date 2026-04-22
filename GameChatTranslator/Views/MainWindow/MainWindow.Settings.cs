@@ -107,6 +107,8 @@ namespace GameTranslator
             EnsureNormalizedSetting("LocalLlmModel", settingsService.NormalizeLocalLlmModel(ini.Read("LocalLlmModel")));
             EnsureNormalizedSetting("LocalLlmTimeoutSeconds", settingsService.NormalizeLocalLlmTimeoutSeconds(ini.Read("LocalLlmTimeoutSeconds")).ToString());
             EnsureNormalizedSetting("LocalLlmMaxTokens", settingsService.NormalizeLocalLlmMaxTokens(ini.Read("LocalLlmMaxTokens")).ToString());
+            EnsureNormalizedSetting("TesseractExePath", settingsService.NormalizeTesseractExecutablePath(ini.Read("TesseractExePath")));
+            EnsureNormalizedSetting("TesseractLanguageCodes", settingsService.NormalizeTesseractLanguageCodes(ini.Read("TesseractLanguageCodes")));
 
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
             {
@@ -251,6 +253,24 @@ namespace GameTranslator
         private int ReadLocalLlmMaxTokens()
         {
             return settingsService.NormalizeLocalLlmMaxTokens(ini.Read("LocalLlmMaxTokens"));
+        }
+
+        /// <summary>
+        /// 외부 OCR 실험용 Tesseract 실행 파일 경로를 읽습니다.
+        /// 비어 있으면 PATH의 tesseract 명령을 기본값으로 사용합니다.
+        /// </summary>
+        private string ReadTesseractExecutablePath()
+        {
+            return settingsService.NormalizeTesseractExecutablePath(ini.Read("TesseractExePath"));
+        }
+
+        /// <summary>
+        /// 외부 OCR 실험용 Tesseract 언어 코드 조합을 읽습니다.
+        /// 비어 있으면 eng+kor+jpn+chi_sim 기본 조합을 사용합니다.
+        /// </summary>
+        private string ReadTesseractLanguageCodes()
+        {
+            return settingsService.NormalizeTesseractLanguageCodes(ini.Read("TesseractLanguageCodes"));
         }
 
         /// <summary>

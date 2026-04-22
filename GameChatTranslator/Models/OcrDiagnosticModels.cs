@@ -25,6 +25,7 @@ namespace GameTranslator
         public long ScoringMs { get; set; }
         public long TotalMs { get; set; }
         public int OcrCallCount { get; set; }
+        public string ExternalOcrStatus { get; set; } = "";
         public OcrDiagnosticMetadata Metadata { get; set; } = new OcrDiagnosticMetadata();
         public List<OcrDiagnosticCandidate> Candidates { get; } = new List<OcrDiagnosticCandidate>();
     }

@@ -139,6 +139,24 @@ namespace GameTranslator
                     }
                 }
 
+                (OcrDiagnosticCandidate tesseractCandidate, string tesseractStatus, long tesseractElapsedMs) =
+                    await TryBuildTesseractDiagnosticCandidateAsync(resizedBitmap, ReadTranslationContentMode());
+                result.ExternalOcrStatus = tesseractStatus;
+                if (tesseractElapsedMs > 0)
+                {
+                    stats.OcrMs += tesseractElapsedMs;
+                    stats.OcrLanguageCallCount++;
+                }
+
+                if (tesseractCandidate != null)
+                {
+                    result.Candidates.Add(tesseractCandidate);
+                    if (bestCandidate == null || tesseractCandidate.Score > bestCandidate.Score)
+                    {
+                        bestCandidate = tesseractCandidate;
+                    }
+                }
+
                 if (bestCandidate != null)
                 {
                     result.SelectedCandidateName = bestCandidate.Name;
@@ -169,9 +187,63 @@ namespace GameTranslator
                 $"Score={result.SelectedScore}, " +
                 $"Candidates={result.Candidates.Count}, " +
                 $"OcrCalls={result.OcrCallCount}, " +
-                $"Total={result.TotalMs}ms");
+                $"Total={result.TotalMs}ms, " +
+                $"External={EmptyToDash(result.ExternalOcrStatus)}");
 
             return result;
+        }
+
+        private async Task<(OcrDiagnosticCandidate Candidate, string Status, long ElapsedMs)> TryBuildTesseractDiagnosticCandidateAsync(Bitmap resizedBitmap, TranslationContentMode contentMode)
+        {
+            string configuredExecutablePath = ReadTesseractExecutablePath();
+            string configuredLanguageCodes = ReadTesseractLanguageCodes();
+            string effectiveLanguageCodes = tesseractCliOcrAdapter.BuildLanguageCodes(configuredLanguageCodes, gameLang);
+
+            using Bitmap croppedBitmap = CropForOcr(resizedBitmap);
+            using Bitmap tesseractInputBitmap = (Bitmap)croppedBitmap.Clone();
+            byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
+            byte[] preprocessedPng = BitmapToPngBytes(resizedBitmap);
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            TesseractCliOcrResult runResult = await Task.Run(() =>
+                tesseractCliOcrAdapter.Recognize(tesseractInputBitmap, configuredExecutablePath, effectiveLanguageCodes));
+            stopwatch.Stop();
+
+            if (!runResult.Success)
+            {
+                string failedStatus = $"Tesseract 미사용: {runResult.ErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return (null, failedStatus, 0);
+            }
+
+            var candidate = new OcrDiagnosticCandidate
+            {
+                Name = "Tesseract",
+                PreprocessedPng = preprocessedPng,
+                CroppedPng = croppedPng
+            };
+
+            candidate.MergedLines.AddRange(runResult.Lines);
+            candidate.Languages.Add(new OcrDiagnosticLanguageResult
+            {
+                LanguageTag = $"tesseract:{runResult.LanguageCodes}"
+            });
+            candidate.Languages[0].Lines.AddRange(runResult.Lines);
+
+            List<OcrLine> lines = runResult.Lines
+                .Select((text, index) => new OcrLine
+                {
+                    Top = index * 20,
+                    Bottom = index * 20 + 12,
+                    Text = text
+                })
+                .ToList();
+
+            candidate.Score = ScoreOcrCandidate(lines, contentMode);
+
+            string successStatus = $"Tesseract 후보 추가 ({runResult.LanguageCodes})";
+            AppendLog($"[OCR DIAG] {successStatus}");
+            return (candidate, successStatus, stopwatch.ElapsedMilliseconds);
         }
 
         /// <summary>
@@ -326,6 +398,11 @@ namespace GameTranslator
             using MemoryStream ms = new MemoryStream();
             bitmap.Save(ms, ImageFormat.Png);
             return ms.ToArray();
+        }
+
+        private static string EmptyToDash(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
         }
     }
 }
