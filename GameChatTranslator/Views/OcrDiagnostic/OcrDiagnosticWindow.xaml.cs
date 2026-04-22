@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -24,6 +25,7 @@ namespace GameTranslator
         private readonly OcrDiagnosticExporter diagnosticExporter = new OcrDiagnosticExporter();
         private readonly string defaultExportDirectory;
         private OcrDiagnosticResult lastDiagnosticResult;
+        private OcrTranslationHarnessPreviewResult lastHarnessPreviewResult;
 
         /// <summary>
         /// OCR 진단 창을 생성합니다.
@@ -56,6 +58,9 @@ namespace GameTranslator
             BtnRunDiagnostic.IsEnabled = false;
             SetResultActionButtonsEnabled(false);
             TxtStatus.Text = "OCR 진단 실행 중...";
+            TxtHarnessStatus.Text = "선택 후보 번역 테스트 준비";
+            TxtHarnessPreview.Text = "선택 후보를 대상으로 [캐릭터이름]: 내용 형식을 우선 파싱하고, 내용만 현재 번역 엔진으로 테스트합니다.";
+            lastHarnessPreviewResult = null;
             UpdateSummaryHeader(null);
 
             try
@@ -69,6 +74,7 @@ namespace GameTranslator
             catch (Exception ex)
             {
                 lastDiagnosticResult = null;
+                lastHarnessPreviewResult = null;
                 TabDiagnostics.Items.Clear();
                 TabDiagnostics.Items.Add(CreateTextTab("오류", ex.Message));
                 SetResultActionButtonsEnabled(false);
@@ -176,6 +182,49 @@ namespace GameTranslator
             {
                 WpfMessageBox.Show(this, $"OCR 진단 결과 복사에 실패했습니다.\n{ex.Message}", "OCR 진단 결과 복사 실패", MessageBoxButton.OK, MessageBoxImage.Warning);
                 TxtStatus.Text = $"복사 실패: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 현재 선택된 OCR 후보의 병합 라인을 현재 번역 엔진으로 시험 번역합니다.
+        /// 채팅 형식은 [캐릭터명]: 접두어를 유지하고 본문만 번역하며, 파싱 실패 라인은 RAW 모드로 처리합니다.
+        /// </summary>
+        private async void BtnRunHarness_Click(object sender, RoutedEventArgs e)
+        {
+            if (lastDiagnosticResult == null)
+            {
+                WpfMessageBox.Show(this, "먼저 OCR 진단을 실행해 주세요.", "번역 테스트", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            OcrDiagnosticCandidate selectedCandidate = lastDiagnosticResult.Candidates
+                .FirstOrDefault(candidate => candidate.Name == lastDiagnosticResult.SelectedCandidateName)
+                ?? lastDiagnosticResult.Candidates.FirstOrDefault();
+
+            if (selectedCandidate == null)
+            {
+                WpfMessageBox.Show(this, "번역 테스트에 사용할 OCR 후보가 없습니다.", "번역 테스트", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            BtnRunHarness.IsEnabled = false;
+            TxtHarnessStatus.Text = "선택 후보 번역 테스트 실행 중...";
+
+            try
+            {
+                lastHarnessPreviewResult = await mainWindow.RunOcrTranslationHarnessAsync(selectedCandidate.Name, selectedCandidate.MergedLines);
+                TxtHarnessPreview.Text = BuildHarnessPreviewText(lastHarnessPreviewResult);
+                TxtHarnessStatus.Text = $"번역 테스트 완료: {lastHarnessPreviewResult.TranslatedLineCount}개 번역 / {lastHarnessPreviewResult.SkippedLineCount}개 스킵 / {lastHarnessPreviewResult.TranslateMs}ms";
+            }
+            catch (Exception ex)
+            {
+                lastHarnessPreviewResult = null;
+                TxtHarnessPreview.Text = ex.Message;
+                TxtHarnessStatus.Text = $"번역 테스트 실패: {ex.Message}";
+            }
+            finally
+            {
+                BtnRunHarness.IsEnabled = true;
             }
         }
 
@@ -534,9 +583,61 @@ namespace GameTranslator
 
         private void SetResultActionButtonsEnabled(bool enabled)
         {
+            BtnRunHarness.IsEnabled = enabled;
             BtnCopySummary.IsEnabled = enabled;
             BtnCopyDiagnostic.IsEnabled = enabled;
             BtnSaveDiagnostic.IsEnabled = enabled;
+        }
+
+        private string BuildHarnessPreviewText(OcrTranslationHarnessPreviewResult result)
+        {
+            if (result == null)
+            {
+                return "선택 후보 번역 테스트 결과가 없습니다.";
+            }
+
+            var builder = new System.Text.StringBuilder();
+            builder.AppendLine("[선택 후보 번역 테스트]");
+            builder.AppendLine($"후보: {EmptyToDash(result.CandidateName)}");
+            builder.AppendLine($"전체 라인: {result.TotalLineCount}");
+            builder.AppendLine($"번역 완료: {result.TranslatedLineCount}");
+            builder.AppendLine($"스킵: {result.SkippedLineCount}");
+            builder.AppendLine($"처리 시간: {result.TranslateMs}ms");
+
+            foreach (OcrTranslationHarnessPreviewLine line in result.Lines)
+            {
+                builder.AppendLine();
+                builder.AppendLine($"{line.Index:00}. 상태: {EmptyToDash(line.Status)}");
+                builder.AppendLine($"OCR 원문: {EmptyToDash(line.RawText)}");
+
+                if (!string.IsNullOrWhiteSpace(line.Prefix))
+                {
+                    builder.AppendLine($"출력 접두어: {line.Prefix}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(line.OriginalContent))
+                {
+                    builder.AppendLine($"원문 본문: {line.OriginalContent}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(line.PreparedContent))
+                {
+                    builder.AppendLine($"번역 입력: {line.PreparedContent}");
+                }
+
+                if (line.Translated)
+                {
+                    builder.AppendLine($"번역 결과: {line.Prefix}{line.TranslatedText}");
+                    builder.AppendLine($"엔진: {EmptyToDash(line.EngineName)}");
+                }
+            }
+
+            return builder.ToString().TrimEnd();
+        }
+
+        private static string EmptyToDash(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
         }
 
         /// <summary>
