@@ -13,6 +13,7 @@ namespace GameTranslator
     public partial class MainWindow
     {
         private const int TesseractDiagnosticTimeoutMs = 2500;
+        private const int EasyOcrDiagnosticTimeoutMs = 120000;
 
         /// <summary>
         /// OCR 테스트/진단 창을 열거나 이미 열린 창을 앞으로 가져옵니다.
@@ -141,17 +142,25 @@ namespace GameTranslator
                     }
                 }
 
-                TesseractDiagnosticSummary tesseractSummary = await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode());
-                result.ExternalOcrStatus = tesseractSummary.Status;
-                stats.OcrMs += tesseractSummary.ElapsedMs;
-                stats.OcrLanguageCallCount += tesseractSummary.CallCount;
-
-                foreach (OcrDiagnosticCandidate tesseractCandidate in tesseractSummary.Candidates)
+                var externalSummaries = new List<ExternalOcrDiagnosticSummary>
                 {
-                    result.Candidates.Add(tesseractCandidate);
-                    if (bestCandidate == null || tesseractCandidate.Score > bestCandidate.Score)
+                    await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()),
+                    await TryBuildEasyOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode())
+                };
+                result.ExternalOcrStatus = BuildExternalOcrStatusText(externalSummaries);
+
+                foreach (ExternalOcrDiagnosticSummary externalSummary in externalSummaries)
+                {
+                    stats.OcrMs += externalSummary.ElapsedMs;
+                    stats.OcrLanguageCallCount += externalSummary.CallCount;
+
+                    foreach (OcrDiagnosticCandidate externalCandidate in externalSummary.Candidates)
                     {
-                        bestCandidate = tesseractCandidate;
+                        result.Candidates.Add(externalCandidate);
+                        if (bestCandidate == null || externalCandidate.Score > bestCandidate.Score)
+                        {
+                            bestCandidate = externalCandidate;
+                        }
                     }
                 }
 
@@ -191,7 +200,7 @@ namespace GameTranslator
             return result;
         }
 
-        private async Task<TesseractDiagnosticSummary> TryBuildTesseractDiagnosticCandidatesAsync(IEnumerable<PreprocessedOcrImage> preprocessedImages, TranslationContentMode contentMode)
+        private async Task<ExternalOcrDiagnosticSummary> TryBuildTesseractDiagnosticCandidatesAsync(IEnumerable<PreprocessedOcrImage> preprocessedImages, TranslationContentMode contentMode)
         {
             string configuredExecutablePath = ReadTesseractExecutablePath();
             string configuredLanguageCodes = ReadTesseractLanguageCodes();
@@ -302,20 +311,152 @@ namespace GameTranslator
             {
                 string failedStatus = $"Tesseract 미사용: {firstErrorMessage}";
                 AppendLog($"[OCR DIAG] {failedStatus}");
-                return new TesseractDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+                return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
             }
 
             if (successCount == 0)
             {
                 string failedStatus = $"Tesseract 실패: {firstErrorMessage}";
                 AppendLog($"[OCR DIAG] {failedStatus}");
-                return new TesseractDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+                return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
             }
 
             string successStatus =
                 $"Tesseract 후보 {candidates.Count}개 추가 / {successCount}회 성공 / {failureCount}회 실패 / timeout {TesseractDiagnosticTimeoutMs}ms";
             AppendLog($"[OCR DIAG] {successStatus}");
-            return new TesseractDiagnosticSummary(candidates, successStatus, totalElapsedMs, totalCallCount);
+            return new ExternalOcrDiagnosticSummary(candidates, successStatus, totalElapsedMs, totalCallCount);
+        }
+
+        private async Task<ExternalOcrDiagnosticSummary> TryBuildEasyOcrDiagnosticCandidatesAsync(IEnumerable<PreprocessedOcrImage> preprocessedImages, TranslationContentMode contentMode)
+        {
+            string configuredPythonPath = ReadEasyOcrPythonPath();
+            string configuredLanguageCodes = ReadEasyOcrLanguageCodes();
+
+            int totalCallCount = 0;
+            long totalElapsedMs = 0;
+            int successCount = 0;
+            int failureCount = 0;
+            bool pythonMissing = false;
+            bool moduleMissing = false;
+            string firstErrorMessage = "";
+            var candidates = new List<OcrDiagnosticCandidate>();
+
+            foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+            {
+                using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
+                byte[] preprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap);
+
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                using Bitmap easyOcrInputBitmap = (Bitmap)croppedBitmap.Clone();
+                EasyOcrCliBatchResult batchResult = await Task.Run(() =>
+                    easyOcrCliAdapter.Recognize(
+                        easyOcrInputBitmap,
+                        configuredPythonPath,
+                        configuredLanguageCodes,
+                        gameLang,
+                        EasyOcrDiagnosticTimeoutMs));
+                stopwatch.Stop();
+                totalElapsedMs += stopwatch.ElapsedMilliseconds;
+                totalCallCount += batchResult.LanguageCombinations.Count;
+
+                if (!batchResult.Success)
+                {
+                    failureCount += Math.Max(1, batchResult.LanguageCombinations.Count);
+                    if (string.IsNullOrWhiteSpace(firstErrorMessage))
+                    {
+                        firstErrorMessage = batchResult.ErrorMessage;
+                    }
+
+                    if (batchResult.IsPythonMissing)
+                    {
+                        pythonMissing = true;
+                        break;
+                    }
+
+                    if (batchResult.IsModuleMissing)
+                    {
+                        moduleMissing = true;
+                        break;
+                    }
+
+                    continue;
+                }
+
+                successCount += batchResult.GroupResults.Count(group => group.Success);
+                failureCount += batchResult.GroupResults.Count(group => !group.Success);
+
+                var candidate = new OcrDiagnosticCandidate
+                {
+                    Name = $"EasyOCR-{preprocessedImage.Name}",
+                    PreprocessedPng = preprocessedPng,
+                    CroppedPng = croppedPng
+                };
+                var languageCandidates = new List<OcrLanguageCandidate>();
+
+                foreach (EasyOcrCliGroupResult groupResult in batchResult.GroupResults.Where(group => group.Success))
+                {
+                    var languageResult = new OcrDiagnosticLanguageResult
+                    {
+                        LanguageTag = $"easyocr:{groupResult.LanguageCodes}"
+                    };
+                    languageResult.Lines.AddRange(groupResult.Lines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Languages.Add(languageResult);
+
+                    languageCandidates.Add(new OcrLanguageCandidate
+                    {
+                        LanguageCode = groupResult.LanguageCodes,
+                        Lines = groupResult.Lines
+                            .Select(line => new OcrLine
+                            {
+                                Top = line.Top,
+                                Bottom = line.Bottom,
+                                Text = line.Text
+                            })
+                            .ToList()
+                    });
+                }
+
+                List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
+                    ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
+                    : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
+                List<OcrLine> filteredMergedLines = ocrTranslationHarnessService.FilterMergedLinesForDiagnostics(mergedLines, characterNames);
+                List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(filteredMergedLines, characterNames, contentMode);
+                if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
+                {
+                    candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                    candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
+                    candidates.Add(candidate);
+                }
+            }
+
+            if (pythonMissing || moduleMissing)
+            {
+                string failedStatus = $"EasyOCR 미사용: {firstErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+            }
+
+            if (successCount == 0)
+            {
+                string failedStatus = $"EasyOCR 실패: {firstErrorMessage}";
+                AppendLog($"[OCR DIAG] {failedStatus}");
+                return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
+            }
+
+            string successStatus =
+                $"EasyOCR 후보 {candidates.Count}개 추가 / {successCount}개 그룹 성공 / {failureCount}개 그룹 실패 / timeout {EasyOcrDiagnosticTimeoutMs}ms";
+            AppendLog($"[OCR DIAG] {successStatus}");
+            return new ExternalOcrDiagnosticSummary(candidates, successStatus, totalElapsedMs, totalCallCount);
+        }
+
+        private static string BuildExternalOcrStatusText(IEnumerable<ExternalOcrDiagnosticSummary> summaries)
+        {
+            return string.Join(
+                Environment.NewLine,
+                (summaries ?? Enumerable.Empty<ExternalOcrDiagnosticSummary>())
+                    .Select(summary => summary?.Status?.Trim())
+                    .Where(status => !string.IsNullOrWhiteSpace(status)));
         }
 
         /// <summary>
@@ -477,9 +618,9 @@ namespace GameTranslator
             return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
         }
 
-        private sealed class TesseractDiagnosticSummary
+        private sealed class ExternalOcrDiagnosticSummary
         {
-            public TesseractDiagnosticSummary(List<OcrDiagnosticCandidate> candidates, string status, long elapsedMs, int callCount)
+            public ExternalOcrDiagnosticSummary(List<OcrDiagnosticCandidate> candidates, string status, long elapsedMs, int callCount)
             {
                 Candidates = candidates ?? new List<OcrDiagnosticCandidate>();
                 Status = status ?? "";

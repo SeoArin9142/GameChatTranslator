@@ -86,6 +86,33 @@ namespace GameChatTranslator.Tests
         }
 
         [Theory]
+        [InlineData(null, SettingsService.DefaultTesseractExecutablePath)]
+        [InlineData("", SettingsService.DefaultTesseractExecutablePath)]
+        [InlineData("  C:\\Tesseract\\tesseract.exe  ", "C:\\Tesseract\\tesseract.exe")]
+        public void NormalizeTesseractExecutablePath_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeTesseractExecutablePath(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultEasyOcrPythonPath)]
+        [InlineData("", SettingsService.DefaultEasyOcrPythonPath)]
+        [InlineData("  C:\\Python311\\python.exe  ", "C:\\Python311\\python.exe")]
+        public void NormalizeEasyOcrPythonPath_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeEasyOcrPythonPath(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultEasyOcrLanguageCodes)]
+        [InlineData("", SettingsService.DefaultEasyOcrLanguageCodes)]
+        [InlineData("  ko+en|ja+en  ", "ko+en|ja+en")]
+        public void NormalizeEasyOcrLanguageCodes_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeEasyOcrLanguageCodes(rawValue));
+        }
+
+        [Theory]
         [InlineData(null, TranslationEngineMode.Google)]
         [InlineData("", TranslationEngineMode.Google)]
         [InlineData("Google", TranslationEngineMode.Google)]
