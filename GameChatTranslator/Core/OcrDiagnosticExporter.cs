@@ -66,6 +66,10 @@ namespace GameTranslator
             builder.AppendLine($"선택 점수: {result.SelectedScore}");
             builder.AppendLine($"후보 수: {result.Candidates.Count}");
             builder.AppendLine($"OCR 호출 수: {result.OcrCallCount}");
+            if (!string.IsNullOrWhiteSpace(result.ExternalOcrStatus))
+            {
+                builder.AppendLine($"외부 OCR 상태: {result.ExternalOcrStatus}");
+            }
             builder.AppendLine();
             builder.AppendLine("[처리 시간]");
             builder.AppendLine($"Capture: {result.CaptureMs}ms");

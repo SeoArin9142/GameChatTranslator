@@ -69,7 +69,10 @@ namespace GameTranslator
                 RenderResult(result);
                 lastDiagnosticResult = result;
                 SetResultActionButtonsEnabled(true);
-                TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms / 요약·전체 복사 또는 ZIP 저장 가능";
+                string externalStatus = string.IsNullOrWhiteSpace(result.ExternalOcrStatus)
+                    ? ""
+                    : $" / {result.ExternalOcrStatus}";
+                TxtStatus.Text = $"완료: {result.SelectedCandidateName} 선택 / {result.TotalMs}ms{externalStatus} / 요약·전체 복사 또는 ZIP 저장 가능";
             }
             catch (Exception ex)
             {

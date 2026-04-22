@@ -17,6 +17,8 @@ namespace GameTranslator
         public const int DefaultLocalLlmMaxTokens = 160;
         public const int MinLocalLlmMaxTokens = 40;
         public const int MaxLocalLlmMaxTokens = 512;
+        public const string DefaultTesseractExecutablePath = "tesseract";
+        public const string DefaultTesseractLanguageCodes = "eng+kor+jpn+chi_sim";
         public const string DefaultTranslationEngine = "Google";
         public const string DefaultTranslationContentMode = "Strinova";
         public const string DefaultResultDisplayMode = "Latest";
@@ -88,6 +90,23 @@ namespace GameTranslator
         public int NormalizeLocalLlmMaxTokens(string value)
         {
             return NormalizeInt(value, DefaultLocalLlmMaxTokens, MinLocalLlmMaxTokens, MaxLocalLlmMaxTokens);
+        }
+
+        /// <summary>
+        /// Tesseract 실행 파일 경로가 비어 있으면 기본 명령 이름을 반환합니다.
+        /// 실제 설치 경로 자동 탐지는 런타임 어댑터에서 수행하고, 설정 파일에는 단순 기본값만 유지합니다.
+        /// </summary>
+        public string NormalizeTesseractExecutablePath(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultTesseractExecutablePath : value.Trim();
+        }
+
+        /// <summary>
+        /// Tesseract 언어 코드 문자열이 비어 있으면 기본 다국어 조합을 반환합니다.
+        /// </summary>
+        public string NormalizeTesseractLanguageCodes(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultTesseractLanguageCodes : value.Trim();
         }
 
         /// <summary>

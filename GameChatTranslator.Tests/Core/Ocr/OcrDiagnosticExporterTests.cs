@@ -22,6 +22,7 @@ namespace GameChatTranslator.Tests
             Assert.Contains("Threshold: 120", summary);
             Assert.Contains("Total: 70ms", summary);
             Assert.Contains("- Color: 123", summary);
+            Assert.Contains("외부 OCR 상태: Tesseract 후보 추가 (jpn+eng+kor+chi_sim)", summary);
             Assert.Contains("앱 버전: v.test", summary);
             Assert.Contains("게임 언어: ko", summary);
             Assert.Contains("현재 자동 OCR 모드: 자동", summary);
@@ -124,6 +125,7 @@ namespace GameChatTranslator.Tests
                 ScoringMs = 15,
                 TotalMs = 70,
                 OcrCallCount = 2,
+                ExternalOcrStatus = "Tesseract 후보 추가 (jpn+eng+kor+chi_sim)",
                 Metadata = new OcrDiagnosticMetadata
                 {
                     AppVersion = "v.test",
