@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 import warnings
 
@@ -228,6 +229,10 @@ def recognize_with_legacy_ocr(ocr, image_path):
 
 
 def recognize_image(language_code, image_path, use_gpu):
+    # PaddlePaddle 3.3.x CPU inference can fail in PIR/oneDNN conversion.
+    # Set this before importing paddleocr so the diagnostic runner stays usable.
+    os.environ.setdefault("FLAGS_enable_pir_api", "0")
+
     from paddleocr import PaddleOCR
 
     try:
