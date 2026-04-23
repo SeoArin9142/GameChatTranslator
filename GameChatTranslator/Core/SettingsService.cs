@@ -36,6 +36,9 @@ namespace GameTranslator
         public const string DefaultKeyLogViewer = "Ctrl+=";
         public const string DefaultKeyOcrDiagnostic = "Ctrl+5";
         public const string DefaultKeyHotkeyGuideToggle = "Ctrl+F10";
+        public const string DefaultKeyOpenSettings = "Ctrl+8";
+        public const string DefaultOcrEngineSelection = "All";
+        public const string DefaultAutoCopyTranslationResult = "false";
 
         /// <summary>
         /// Gemini API 키를 선택합니다.
@@ -207,6 +210,70 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// OCR 엔진 선택값을 앱 내부 enum으로 변환합니다.
+        /// 알 수 없는 값은 전체 비교(All)로 되돌려 진단 흐름이 끊기지 않게 합니다.
+        /// </summary>
+        public ConfiguredOcrEngine NormalizeConfiguredOcrEngine(string value)
+        {
+            string normalized = (value ?? "").Trim();
+            if (normalized.Equals("WindowsOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("Windows", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("WinOcr", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.WindowsOcr;
+            }
+
+            if (normalized.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.Tesseract;
+            }
+
+            if (normalized.Equals("EasyOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("EasyOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.EasyOcr;
+            }
+
+            if (normalized.Equals("PaddleOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("PaddleOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.PaddleOcr;
+            }
+
+            return ConfiguredOcrEngine.All;
+        }
+
+        /// <summary>
+        /// OCR 엔진 enum을 config.ini와 ComboBox.Tag에 저장할 문자열로 변환합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineTag(ConfiguredOcrEngine engine)
+        {
+            return engine switch
+            {
+                ConfiguredOcrEngine.WindowsOcr => "WindowsOcr",
+                ConfiguredOcrEngine.Tesseract => "Tesseract",
+                ConfiguredOcrEngine.EasyOcr => "EasyOcr",
+                ConfiguredOcrEngine.PaddleOcr => "PaddleOcr",
+                _ => DefaultOcrEngineSelection
+            };
+        }
+
+        /// <summary>
+        /// OCR 엔진 enum을 설정창과 진단 요약에 표시할 사용자용 이름으로 변환합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineDisplayName(ConfiguredOcrEngine engine)
+        {
+            return engine switch
+            {
+                ConfiguredOcrEngine.WindowsOcr => "Windows OCR",
+                ConfiguredOcrEngine.Tesseract => "Tesseract",
+                ConfiguredOcrEngine.EasyOcr => "EasyOCR",
+                ConfiguredOcrEngine.PaddleOcr => "PaddleOCR",
+                _ => "전체 비교"
+            };
+        }
+
+        /// <summary>
         /// true/1/yes/y/on 값을 true로 해석합니다.
         /// </summary>
         public bool IsEnabled(string value)
@@ -279,7 +346,8 @@ namespace GameTranslator
                 DefaultKeyCopyResult,
                 DefaultKeyLogViewer,
                 DefaultKeyOcrDiagnostic,
-                DefaultKeyHotkeyGuideToggle);
+                DefaultKeyHotkeyGuideToggle,
+                DefaultKeyOpenSettings);
         }
     }
 
@@ -313,7 +381,8 @@ namespace GameTranslator
             string copyResult,
             string logViewer,
             string ocrDiagnostic,
-            string hotkeyGuideToggle)
+            string hotkeyGuideToggle,
+            string openSettings)
         {
             MoveLock = moveLock;
             AreaSelect = areaSelect;
@@ -324,6 +393,7 @@ namespace GameTranslator
             LogViewer = logViewer;
             OcrDiagnostic = ocrDiagnostic;
             HotkeyGuideToggle = hotkeyGuideToggle;
+            OpenSettings = openSettings;
         }
 
         public string MoveLock { get; }
@@ -335,6 +405,20 @@ namespace GameTranslator
         public string LogViewer { get; }
         public string OcrDiagnostic { get; }
         public string HotkeyGuideToggle { get; }
+        public string OpenSettings { get; }
+    }
+
+    /// <summary>
+    /// 설정창에서 사용자가 선택한 OCR 엔진 범위입니다.
+    /// All은 비교 모드, 나머지는 선택한 엔진 후보만 점수 계산합니다.
+    /// </summary>
+    public enum ConfiguredOcrEngine
+    {
+        All,
+        WindowsOcr,
+        Tesseract,
+        EasyOcr,
+        PaddleOcr
     }
 
     /// <summary>

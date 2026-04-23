@@ -80,5 +80,34 @@ namespace GameTranslator
                 AppendLog($"클립보드 복사 실패: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// 환경설정창 버튼에서 최근 번역 결과 복사를 호출할 때 사용하는 래퍼입니다.
+        /// </summary>
+        public void CopyLastTranslationToClipboardFromSettings()
+        {
+            CopyLastTranslationToClipboard();
+        }
+
+        /// <summary>
+        /// 설정에서 자동 복사를 켠 경우 현재 번역 결과 버퍼를 클립보드에 반영합니다.
+        /// 자동 번역 중 로그가 과도하게 쌓이지 않도록 성공 로그는 남기지 않습니다.
+        /// </summary>
+        private void TryAutoCopyTranslationResult()
+        {
+            if (!ShouldAutoCopyTranslationResult() || string.IsNullOrWhiteSpace(lastClipboardTranslationText))
+            {
+                return;
+            }
+
+            try
+            {
+                System.Windows.Clipboard.SetText(lastClipboardTranslationText.Trim());
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"자동 클립보드 복사 실패: {ex.Message}");
+            }
+        }
     }
 }

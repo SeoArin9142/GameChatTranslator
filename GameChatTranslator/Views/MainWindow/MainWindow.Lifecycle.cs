@@ -67,10 +67,7 @@ namespace GameTranslator
                 return;
             }
 
-            OptionSelector selector = new OptionSelector(this, ini);
-            selector.Owner = this;
-            selector.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-
+            OptionSelector selector = CreateSettingsDialog();
             bool? dialogResult = selector.ShowDialog();
 
             if (dialogResult != true)
@@ -79,25 +76,16 @@ namespace GameTranslator
                 return;
             }
 
+            OptionSelectorPostAction requestedAction = selector.RequestedActionAfterClose;
+
             this.Topmost = false;
             this.Topmost = true;
 
-            gameLang = ini.Read("GameLanguage") ?? "ko";
-            targetLang = ini.Read("TargetLanguage") ?? "ko";
-
             _windowHandle = new WindowInteropHelper(this).Handle;
             HwndSource.FromHwnd(_windowHandle).AddHook(HwndHook);
-            RegisterAllHotkeys();
+            ApplyRuntimeSettingsFromIni();
 
             string geminiKey = ReadGeminiKey();
-
-            currentTranslationEngineMode = ReadTranslationEngineMode();
-            if (currentTranslationEngineMode == TranslationEngineMode.Gemini &&
-                (string.IsNullOrWhiteSpace(geminiKey) || geminiKey.Length < 30))
-            {
-                currentTranslationEngineMode = TranslationEngineMode.Google;
-                AppendLog("저장된 기본 번역 엔진이 Gemini이지만 API 키가 없어 Google로 시작합니다.");
-            }
 
             string currentEngine = GetCurrentTranslationEngineDisplayName();
 
@@ -186,6 +174,7 @@ namespace GameTranslator
 
             UpdateCaptureBorder(!isLocked);
             ShowHotkeyWarningIfAny();
+            ExecuteSettingsDialogPostAction(requestedAction);
         }
 
         /// <summary>
@@ -210,10 +199,53 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TOGGLE_ENGINE);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_COPY_RESULT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_LOG_VIEWER);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_OCR_DIAGNOSTIC);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_HOTKEY_GUIDE_TOGGLE);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_OPEN_SETTINGS);
 
             AppendLog("프로그램이 정상적으로 종료되었습니다.");
             Application.Current.Shutdown();
             base.OnClosed(e);
+        }
+
+        /// <summary>
+        /// 런타임에서 환경설정창을 다시 열어 설정 변경을 적용합니다.
+        /// 저장 후 필요한 후처리(예: 캡처 영역 다시 지정)는 창이 닫힌 뒤 실행합니다.
+        /// </summary>
+        public void ShowSettingsWindow()
+        {
+            OptionSelector selector = CreateSettingsDialog();
+            bool? dialogResult = selector.ShowDialog();
+            if (dialogResult == true)
+            {
+                ExecuteSettingsDialogPostAction(selector.RequestedActionAfterClose);
+            }
+        }
+
+        /// <summary>
+        /// 환경설정창에서 이동 잠금 전환을 요청할 때 사용하는 래퍼입니다.
+        /// </summary>
+        public void ToggleMoveLockFromSettings()
+        {
+            ToggleMoveLock();
+            UpdateYellowHotkeyGuideText();
+        }
+
+        private OptionSelector CreateSettingsDialog()
+        {
+            return new OptionSelector(this, ini)
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+        }
+
+        private void ExecuteSettingsDialogPostAction(OptionSelectorPostAction action)
+        {
+            if (action == OptionSelectorPostAction.StartAreaSelection)
+            {
+                startAreaSelection();
+            }
         }
 
         /// <summary>

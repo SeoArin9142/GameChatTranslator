@@ -47,7 +47,7 @@ namespace GameTranslator
 
             if (gameChatArea == Rectangle.Empty)
             {
-                throw new InvalidOperationException("캡처 영역이 설정되어 있지 않습니다. Ctrl+8로 채팅 영역을 먼저 지정해 주세요.");
+                throw new InvalidOperationException("캡처 영역이 설정되어 있지 않습니다. 환경설정창에서 채팅 영역을 먼저 지정해 주세요.");
             }
 
             if (ocrEngines.Count == 0)
@@ -57,6 +57,7 @@ namespace GameTranslator
 
             int threshold = SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold"));
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor"));
+            ConfiguredOcrEngine configuredOcrEngine = ReadConfiguredOcrEngineSelection();
 
             var result = new OcrDiagnosticResult
             {
@@ -64,7 +65,7 @@ namespace GameTranslator
                 Threshold = threshold,
                 ScaleFactor = scaleFactor,
                 CaptureArea = GetCapturePixelArea(),
-                Metadata = BuildOcrDiagnosticMetadata()
+                Metadata = BuildOcrDiagnosticMetadata(configuredOcrEngine)
             };
 
             Stopwatch totalStopwatch = Stopwatch.StartNew();
@@ -101,55 +102,67 @@ namespace GameTranslator
             {
                 OcrDiagnosticCandidate bestCandidate = null;
 
-                foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                if (ShouldIncludeWindowsOcrCandidates(configuredOcrEngine))
                 {
-                    var diagnosticCandidate = new OcrDiagnosticCandidate
+                    foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
                     {
-                        Name = preprocessedImage.Name,
-                        PreprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap)
-                    };
-
-                    Stopwatch cropStopwatch = Stopwatch.StartNew();
-                    using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
-                    cropStopwatch.Stop();
-                    stats.CropMs += cropStopwatch.ElapsedMilliseconds;
-                    diagnosticCandidate.CroppedPng = BitmapToPngBytes(croppedBitmap);
-
-                    Dictionary<string, OcrResult> ocrResults = await RecognizeLanguagesAsync(croppedBitmap, true, stats);
-                    foreach (var kvp in ocrResults.OrderBy(x => x.Key))
-                    {
-                        var languageResult = new OcrDiagnosticLanguageResult
+                        var diagnosticCandidate = new OcrDiagnosticCandidate
                         {
-                            LanguageTag = kvp.Key
+                            Name = preprocessedImage.Name,
+                            PreprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap)
                         };
-                        languageResult.Lines.AddRange(kvp.Value.Lines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                        diagnosticCandidate.Languages.Add(languageResult);
-                    }
 
-                    Stopwatch scoringStopwatch = Stopwatch.StartNew();
-                    OcrResult masterResult = SelectMasterOcrResult(ocrResults);
-                    if (masterResult != null)
-                    {
-                        List<OcrLine> mergedLines = MergeOcrLines(masterResult);
-                        diagnosticCandidate.MergedLines.AddRange(mergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                        diagnosticCandidate.Score = ScoreOcrCandidate(mergedLines, ReadTranslationContentMode());
-                    }
-                    scoringStopwatch.Stop();
-                    stats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
+                        Stopwatch cropStopwatch = Stopwatch.StartNew();
+                        using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                        cropStopwatch.Stop();
+                        stats.CropMs += cropStopwatch.ElapsedMilliseconds;
+                        diagnosticCandidate.CroppedPng = BitmapToPngBytes(croppedBitmap);
 
-                    result.Candidates.Add(diagnosticCandidate);
-                    if (bestCandidate == null || diagnosticCandidate.Score > bestCandidate.Score)
-                    {
-                        bestCandidate = diagnosticCandidate;
+                        Dictionary<string, OcrResult> ocrResults = await RecognizeLanguagesAsync(croppedBitmap, true, stats);
+                        foreach (var kvp in ocrResults.OrderBy(x => x.Key))
+                        {
+                            var languageResult = new OcrDiagnosticLanguageResult
+                            {
+                                LanguageTag = kvp.Key
+                            };
+                            languageResult.Lines.AddRange(kvp.Value.Lines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                            diagnosticCandidate.Languages.Add(languageResult);
+                        }
+
+                        Stopwatch scoringStopwatch = Stopwatch.StartNew();
+                        OcrResult masterResult = SelectMasterOcrResult(ocrResults);
+                        if (masterResult != null)
+                        {
+                            List<OcrLine> mergedLines = MergeOcrLines(masterResult);
+                            diagnosticCandidate.MergedLines.AddRange(mergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                            diagnosticCandidate.Score = ScoreOcrCandidate(mergedLines, ReadTranslationContentMode());
+                        }
+                        scoringStopwatch.Stop();
+                        stats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
+
+                        result.Candidates.Add(diagnosticCandidate);
+                        if (bestCandidate == null || diagnosticCandidate.Score > bestCandidate.Score)
+                        {
+                            bestCandidate = diagnosticCandidate;
+                        }
                     }
                 }
 
-                var externalSummaries = new List<ExternalOcrDiagnosticSummary>
+                var externalSummaries = new List<ExternalOcrDiagnosticSummary>();
+                if (ShouldIncludeTesseractCandidates(configuredOcrEngine))
                 {
-                    await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()),
-                    await TryBuildEasyOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()),
-                    await TryBuildPaddleOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode())
-                };
+                    externalSummaries.Add(await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()));
+                }
+
+                if (ShouldIncludeEasyOcrCandidates(configuredOcrEngine))
+                {
+                    externalSummaries.Add(await TryBuildEasyOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()));
+                }
+
+                if (ShouldIncludePaddleOcrCandidates(configuredOcrEngine))
+                {
+                    externalSummaries.Add(await TryBuildPaddleOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()));
+                }
                 result.ExternalOcrStatus = BuildExternalOcrStatusText(externalSummaries);
 
                 foreach (ExternalOcrDiagnosticSummary externalSummary in externalSummaries)
@@ -663,7 +676,7 @@ namespace GameTranslator
         /// OCR 진단 ZIP에 포함할 앱 버전, 언어 설정, OCR 모드, 언어팩 상태를 문자열 모델로 만듭니다.
         /// Exporter가 WinRT/Assembly/IniFile에 의존하지 않도록 MainWindow에서 현재 런타임 값을 채워 전달합니다.
         /// </summary>
-        private OcrDiagnosticMetadata BuildOcrDiagnosticMetadata()
+        private OcrDiagnosticMetadata BuildOcrDiagnosticMetadata(ConfiguredOcrEngine configuredOcrEngine)
         {
             var metadata = new OcrDiagnosticMetadata
             {
@@ -672,6 +685,7 @@ namespace GameTranslator
                 BuildCommit = CurrentBuildCommit,
                 GameLanguage = gameLang,
                 TargetLanguage = targetLang,
+                ConfiguredOcrEngine = settingsService.GetConfiguredOcrEngineDisplayName(configuredOcrEngine),
                 AutoTranslateMode = GetAutoTranslateModeLabel(),
                 DiagnosticProcessingMode = GetOcrProcessingModeLabel(OcrProcessingMode.Accurate),
                 SaveDebugImages = settingsService.IsEnabled(ini.Read("SaveDebugImages")) ? "true" : "false",
@@ -735,6 +749,26 @@ namespace GameTranslator
                 string status = ocrEngines.ContainsKey(tag) ? "설치됨" : "미설치";
                 yield return $"{label} ({tag}) : {status}";
             }
+        }
+
+        private static bool ShouldIncludeWindowsOcrCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        {
+            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.WindowsOcr;
+        }
+
+        private static bool ShouldIncludeTesseractCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        {
+            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.Tesseract;
+        }
+
+        private static bool ShouldIncludeEasyOcrCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        {
+            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.EasyOcr;
+        }
+
+        private static bool ShouldIncludePaddleOcrCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        {
+            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.PaddleOcr;
         }
 
         private string FormatRectangle(Rectangle rectangle)

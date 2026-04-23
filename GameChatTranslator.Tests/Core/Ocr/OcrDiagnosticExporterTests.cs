@@ -27,6 +27,7 @@ namespace GameChatTranslator.Tests
             Assert.Contains("빌드 정보: 1.0.31-alpha+abcdef1234567890", summary);
             Assert.Contains("빌드 커밋: abcdef1234567890", summary);
             Assert.Contains("게임 언어: ko", summary);
+            Assert.Contains("OCR 엔진 선택: 전체 비교", summary);
             Assert.Contains("현재 자동 OCR 모드: 자동", summary);
             Assert.Contains("표시 좌표 CaptureX/Y/W/H: X=1, Y=2, W=30, H=40", summary);
             Assert.Contains("물리 픽셀 CapturePixelX/Y/W/H: X=10, Y=20, W=300, H=120", summary);
@@ -135,6 +136,7 @@ namespace GameChatTranslator.Tests
                     BuildCommit = "abcdef1234567890",
                     GameLanguage = "ko",
                     TargetLanguage = "en-US",
+                    ConfiguredOcrEngine = "전체 비교",
                     AutoTranslateMode = "자동",
                     DiagnosticProcessingMode = "정확",
                     SaveDebugImages = "false",

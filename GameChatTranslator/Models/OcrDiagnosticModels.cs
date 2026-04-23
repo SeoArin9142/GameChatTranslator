@@ -41,6 +41,7 @@ namespace GameTranslator
         public string BuildCommit { get; set; } = "";
         public string GameLanguage { get; set; } = "";
         public string TargetLanguage { get; set; } = "";
+        public string ConfiguredOcrEngine { get; set; } = "";
         public string AutoTranslateMode { get; set; } = "";
         public string DiagnosticProcessingMode { get; set; } = "";
         public string SaveDebugImages { get; set; } = "";

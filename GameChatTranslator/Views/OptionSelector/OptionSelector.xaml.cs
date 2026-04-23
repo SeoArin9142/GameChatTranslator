@@ -27,6 +27,7 @@ namespace GameTranslator
         private readonly SettingsService _settingsService = new SettingsService();
         private readonly OcrLanguageStatusFormatter _ocrLanguageStatusFormatter = new OcrLanguageStatusFormatter();
         private readonly DispatcherTimer _updateStatusResetTimer;
+        internal OptionSelectorPostAction RequestedActionAfterClose { get; private set; } = OptionSelectorPostAction.None;
 
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
         {
@@ -96,15 +97,9 @@ namespace GameTranslator
             // [단축키 세팅]
             // 각 텍스트박스에 기존에 저장된 단축키 문자열을 넣어줍니다. (없으면 기본값 적용)
             DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
-            TxtKeyMove.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_MoveLock"), defaults.MoveLock);
-            TxtKeyArea.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_AreaSelect"), defaults.AreaSelect);
+            TxtKeySettings.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_OpenSettings"), defaults.OpenSettings);
             TxtKeyTrans.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_Translate"), defaults.Translate);
             TxtKeyAuto.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
-            TxtKeyToggle.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
-            TxtKeyCopy.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_CopyResult"), defaults.CopyResult);
-            TxtKeyLog.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_LogViewer"), defaults.LogViewer);
-            TxtKeyOcrDiagnostic.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
-            TxtKeyHotkeyGuide.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -137,6 +132,11 @@ namespace GameTranslator
                 TranslationEngineMode engineMode = _settingsService.NormalizeTranslationEngineMode(_ini.Read("TranslationEngine"));
                 SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(engineMode));
             }
+            if (ComboConfiguredOcrEngine != null)
+            {
+                ConfiguredOcrEngine configuredOcrEngine = _settingsService.NormalizeConfiguredOcrEngine(_ini.Read("OcrEngineSelection"));
+                SetComboByTag(ComboConfiguredOcrEngine, _settingsService.GetConfiguredOcrEngineTag(configuredOcrEngine));
+            }
             if (TxtResultHistoryLimit != null)
             {
                 TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(_ini.Read("ResultHistoryLimit")).ToString();
@@ -144,6 +144,12 @@ namespace GameTranslator
             if (TxtTranslationResultAutoClearSeconds != null)
             {
                 TxtTranslationResultAutoClearSeconds.Text = SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(_ini.Read("TranslationResultAutoClearSeconds")).ToString();
+            }
+            if (CheckAutoCopyTranslationResult != null)
+            {
+                CheckAutoCopyTranslationResult.IsChecked = _settingsService.IsEnabledOrDefault(
+                    _ini.Read("AutoCopyTranslationResult"),
+                    _settingsService.IsEnabled(SettingsService.DefaultAutoCopyTranslationResult));
             }
 
             GeminiKeySelection geminiKey = _settingsService.SelectGeminiKey(
@@ -479,20 +485,14 @@ namespace GameTranslator
         /// <summary>
         /// 단축키 입력칸을 최초 기본 단축키 값으로 되돌립니다.
         /// 이 함수는 UI TextBox 값만 바꾸며 config.ini에는 쓰지 않습니다.
-        /// 실제 저장은 사용자가 [저장 및 게임 시작] 버튼을 눌렀을 때 BtnSaveAndStart_Click에서 처리됩니다.
+        /// 실제 저장은 사용자가 [저장] 버튼을 눌렀을 때 BtnSaveAndStart_Click에서 처리됩니다.
         /// </summary>
         private void ApplyDefaultHotkeyValues()
         {
             DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
-            TxtKeyMove.Text = defaults.MoveLock;
-            TxtKeyArea.Text = defaults.AreaSelect;
+            TxtKeySettings.Text = defaults.OpenSettings;
             TxtKeyTrans.Text = defaults.Translate;
             TxtKeyAuto.Text = defaults.AutoTranslate;
-            TxtKeyToggle.Text = defaults.ToggleEngine;
-            TxtKeyCopy.Text = defaults.CopyResult;
-            TxtKeyLog.Text = defaults.LogViewer;
-            TxtKeyOcrDiagnostic.Text = defaults.OcrDiagnostic;
-            TxtKeyHotkeyGuide.Text = defaults.HotkeyGuideToggle;
         }
 
         /// <summary>
@@ -504,7 +504,7 @@ namespace GameTranslator
         {
             ApplyDefaultHotkeyValues();
             System.Windows.MessageBox.Show(
-                "단축키 입력칸을 기본값으로 되돌렸습니다.\n저장하려면 [저장 및 게임 시작] 버튼을 눌러주세요.",
+                "단축키 입력칸을 기본값으로 되돌렸습니다.\n저장하려면 [저장] 버튼을 눌러주세요.",
                 "단축키 초기화",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -527,29 +527,51 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// 환경설정창의 현재 입력값을 config.ini에 저장하고 메인 번역창 실행을 허용합니다.
-        /// <paramref name="sender"/>는 저장 및 게임 시작 버튼이고,
+        /// 설정을 저장한 뒤 환경설정창을 닫고 캡처 영역 선택 오버레이를 엽니다.
+        /// 모달 설정창이 열린 상태에서는 영역 선택이 어려우므로 닫힌 뒤 MainWindow가 후처리합니다.
+        /// </summary>
+        private void BtnSelectArea_Click(object sender, RoutedEventArgs e)
+        {
+            SaveSettingsToIni();
+            _mainWindow?.ApplyRuntimeSettingsFromIni();
+            RequestedActionAfterClose = OptionSelectorPostAction.StartAreaSelection;
+            DialogResult = true;
+            Close();
+        }
+
+        /// <summary>
+        /// 설정창에서 번역 오버레이의 이동 잠금 상태를 즉시 토글합니다.
+        /// </summary>
+        private void BtnToggleMoveLock_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow?.ToggleMoveLockFromSettings();
+        }
+
+        /// <summary>
+        /// 환경설정창의 현재 입력값을 config.ini에 저장하고 메인 번역창에 즉시 반영합니다.
+        /// <paramref name="sender"/>는 저장 버튼이고,
         /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
         /// </summary>
         private void BtnSaveAndStart_Click(object sender, RoutedEventArgs e)
         {
-            // 콤보박스에서 선택된 항목의 Tag 값(언어 코드)을 저장
-            _ini.Write("GameLanguage", ((ComboBoxItem)ComboGameLang.SelectedItem).Tag.ToString());
-            _ini.Write("TargetLanguage", ((ComboBoxItem)ComboTargetLang.SelectedItem).Tag.ToString());
+            SaveSettingsToIni();
+            _mainWindow?.ApplyRuntimeSettingsFromIni();
+            this.DialogResult = true;
+            this.Close();
+        }
 
-            // 슬라이더의 투명도 값을 정수로 변환하여 저장
+        private void SaveSettingsToIni()
+        {
+            RequestedActionAfterClose = OptionSelectorPostAction.None;
+
+            _ini.Write("GameLanguage", GetSelectedTag(ComboGameLang, "ko"));
+            _ini.Write("TargetLanguage", GetSelectedTag(ComboTargetLang, "ko"));
             _ini.Write("Opacity", ((int)SliderOpacity.Value).ToString());
 
-            // 지정된 단축키 문자열 저장
-            _ini.Write("Key_MoveLock", TxtKeyMove.Text);
-            _ini.Write("Key_AreaSelect", TxtKeyArea.Text);
-            _ini.Write("Key_Translate", TxtKeyTrans.Text);
-            _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
-            _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
-            _ini.Write("Key_CopyResult", TxtKeyCopy.Text);
-            _ini.Write("Key_LogViewer", TxtKeyLog.Text);
-            _ini.Write("Key_OcrDiagnostic", TxtKeyOcrDiagnostic.Text);
-            _ini.Write("Key_HotkeyGuideToggle", TxtKeyHotkeyGuide.Text);
+            DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
+            _ini.Write("Key_OpenSettings", _settingsService.NormalizeHotkey(TxtKeySettings?.Text, defaults.OpenSettings));
+            _ini.Write("Key_Translate", _settingsService.NormalizeHotkey(TxtKeyTrans?.Text, defaults.Translate));
+            _ini.Write("Key_AutoTranslate", _settingsService.NormalizeHotkey(TxtKeyAuto?.Text, defaults.AutoTranslate));
 
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(GetSelectedTag(ComboScale, SettingsValueNormalizer.DefaultScaleFactor.ToString()));
             _ini.Write("ScaleFactor", scaleFactor.ToString());
@@ -573,10 +595,11 @@ namespace GameTranslator
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
             _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");
+            _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false");
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag());
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine));
+            _ini.Write("OcrEngineSelection", GetSelectedTag(ComboConfiguredOcrEngine, SettingsService.DefaultOcrEngineSelection));
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
-
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));
 
             _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text));
@@ -588,10 +611,6 @@ namespace GameTranslator
             int localLlmMaxTokens = _settingsService.NormalizeLocalLlmMaxTokens(TxtLocalLlmMaxTokens?.Text);
             _ini.Write("LocalLlmMaxTokens", localLlmMaxTokens.ToString());
             if (TxtLocalLlmMaxTokens != null) TxtLocalLlmMaxTokens.Text = localLlmMaxTokens.ToString();
-
-            // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
-            this.DialogResult = true;
-            this.Close();
         }
 
         /// <summary>
@@ -759,5 +778,11 @@ namespace GameTranslator
         {
             _mainWindow?.ShowOcrDiagnosticWindow();
         }
+    }
+
+    internal enum OptionSelectorPostAction
+    {
+        None,
+        StartAreaSelection
     }
 }

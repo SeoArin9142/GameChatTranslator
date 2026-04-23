@@ -68,6 +68,7 @@ namespace GameTranslator
         private const int ID_HOTKEY_LOG_VIEWER = 9007;
         private const int ID_HOTKEY_OCR_DIAGNOSTIC = 9008;
         private const int ID_HOTKEY_HOTKEY_GUIDE_TOGGLE = 9009;
+        private const int ID_HOTKEY_OPEN_SETTINGS = 9010;
         internal const string DefaultGeminiModel = SettingsService.DefaultGeminiModel;
     }
 }

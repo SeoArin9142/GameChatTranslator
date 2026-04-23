@@ -173,6 +173,42 @@ namespace GameChatTranslator.Tests
             Assert.Equal(expected, _service.GetTranslationContentModeTag(mode));
         }
 
+        [Theory]
+        [InlineData(null, ConfiguredOcrEngine.All)]
+        [InlineData("", ConfiguredOcrEngine.All)]
+        [InlineData("All", ConfiguredOcrEngine.All)]
+        [InlineData("WindowsOcr", ConfiguredOcrEngine.WindowsOcr)]
+        [InlineData("Tesseract", ConfiguredOcrEngine.Tesseract)]
+        [InlineData("EasyOCR", ConfiguredOcrEngine.EasyOcr)]
+        [InlineData("PaddleOCR", ConfiguredOcrEngine.PaddleOcr)]
+        [InlineData("unknown", ConfiguredOcrEngine.All)]
+        public void NormalizeConfiguredOcrEngine_MapsKnownValuesAndDefaultsToAll(string rawValue, ConfiguredOcrEngine expected)
+        {
+            Assert.Equal(expected, _service.NormalizeConfiguredOcrEngine(rawValue));
+        }
+
+        [Theory]
+        [InlineData(ConfiguredOcrEngine.All, "All")]
+        [InlineData(ConfiguredOcrEngine.WindowsOcr, "WindowsOcr")]
+        [InlineData(ConfiguredOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(ConfiguredOcrEngine.EasyOcr, "EasyOcr")]
+        [InlineData(ConfiguredOcrEngine.PaddleOcr, "PaddleOcr")]
+        public void GetConfiguredOcrEngineTag_ReturnsConfigValue(ConfiguredOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetConfiguredOcrEngineTag(engine));
+        }
+
+        [Theory]
+        [InlineData(ConfiguredOcrEngine.All, "전체 비교")]
+        [InlineData(ConfiguredOcrEngine.WindowsOcr, "Windows OCR")]
+        [InlineData(ConfiguredOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(ConfiguredOcrEngine.EasyOcr, "EasyOCR")]
+        [InlineData(ConfiguredOcrEngine.PaddleOcr, "PaddleOCR")]
+        public void GetConfiguredOcrEngineDisplayName_ReturnsUserFacingLabel(ConfiguredOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetConfiguredOcrEngineDisplayName(engine));
+        }
+
 
         [Theory]
         [InlineData("true")]
@@ -236,6 +272,7 @@ namespace GameChatTranslator.Tests
             Assert.Equal("Ctrl+=", hotkeys.LogViewer);
             Assert.Equal("Ctrl+5", hotkeys.OcrDiagnostic);
             Assert.Equal("Ctrl+F10", hotkeys.HotkeyGuideToggle);
+            Assert.Equal("Ctrl+8", hotkeys.OpenSettings);
         }
 
         [Fact]

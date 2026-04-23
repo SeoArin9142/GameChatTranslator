@@ -122,6 +122,7 @@ namespace GameTranslator
             builder.AppendLine($"빌드 커밋: {EmptyToDash(metadata.BuildCommit)}");
             builder.AppendLine($"게임 언어: {EmptyToDash(metadata.GameLanguage)}");
             builder.AppendLine($"번역 언어: {EmptyToDash(metadata.TargetLanguage)}");
+            builder.AppendLine($"OCR 엔진 선택: {EmptyToDash(metadata.ConfiguredOcrEngine)}");
             builder.AppendLine($"현재 자동 OCR 모드: {EmptyToDash(metadata.AutoTranslateMode)}");
             builder.AppendLine($"진단 OCR 모드: {EmptyToDash(metadata.DiagnosticProcessingMode)}");
             builder.AppendLine($"디버그 이미지 저장: {EmptyToDash(metadata.SaveDebugImages)}");
