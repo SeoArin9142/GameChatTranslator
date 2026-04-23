@@ -148,6 +148,11 @@ namespace GameTranslator
                 ini.Write("Key_HotkeyGuideToggle", SettingsService.DefaultKeyHotkeyGuideToggle);
             }
 
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_OpenSettings")))
+            {
+                ini.Write("Key_OpenSettings", SettingsService.DefaultKeyOpenSettings);
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("ResultDisplayMode")))
             {
                 ini.Write("ResultDisplayMode", SettingsService.DefaultResultDisplayMode);
@@ -155,6 +160,10 @@ namespace GameTranslator
 
             EnsureNormalizedSetting("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(ini.Read("ResultHistoryLimit")).ToString());
             EnsureNormalizedSetting("TranslationResultAutoClearSeconds", SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(ini.Read("TranslationResultAutoClearSeconds")).ToString());
+            EnsureNormalizedSetting("OcrEngineSelection", settingsService.GetConfiguredOcrEngineTag(settingsService.NormalizeConfiguredOcrEngine(ini.Read("OcrEngineSelection"))));
+            EnsureNormalizedSetting("AutoCopyTranslationResult", settingsService.IsEnabled(ini.Read("AutoCopyTranslationResult"))
+                ? "true"
+                : SettingsService.DefaultAutoCopyTranslationResult);
         }
 
         /// <summary>
@@ -215,6 +224,131 @@ namespace GameTranslator
         private TranslationContentMode ReadTranslationContentMode()
         {
             return settingsService.NormalizeTranslationContentMode(ini.Read("TranslationContentMode"));
+        }
+
+        /// <summary>
+        /// OCR 진단에서 어떤 엔진 후보를 점수 계산 대상으로 사용할지 읽습니다.
+        /// All은 전체 비교 모드이고, 나머지는 선택한 엔진만 평가합니다.
+        /// </summary>
+        private ConfiguredOcrEngine ReadConfiguredOcrEngineSelection()
+        {
+            return settingsService.NormalizeConfiguredOcrEngine(ini.Read("OcrEngineSelection"));
+        }
+
+        /// <summary>
+        /// 번역 결과를 매번 클립보드에 자동 복사할지 읽습니다.
+        /// 기본값은 OFF이며, 설정창에서 켠 경우에만 동작합니다.
+        /// </summary>
+        private bool ShouldAutoCopyTranslationResult()
+        {
+            return settingsService.IsEnabledOrDefault(
+                ini.Read("AutoCopyTranslationResult"),
+                settingsService.IsEnabled(SettingsService.DefaultAutoCopyTranslationResult));
+        }
+
+        /// <summary>
+        /// config.ini 값을 현재 런타임 상태와 UI에 다시 반영합니다.
+        /// 설정창 저장 후 단축키, 번역 엔진, 타이머, OCR 선택값이 재시작 없이 즉시 적용됩니다.
+        /// </summary>
+        public void ApplyRuntimeSettingsFromIni()
+        {
+            gameLang = ini.Read("GameLanguage") ?? "ko";
+            targetLang = ini.Read("TargetLanguage") ?? "ko";
+            currentConfiguredOcrEngine = ReadConfiguredOcrEngineSelection();
+
+            TranslationEngineMode configuredEngine = ReadTranslationEngineMode();
+            string geminiKey = ReadGeminiKey();
+            currentTranslationEngineMode =
+                configuredEngine == TranslationEngineMode.Gemini &&
+                (string.IsNullOrWhiteSpace(geminiKey) || geminiKey.Length < 30)
+                    ? TranslationEngineMode.Google
+                    : configuredEngine;
+
+            if (int.TryParse(ini.Read("Opacity"), out int opacityPercent))
+            {
+                Opacity = Math.Max(10, Math.Min(100, opacityPercent)) / 100.0;
+            }
+
+            if (autoTranslateTimer != null)
+            {
+                autoTranslateTimer.Interval = TimeSpan.FromSeconds(
+                    SettingsValueNormalizer.NormalizeAutoTranslateInterval(ini.Read("AutoTranslateInterval")));
+            }
+
+            if (translationResultAutoClearTimer != null)
+            {
+                if (ReadTranslationResultAutoClearSeconds() <= 0)
+                {
+                    translationResultAutoClearTimer.Stop();
+                }
+                else if (translationResultAutoClearTimer.IsEnabled)
+                {
+                    RestartTranslationResultAutoClearTimer();
+                }
+            }
+
+            if (TryReadSavedCaptureArea(out Rectangle displayArea, out Rectangle pixelArea))
+            {
+                gameChatArea = displayArea;
+                gameChatCaptureArea = pixelArea;
+                SizeToContent = SizeToContent.Manual;
+                Width = displayArea.Width;
+                MinWidth = displayArea.Width;
+                SizeToContent = SizeToContent.Height;
+                PositionTranslationWindowNearCaptureArea(displayArea, pixelArea);
+                UpdateCaptureBorder(!isLocked);
+            }
+            else
+            {
+                gameChatArea = Rectangle.Empty;
+                gameChatCaptureArea = Rectangle.Empty;
+                if (captureBorderWindow != null)
+                {
+                    captureBorderWindow.Visibility = Visibility.Hidden;
+                }
+            }
+
+            if (_windowHandle != IntPtr.Zero)
+            {
+                RegisterAllHotkeys();
+                ResetTranslationCache("환경설정 저장");
+            }
+
+            UpdateYellowHotkeyGuideText();
+        }
+
+        private bool TryReadSavedCaptureArea(out Rectangle displayArea, out Rectangle pixelArea)
+        {
+            displayArea = Rectangle.Empty;
+            pixelArea = Rectangle.Empty;
+
+            if (!int.TryParse(ini.Read("CaptureX"), out int x) ||
+                !int.TryParse(ini.Read("CaptureY"), out int y) ||
+                !int.TryParse(ini.Read("CaptureW"), out int w) ||
+                !int.TryParse(ini.Read("CaptureH"), out int h) ||
+                w <= 0 ||
+                h <= 0)
+            {
+                return false;
+            }
+
+            displayArea = new Rectangle(x, y, w, h);
+
+            if (int.TryParse(ini.Read("CapturePixelX"), out int px) &&
+                int.TryParse(ini.Read("CapturePixelY"), out int py) &&
+                int.TryParse(ini.Read("CapturePixelW"), out int pw) &&
+                int.TryParse(ini.Read("CapturePixelH"), out int ph) &&
+                pw > 0 &&
+                ph > 0)
+            {
+                pixelArea = new Rectangle(px, py, pw, ph);
+            }
+            else
+            {
+                pixelArea = ConvertDisplayAreaToPixels(displayArea);
+            }
+
+            return true;
         }
 
         /// <summary>

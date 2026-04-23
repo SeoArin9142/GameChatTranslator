@@ -470,6 +470,10 @@ namespace GameTranslator
                 }
 
                 performanceStats.Outcome = performanceStats.TranslatedLineCount > 0 ? "Translated" : "NoTranslatableLines";
+                if (performanceStats.TranslatedLineCount > 0)
+                {
+                    TryAutoCopyTranslationResult();
+                }
             }
             catch (Exception ex)
             {

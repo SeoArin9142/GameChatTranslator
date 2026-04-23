@@ -45,10 +45,11 @@ namespace GameTranslator
         private string gameLang = "ko";
         private string targetLang = "ko";
 
-        private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog, modOcrDiag, modHotkeyGuide;
-        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog, keyOcrDiag, keyHotkeyGuide;
+        private uint modTrans, modAuto, modSettings;
+        private uint keyTrans, keyAuto, keySettings;
 
         private TranslationEngineMode currentTranslationEngineMode = TranslationEngineMode.Google;
+        private ConfiguredOcrEngine currentConfiguredOcrEngine = ConfiguredOcrEngine.All;
 
         private DispatcherTimer autoTranslateTimer;
         // 🌟 [추가] 최상단 강제 유지 타이머
@@ -59,7 +60,6 @@ namespace GameTranslator
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
-        private bool isHotkeyGuideExpanded = false;
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
 
