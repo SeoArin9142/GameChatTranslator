@@ -118,6 +118,8 @@ namespace GameTranslator
             builder.AppendLine();
             builder.AppendLine("[환경 설정]");
             builder.AppendLine($"앱 버전: {EmptyToDash(metadata.AppVersion)}");
+            builder.AppendLine($"빌드 정보: {EmptyToDash(metadata.BuildInformationalVersion)}");
+            builder.AppendLine($"빌드 커밋: {EmptyToDash(metadata.BuildCommit)}");
             builder.AppendLine($"게임 언어: {EmptyToDash(metadata.GameLanguage)}");
             builder.AppendLine($"번역 언어: {EmptyToDash(metadata.TargetLanguage)}");
             builder.AppendLine($"현재 자동 OCR 모드: {EmptyToDash(metadata.AutoTranslateMode)}");
