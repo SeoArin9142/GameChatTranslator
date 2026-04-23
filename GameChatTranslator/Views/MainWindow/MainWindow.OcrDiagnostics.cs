@@ -57,7 +57,7 @@ namespace GameTranslator
 
             int threshold = SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold"));
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor"));
-            ConfiguredOcrEngine configuredOcrEngine = ReadConfiguredOcrEngineSelection();
+            IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines = ReadConfiguredOcrEngineSelection();
 
             var result = new OcrDiagnosticResult
             {
@@ -65,7 +65,7 @@ namespace GameTranslator
                 Threshold = threshold,
                 ScaleFactor = scaleFactor,
                 CaptureArea = GetCapturePixelArea(),
-                Metadata = BuildOcrDiagnosticMetadata(configuredOcrEngine)
+                Metadata = BuildOcrDiagnosticMetadata(configuredOcrEngines)
             };
 
             Stopwatch totalStopwatch = Stopwatch.StartNew();
@@ -102,7 +102,7 @@ namespace GameTranslator
             {
                 OcrDiagnosticCandidate bestCandidate = null;
 
-                if (ShouldIncludeWindowsOcrCandidates(configuredOcrEngine))
+                if (ShouldIncludeWindowsOcrCandidates(configuredOcrEngines))
                 {
                     foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
                     {
@@ -149,17 +149,17 @@ namespace GameTranslator
                 }
 
                 var externalSummaries = new List<ExternalOcrDiagnosticSummary>();
-                if (ShouldIncludeTesseractCandidates(configuredOcrEngine))
+                if (ShouldIncludeTesseractCandidates(configuredOcrEngines))
                 {
                     externalSummaries.Add(await TryBuildTesseractDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()));
                 }
 
-                if (ShouldIncludeEasyOcrCandidates(configuredOcrEngine))
+                if (ShouldIncludeEasyOcrCandidates(configuredOcrEngines))
                 {
                     externalSummaries.Add(await TryBuildEasyOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()));
                 }
 
-                if (ShouldIncludePaddleOcrCandidates(configuredOcrEngine))
+                if (ShouldIncludePaddleOcrCandidates(configuredOcrEngines))
                 {
                     externalSummaries.Add(await TryBuildPaddleOcrDiagnosticCandidatesAsync(preprocessedImages, ReadTranslationContentMode()));
                 }
@@ -676,7 +676,7 @@ namespace GameTranslator
         /// OCR 진단 ZIP에 포함할 앱 버전, 언어 설정, OCR 모드, 언어팩 상태를 문자열 모델로 만듭니다.
         /// Exporter가 WinRT/Assembly/IniFile에 의존하지 않도록 MainWindow에서 현재 런타임 값을 채워 전달합니다.
         /// </summary>
-        private OcrDiagnosticMetadata BuildOcrDiagnosticMetadata(ConfiguredOcrEngine configuredOcrEngine)
+        private OcrDiagnosticMetadata BuildOcrDiagnosticMetadata(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
             var metadata = new OcrDiagnosticMetadata
             {
@@ -685,7 +685,7 @@ namespace GameTranslator
                 BuildCommit = CurrentBuildCommit,
                 GameLanguage = gameLang,
                 TargetLanguage = targetLang,
-                ConfiguredOcrEngine = settingsService.GetConfiguredOcrEngineDisplayName(configuredOcrEngine),
+                ConfiguredOcrEngine = settingsService.GetConfiguredOcrEngineSelectionDisplayName(configuredOcrEngines),
                 AutoTranslateMode = GetAutoTranslateModeLabel(),
                 DiagnosticProcessingMode = GetOcrProcessingModeLabel(OcrProcessingMode.Accurate),
                 SaveDebugImages = settingsService.IsEnabled(ini.Read("SaveDebugImages")) ? "true" : "false",
@@ -751,24 +751,24 @@ namespace GameTranslator
             }
         }
 
-        private static bool ShouldIncludeWindowsOcrCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        private static bool ShouldIncludeWindowsOcrCandidates(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
-            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.WindowsOcr;
+            return configuredOcrEngines.Contains(ConfiguredOcrEngine.WindowsOcr);
         }
 
-        private static bool ShouldIncludeTesseractCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        private static bool ShouldIncludeTesseractCandidates(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
-            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.Tesseract;
+            return configuredOcrEngines.Contains(ConfiguredOcrEngine.Tesseract);
         }
 
-        private static bool ShouldIncludeEasyOcrCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        private static bool ShouldIncludeEasyOcrCandidates(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
-            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.EasyOcr;
+            return configuredOcrEngines.Contains(ConfiguredOcrEngine.EasyOcr);
         }
 
-        private static bool ShouldIncludePaddleOcrCandidates(ConfiguredOcrEngine configuredOcrEngine)
+        private static bool ShouldIncludePaddleOcrCandidates(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
-            return configuredOcrEngine == ConfiguredOcrEngine.All || configuredOcrEngine == ConfiguredOcrEngine.PaddleOcr;
+            return configuredOcrEngines.Contains(ConfiguredOcrEngine.PaddleOcr);
         }
 
         private string FormatRectangle(Rectangle rectangle)

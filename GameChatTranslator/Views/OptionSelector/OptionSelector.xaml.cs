@@ -132,11 +132,7 @@ namespace GameTranslator
                 TranslationEngineMode engineMode = _settingsService.NormalizeTranslationEngineMode(_ini.Read("TranslationEngine"));
                 SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(engineMode));
             }
-            if (ComboConfiguredOcrEngine != null)
-            {
-                ConfiguredOcrEngine configuredOcrEngine = _settingsService.NormalizeConfiguredOcrEngine(_ini.Read("OcrEngineSelection"));
-                SetComboByTag(ComboConfiguredOcrEngine, _settingsService.GetConfiguredOcrEngineTag(configuredOcrEngine));
-            }
+            ApplyConfiguredOcrEngineSelection(_settingsService.NormalizeConfiguredOcrEngineSelection(_ini.Read("OcrEngineSelection")));
             if (TxtResultHistoryLimit != null)
             {
                 TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(_ini.Read("ResultHistoryLimit")).ToString();
@@ -532,7 +528,7 @@ namespace GameTranslator
         /// </summary>
         private void BtnSelectArea_Click(object sender, RoutedEventArgs e)
         {
-            SaveSettingsToIni();
+            if (!SaveSettingsToIni()) return;
             _mainWindow?.ApplyRuntimeSettingsFromIni();
             RequestedActionAfterClose = OptionSelectorPostAction.StartAreaSelection;
             DialogResult = true;
@@ -554,15 +550,25 @@ namespace GameTranslator
         /// </summary>
         private void BtnSaveAndStart_Click(object sender, RoutedEventArgs e)
         {
-            SaveSettingsToIni();
+            if (!SaveSettingsToIni()) return;
             _mainWindow?.ApplyRuntimeSettingsFromIni();
             this.DialogResult = true;
             this.Close();
         }
 
-        private void SaveSettingsToIni()
+        private bool SaveSettingsToIni()
         {
             RequestedActionAfterClose = OptionSelectorPostAction.None;
+
+            if (!TryGetSelectedConfiguredOcrEngines(out IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines))
+            {
+                System.Windows.MessageBox.Show(
+                    "진단 점수에 사용할 OCR 엔진을 최소 1개 선택해 주세요.",
+                    "OCR 선택",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return false;
+            }
 
             _ini.Write("GameLanguage", GetSelectedTag(ComboGameLang, "ko"));
             _ini.Write("TargetLanguage", GetSelectedTag(ComboTargetLang, "ko"));
@@ -598,7 +604,7 @@ namespace GameTranslator
             _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false");
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag());
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine));
-            _ini.Write("OcrEngineSelection", GetSelectedTag(ComboConfiguredOcrEngine, SettingsService.DefaultOcrEngineSelection));
+            _ini.Write("OcrEngineSelection", _settingsService.GetConfiguredOcrEngineSelectionTag(configuredOcrEngines));
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));
 
@@ -611,6 +617,29 @@ namespace GameTranslator
             int localLlmMaxTokens = _settingsService.NormalizeLocalLlmMaxTokens(TxtLocalLlmMaxTokens?.Text);
             _ini.Write("LocalLlmMaxTokens", localLlmMaxTokens.ToString());
             if (TxtLocalLlmMaxTokens != null) TxtLocalLlmMaxTokens.Text = localLlmMaxTokens.ToString();
+
+            return true;
+        }
+
+        private void ApplyConfiguredOcrEngineSelection(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
+        {
+            HashSet<ConfiguredOcrEngine> selected = new HashSet<ConfiguredOcrEngine>(configuredOcrEngines ?? Array.Empty<ConfiguredOcrEngine>());
+            if (CheckDiagnosticWindowsOcr != null) CheckDiagnosticWindowsOcr.IsChecked = selected.Contains(ConfiguredOcrEngine.WindowsOcr);
+            if (CheckDiagnosticTesseract != null) CheckDiagnosticTesseract.IsChecked = selected.Contains(ConfiguredOcrEngine.Tesseract);
+            if (CheckDiagnosticEasyOcr != null) CheckDiagnosticEasyOcr.IsChecked = selected.Contains(ConfiguredOcrEngine.EasyOcr);
+            if (CheckDiagnosticPaddleOcr != null) CheckDiagnosticPaddleOcr.IsChecked = selected.Contains(ConfiguredOcrEngine.PaddleOcr);
+        }
+
+        private bool TryGetSelectedConfiguredOcrEngines(out IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
+        {
+            List<ConfiguredOcrEngine> selected = new List<ConfiguredOcrEngine>();
+            if (CheckDiagnosticWindowsOcr?.IsChecked == true) selected.Add(ConfiguredOcrEngine.WindowsOcr);
+            if (CheckDiagnosticTesseract?.IsChecked == true) selected.Add(ConfiguredOcrEngine.Tesseract);
+            if (CheckDiagnosticEasyOcr?.IsChecked == true) selected.Add(ConfiguredOcrEngine.EasyOcr);
+            if (CheckDiagnosticPaddleOcr?.IsChecked == true) selected.Add(ConfiguredOcrEngine.PaddleOcr);
+
+            configuredOcrEngines = selected;
+            return selected.Count > 0;
         }
 
         /// <summary>
