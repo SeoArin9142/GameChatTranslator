@@ -14,7 +14,7 @@ namespace GameTranslator
     {
         private const int TesseractDiagnosticTimeoutMs = 2500;
         private const int EasyOcrDiagnosticTimeoutMs = 120000;
-        private const int PaddleOcrDiagnosticTimeoutMs = 120000;
+        private const int PaddleOcrDiagnosticTimeoutMs = 30000;
 
         /// <summary>
         /// OCR 테스트/진단 창을 열거나 이미 열린 창을 앞으로 가져옵니다.
