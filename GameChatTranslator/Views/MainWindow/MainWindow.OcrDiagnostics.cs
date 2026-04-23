@@ -467,29 +467,37 @@ namespace GameTranslator
             bool paddleOcrUnavailable = false;
             string firstErrorMessage = "";
             var candidates = new List<OcrDiagnosticCandidate>();
+            var preparedInputs = new List<PaddleOcrPreparedInput>();
 
-            foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+            try
             {
-                using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
-                byte[] croppedPng = BitmapToPngBytes(croppedBitmap);
-                byte[] preprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap);
+                foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                {
+                    using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                    preparedInputs.Add(new PaddleOcrPreparedInput
+                    {
+                        Name = preprocessedImage.Name,
+                        CroppedPng = BitmapToPngBytes(croppedBitmap),
+                        PreprocessedPng = BitmapToPngBytes(preprocessedImage.Bitmap),
+                        InputBitmap = (Bitmap)croppedBitmap.Clone()
+                    });
+                }
 
                 Stopwatch stopwatch = Stopwatch.StartNew();
-                using Bitmap paddleOcrInputBitmap = (Bitmap)croppedBitmap.Clone();
                 PaddleOcrCliBatchResult batchResult = await Task.Run(() =>
-                    paddleOcrCliAdapter.Recognize(
-                        paddleOcrInputBitmap,
+                    paddleOcrCliAdapter.RecognizeBatch(
+                        preparedInputs.Select(input => input.InputBitmap).ToList(),
                         configuredPythonPath,
                         configuredLanguageCodes,
                         gameLang,
                         PaddleOcrDiagnosticTimeoutMs));
                 stopwatch.Stop();
                 totalElapsedMs += stopwatch.ElapsedMilliseconds;
-                totalCallCount += batchResult.LanguageCandidates.Count;
+                totalCallCount += batchResult.ImageResults.Sum(image => image.GroupResults.Count);
 
                 if (!batchResult.Success)
                 {
-                    failureCount += Math.Max(1, batchResult.LanguageCandidates.Count);
+                    failureCount += Math.Max(1, batchResult.LanguageCandidates.Count * Math.Max(1, preparedInputs.Count));
                     if (string.IsNullOrWhiteSpace(firstErrorMessage))
                     {
                         firstErrorMessage = batchResult.ErrorMessage;
@@ -498,65 +506,81 @@ namespace GameTranslator
                     if (batchResult.IsPythonMissing)
                     {
                         pythonMissing = true;
-                        break;
                     }
-
-                    if (batchResult.IsModuleMissing)
+                    else if (batchResult.IsModuleMissing)
                     {
                         moduleMissing = true;
-                        break;
                     }
-
-                    paddleOcrUnavailable = true;
-                    break;
+                    else
+                    {
+                        paddleOcrUnavailable = true;
+                    }
                 }
-
-                successCount += batchResult.GroupResults.Count(group => group.Success);
-                failureCount += batchResult.GroupResults.Count(group => !group.Success);
-
-                var candidate = new OcrDiagnosticCandidate
+                else
                 {
-                    Name = $"PaddleOCR-{preprocessedImage.Name}",
-                    PreprocessedPng = preprocessedPng,
-                    CroppedPng = croppedPng
-                };
-                var languageCandidates = new List<OcrLanguageCandidate>();
+                    successCount += batchResult.ImageResults.Sum(image => image.GroupResults.Count(group => group.Success));
+                    failureCount += batchResult.ImageResults.Sum(image => image.GroupResults.Count(group => !group.Success));
 
-                foreach (PaddleOcrCliGroupResult groupResult in batchResult.GroupResults.Where(group => group.Success))
-                {
-                    var languageResult = new OcrDiagnosticLanguageResult
+                    for (int index = 0; index < preparedInputs.Count; index++)
                     {
-                        LanguageTag = $"paddleocr:{groupResult.LanguageCodes}"
-                    };
-                    languageResult.Lines.AddRange(groupResult.Lines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                    candidate.Languages.Add(languageResult);
+                        PaddleOcrPreparedInput preparedInput = preparedInputs[index];
+                        PaddleOcrCliImageResult imageResult = batchResult.ImageResults.FirstOrDefault(image => image.Index == index);
+                        if (imageResult == null)
+                        {
+                            continue;
+                        }
 
-                    languageCandidates.Add(new OcrLanguageCandidate
-                    {
-                        LanguageCode = groupResult.LanguageCodes,
-                        Lines = groupResult.Lines
-                            .Select(line => new OcrLine
+                        var candidate = new OcrDiagnosticCandidate
+                        {
+                            Name = $"PaddleOCR-{preparedInput.Name}",
+                            PreprocessedPng = preparedInput.PreprocessedPng,
+                            CroppedPng = preparedInput.CroppedPng
+                        };
+                        var languageCandidates = new List<OcrLanguageCandidate>();
+
+                        foreach (PaddleOcrCliGroupResult groupResult in imageResult.GroupResults.Where(group => group.Success))
+                        {
+                            var languageResult = new OcrDiagnosticLanguageResult
                             {
-                                Top = line.Top,
-                                Bottom = line.Bottom,
-                                Text = line.Text
-                            })
-                            .ToList()
-                    });
-                }
+                                LanguageTag = $"paddleocr:{groupResult.LanguageCodes}"
+                            };
+                            languageResult.Lines.AddRange(groupResult.Lines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                            candidate.Languages.Add(languageResult);
 
-                List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
-                    ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
-                    : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
-                List<OcrLine> filteredMergedLines = ocrTranslationHarnessService.FilterMergedLinesForDiagnostics(mergedLines, characterNames);
-                List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(filteredMergedLines, characterNames, contentMode);
-                if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
+                            languageCandidates.Add(new OcrLanguageCandidate
+                            {
+                                LanguageCode = groupResult.LanguageCodes,
+                                Lines = groupResult.Lines
+                                    .Select(line => new OcrLine
+                                    {
+                                        Top = line.Top,
+                                        Bottom = line.Bottom,
+                                        Text = line.Text
+                                    })
+                                    .ToList()
+                            });
+                        }
+
+                        List<OcrLine> mergedLines = contentMode == TranslationContentMode.Strinova
+                            ? ocrService.MergeBestChatLinesByComponents(languageCandidates, characterNames)
+                            : ocrService.MergeBestLinesByIndex(languageCandidates, characterNames, contentMode);
+                        List<OcrLine> filteredMergedLines = ocrTranslationHarnessService.FilterMergedLinesForDiagnostics(mergedLines, characterNames);
+                        List<OcrLine> normalizedMergedLines = ocrService.NormalizeMergedLinesForSelection(filteredMergedLines, characterNames, contentMode);
+                        if (normalizedMergedLines.Count > 0 && candidate.Languages.Count > 0)
+                        {
+                            candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
+                            candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
+                            candidates.Add(candidate);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                foreach (PaddleOcrPreparedInput preparedInput in preparedInputs)
                 {
-                    candidate.MergedLines.AddRange(normalizedMergedLines.Select(line => line.Text.Trim()).Where(text => !string.IsNullOrWhiteSpace(text)));
-                    candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
-                    candidates.Add(candidate);
+                    preparedInput.Dispose();
                 }
-
             }
 
             if (pythonMissing || moduleMissing)
@@ -789,6 +813,19 @@ namespace GameTranslator
             public string Status { get; }
             public long ElapsedMs { get; }
             public int CallCount { get; }
+        }
+
+        private sealed class PaddleOcrPreparedInput : IDisposable
+        {
+            public string Name { get; set; } = "";
+            public byte[] PreprocessedPng { get; set; }
+            public byte[] CroppedPng { get; set; }
+            public Bitmap InputBitmap { get; set; }
+
+            public void Dispose()
+            {
+                InputBitmap?.Dispose();
+            }
         }
     }
 }
