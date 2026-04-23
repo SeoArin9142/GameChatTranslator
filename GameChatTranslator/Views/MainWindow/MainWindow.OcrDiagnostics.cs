@@ -463,6 +463,7 @@ namespace GameTranslator
             int failureCount = 0;
             bool pythonMissing = false;
             bool moduleMissing = false;
+            bool paddleOcrUnavailable = false;
             string firstErrorMessage = "";
             var candidates = new List<OcrDiagnosticCandidate>();
 
@@ -505,7 +506,8 @@ namespace GameTranslator
                         break;
                     }
 
-                    continue;
+                    paddleOcrUnavailable = true;
+                    break;
                 }
 
                 successCount += batchResult.GroupResults.Count(group => group.Success);
@@ -553,6 +555,7 @@ namespace GameTranslator
                     candidate.Score = ocrService.ScoreMergedLinesForSelection(normalizedMergedLines, characterNames, contentMode);
                     candidates.Add(candidate);
                 }
+
             }
 
             if (pythonMissing || moduleMissing)
@@ -562,7 +565,7 @@ namespace GameTranslator
                 return new ExternalOcrDiagnosticSummary(candidates, failedStatus, totalElapsedMs, totalCallCount);
             }
 
-            if (successCount == 0)
+            if (successCount == 0 || paddleOcrUnavailable)
             {
                 string failedStatus = $"PaddleOCR 실패: {firstErrorMessage}";
                 AppendLog($"[OCR DIAG] {failedStatus}");
