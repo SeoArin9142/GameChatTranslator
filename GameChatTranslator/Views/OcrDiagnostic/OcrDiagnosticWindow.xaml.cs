@@ -37,8 +37,6 @@ namespace GameTranslator
             this.mainWindow = mainWindow;
             this.defaultExportDirectory = defaultExportDirectory;
             UpdateSummaryHeader(null);
-
-            Loaded += async (s, e) => await RunDiagnosticAsync();
         }
 
         /// <summary>
