@@ -37,6 +37,8 @@ namespace GameTranslator
     public class OcrDiagnosticMetadata
     {
         public string AppVersion { get; set; } = "";
+        public string BuildInformationalVersion { get; set; } = "";
+        public string BuildCommit { get; set; } = "";
         public string GameLanguage { get; set; } = "";
         public string TargetLanguage { get; set; } = "";
         public string AutoTranslateMode { get; set; } = "";

@@ -24,6 +24,8 @@ namespace GameChatTranslator.Tests
             Assert.Contains("- Color: 123", summary);
             Assert.Contains("외부 OCR 상태: Tesseract 후보 추가 (jpn+eng+kor+chi_sim)", summary);
             Assert.Contains("앱 버전: v.test", summary);
+            Assert.Contains("빌드 정보: 1.0.31-alpha+abcdef1234567890", summary);
+            Assert.Contains("빌드 커밋: abcdef1234567890", summary);
             Assert.Contains("게임 언어: ko", summary);
             Assert.Contains("현재 자동 OCR 모드: 자동", summary);
             Assert.Contains("표시 좌표 CaptureX/Y/W/H: X=1, Y=2, W=30, H=40", summary);
@@ -129,6 +131,8 @@ namespace GameChatTranslator.Tests
                 Metadata = new OcrDiagnosticMetadata
                 {
                     AppVersion = "v.test",
+                    BuildInformationalVersion = "1.0.31-alpha+abcdef1234567890",
+                    BuildCommit = "abcdef1234567890",
                     GameLanguage = "ko",
                     TargetLanguage = "en-US",
                     AutoTranslateMode = "자동",

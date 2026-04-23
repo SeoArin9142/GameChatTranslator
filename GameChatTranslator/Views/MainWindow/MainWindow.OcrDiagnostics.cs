@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Windows.Media.Ocr;
 
@@ -643,6 +644,8 @@ namespace GameTranslator
             var metadata = new OcrDiagnosticMetadata
             {
                 AppVersion = CurrentAppVersion,
+                BuildInformationalVersion = CurrentBuildInformationalVersion,
+                BuildCommit = CurrentBuildCommit,
                 GameLanguage = gameLang,
                 TargetLanguage = targetLang,
                 AutoTranslateMode = GetAutoTranslateModeLabel(),
@@ -660,6 +663,32 @@ namespace GameTranslator
             }
 
             return metadata;
+        }
+
+        private static string CurrentBuildInformationalVersion
+        {
+            get
+            {
+                return Assembly
+                    .GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion ?? "";
+            }
+        }
+
+        private static string CurrentBuildCommit
+        {
+            get
+            {
+                string informationalVersion = CurrentBuildInformationalVersion;
+                int plusIndex = informationalVersion.IndexOf('+');
+                if (plusIndex < 0 || plusIndex >= informationalVersion.Length - 1)
+                {
+                    return "";
+                }
+
+                return informationalVersion.Substring(plusIndex + 1).Trim();
+            }
         }
 
         /// <summary>
