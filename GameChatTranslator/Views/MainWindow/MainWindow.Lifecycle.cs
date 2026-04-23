@@ -67,7 +67,7 @@ namespace GameTranslator
                 return;
             }
 
-            OptionSelector selector = CreateSettingsDialog();
+            OptionSelector selector = CreateSettingsDialog(isDialogMode: true);
             bool? dialogResult = selector.ShowDialog();
 
             if (dialogResult != true)
@@ -122,6 +122,7 @@ namespace GameTranslator
 
             WindowUtils.SetClickThrough(this);
             UpdateYellowHotkeyGuideText();
+            UpdateMoveLockToggleButton();
 
             string cx = ini.Read("CaptureX");
             string cy = ini.Read("CaptureY");
@@ -190,6 +191,12 @@ namespace GameTranslator
             autoModeStatusTimer?.Stop();
             translationResultAutoClearTimer?.Stop();
             captureBorderWindow?.Close();
+            if (settingsWindow != null)
+            {
+                settingsWindow.Closed -= SettingsWindow_Closed;
+                settingsWindow.Close();
+                settingsWindow = null;
+            }
             logViewerWindow?.CloseForShutdown();
             ocrDiagnosticWindow?.Close();
             UnregisterHotKey(_windowHandle, ID_HOTKEY_MOVE_LOCK);
@@ -214,26 +221,49 @@ namespace GameTranslator
         /// </summary>
         public void ShowSettingsWindow()
         {
-            OptionSelector selector = CreateSettingsDialog();
-            bool? dialogResult = selector.ShowDialog();
-            if (dialogResult == true)
+            if (settingsWindow != null)
             {
-                ExecuteSettingsDialogPostAction(selector.RequestedActionAfterClose);
+                if (settingsWindow.WindowState == WindowState.Minimized)
+                {
+                    settingsWindow.WindowState = WindowState.Normal;
+                }
+
+                settingsWindow.Activate();
+                return;
             }
+
+            settingsWindow = CreateSettingsDialog(isDialogMode: false);
+            settingsWindow.Closed += SettingsWindow_Closed;
+            settingsWindow.Show();
+            settingsWindow.Activate();
         }
 
         /// <summary>
         /// 환경설정창에서 이동 잠금 전환을 요청할 때 사용하는 래퍼입니다.
         /// </summary>
-        public void ToggleMoveLockFromSettings()
+        public bool ToggleMoveLockFromSettings()
         {
             ToggleMoveLock();
-            UpdateYellowHotkeyGuideText();
+            return !isLocked;
         }
 
-        private OptionSelector CreateSettingsDialog()
+        private void SettingsWindow_Closed(object sender, EventArgs e)
         {
-            return new OptionSelector(this, ini)
+            if (sender is OptionSelector selector)
+            {
+                ExecuteSettingsDialogPostAction(selector.RequestedActionAfterClose);
+                selector.Closed -= SettingsWindow_Closed;
+            }
+
+            if (ReferenceEquals(settingsWindow, sender))
+            {
+                settingsWindow = null;
+            }
+        }
+
+        private OptionSelector CreateSettingsDialog(bool isDialogMode)
+        {
+            return new OptionSelector(this, ini, isDialogMode)
             {
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -254,6 +284,22 @@ namespace GameTranslator
         /// <paramref name="e"/>는 마우스 왼쪽 버튼 이벤트 정보입니다.
         /// </summary>
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (!isLocked) this.DragMove(); }
+
+        private void BtnMoveLockToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleMoveLock();
+        }
+
+        private void UpdateMoveLockToggleButton()
+        {
+            if (BtnMoveLockToggle == null)
+            {
+                return;
+            }
+
+            BtnMoveLockToggle.Visibility = isLocked ? Visibility.Collapsed : Visibility.Visible;
+            BtnMoveLockToggle.Content = "위치 고정";
+        }
 
         /// <summary>
         /// Ctrl+7 단축키로 번역창 이동 가능 상태와 클릭 관통 잠금 상태를 전환합니다.
@@ -276,6 +322,9 @@ namespace GameTranslator
                 MainBorder.BorderBrush = Brushes.LimeGreen;
                 UpdateCaptureBorder(true);
             }
+
+            UpdateYellowHotkeyGuideText();
+            UpdateMoveLockToggleButton();
         }
     }
 }

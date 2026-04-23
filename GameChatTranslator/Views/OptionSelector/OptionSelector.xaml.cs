@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -27,6 +28,7 @@ namespace GameTranslator
         private readonly SettingsService _settingsService = new SettingsService();
         private readonly OcrLanguageStatusFormatter _ocrLanguageStatusFormatter = new OcrLanguageStatusFormatter();
         private readonly DispatcherTimer _updateStatusResetTimer;
+        private readonly bool _isDialogMode;
         internal OptionSelectorPostAction RequestedActionAfterClose { get; private set; } = OptionSelectorPostAction.None;
 
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
@@ -43,23 +45,30 @@ namespace GameTranslator
         /// <paramref name="mainWindow"/>는 투명도 미리보기와 업데이트 확인을 호출할 메인 창 인스턴스이고,
         /// <paramref name="ini"/>는 config.ini 읽기/쓰기를 담당하는 설정 파일 객체입니다.
         /// </summary>
-        public OptionSelector(MainWindow mainWindow, IniFile ini)
+        public OptionSelector(MainWindow mainWindow, IniFile ini, bool isDialogMode)
         {
             InitializeComponent(); // XAML 디자인 UI 요소들을 메모리에 로드
             _mainWindow = mainWindow;
             _ini = ini;
+            _isDialogMode = isDialogMode;
             _updateStatusResetTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(3)
             };
             _updateStatusResetTimer.Tick += UpdateStatusResetTimer_Tick;
+            Loaded += OptionSelector_Loaded;
 
             RegisterNumericSettingInputGuards();
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
             RefreshInstallLocationStatus();
-            RefreshOcrLanguageStatus();
             RefreshAdvancedSettingValidationStatus();
+        }
+
+        private void OptionSelector_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= OptionSelector_Loaded;
+            RefreshOcrLanguageStatus();
         }
 
         /// <summary>
@@ -259,11 +268,27 @@ namespace GameTranslator
         /// 설정창에는 OCR 엔진 사용 가능 여부 중심으로 간결하게 표시합니다.
         /// capability는 설치됐는데 엔진이 안 만들어지면 재부팅 필요 가능성만 보조 문구로 안내합니다.
         /// </summary>
-        private void RefreshOcrLanguageStatus()
+        private async void RefreshOcrLanguageStatus()
         {
             if (TxtOcrLanguageStatus == null) return;
 
-            Dictionary<string, string> capabilityStates = GetOcrCapabilityStates();
+            TxtOcrLanguageStatus.Text = "OCR 언어팩 상태 확인 중...";
+
+            Dictionary<string, string> capabilityStates;
+            try
+            {
+                capabilityStates = await Task.Run(GetOcrCapabilityStates);
+            }
+            catch
+            {
+                capabilityStates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (!IsLoaded)
+            {
+                return;
+            }
+
             var entries = new List<OcrLanguageStatusEntry>();
             foreach ((string label, string tag) in OcrLanguageStatusTargets)
             {
@@ -531,8 +556,7 @@ namespace GameTranslator
             if (!SaveSettingsToIni()) return;
             _mainWindow?.ApplyRuntimeSettingsFromIni();
             RequestedActionAfterClose = OptionSelectorPostAction.StartAreaSelection;
-            DialogResult = true;
-            Close();
+            CloseWithSuccess();
         }
 
         /// <summary>
@@ -540,7 +564,12 @@ namespace GameTranslator
         /// </summary>
         private void BtnToggleMoveLock_Click(object sender, RoutedEventArgs e)
         {
-            _mainWindow?.ToggleMoveLockFromSettings();
+            bool overlayUnlocked = _mainWindow?.ToggleMoveLockFromSettings() == true;
+            if (!_isDialogMode && overlayUnlocked)
+            {
+                WindowState = WindowState.Minimized;
+                _mainWindow?.Activate();
+            }
         }
 
         /// <summary>
@@ -552,8 +581,19 @@ namespace GameTranslator
         {
             if (!SaveSettingsToIni()) return;
             _mainWindow?.ApplyRuntimeSettingsFromIni();
-            this.DialogResult = true;
-            this.Close();
+            CloseWithSuccess();
+        }
+
+        private void CloseWithSuccess()
+        {
+            if (_isDialogMode)
+            {
+                DialogResult = true;
+            }
+            else
+            {
+                Close();
+            }
         }
 
         private bool SaveSettingsToIni()
