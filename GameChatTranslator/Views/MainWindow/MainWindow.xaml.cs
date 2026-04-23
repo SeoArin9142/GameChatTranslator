@@ -49,7 +49,6 @@ namespace GameTranslator
         private uint keyTrans, keyAuto, keySettings;
 
         private TranslationEngineMode currentTranslationEngineMode = TranslationEngineMode.Google;
-        private ConfiguredOcrEngine currentConfiguredOcrEngine = ConfiguredOcrEngine.All;
 
         private DispatcherTimer autoTranslateTimer;
         // 🌟 [추가] 최상단 강제 유지 타이머

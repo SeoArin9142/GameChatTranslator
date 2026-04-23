@@ -160,7 +160,7 @@ namespace GameTranslator
 
             EnsureNormalizedSetting("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(ini.Read("ResultHistoryLimit")).ToString());
             EnsureNormalizedSetting("TranslationResultAutoClearSeconds", SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(ini.Read("TranslationResultAutoClearSeconds")).ToString());
-            EnsureNormalizedSetting("OcrEngineSelection", settingsService.GetConfiguredOcrEngineTag(settingsService.NormalizeConfiguredOcrEngine(ini.Read("OcrEngineSelection"))));
+            EnsureNormalizedSetting("OcrEngineSelection", settingsService.GetConfiguredOcrEngineSelectionTag(settingsService.NormalizeConfiguredOcrEngineSelection(ini.Read("OcrEngineSelection"))));
             EnsureNormalizedSetting("AutoCopyTranslationResult", settingsService.IsEnabled(ini.Read("AutoCopyTranslationResult"))
                 ? "true"
                 : SettingsService.DefaultAutoCopyTranslationResult);
@@ -228,11 +228,11 @@ namespace GameTranslator
 
         /// <summary>
         /// OCR 진단에서 어떤 엔진 후보를 점수 계산 대상으로 사용할지 읽습니다.
-        /// All은 전체 비교 모드이고, 나머지는 선택한 엔진만 평가합니다.
+        /// 구버전 단일 값과 All도 함께 읽고, 현재는 다중 선택 목록으로 반환합니다.
         /// </summary>
-        private ConfiguredOcrEngine ReadConfiguredOcrEngineSelection()
+        private IReadOnlyList<ConfiguredOcrEngine> ReadConfiguredOcrEngineSelection()
         {
-            return settingsService.NormalizeConfiguredOcrEngine(ini.Read("OcrEngineSelection"));
+            return settingsService.NormalizeConfiguredOcrEngineSelection(ini.Read("OcrEngineSelection"));
         }
 
         /// <summary>
@@ -254,7 +254,6 @@ namespace GameTranslator
         {
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";
-            currentConfiguredOcrEngine = ReadConfiguredOcrEngineSelection();
 
             TranslationEngineMode configuredEngine = ReadTranslationEngineMode();
             string geminiKey = ReadGeminiKey();

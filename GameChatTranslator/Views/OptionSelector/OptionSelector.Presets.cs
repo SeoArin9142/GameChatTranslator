@@ -142,6 +142,12 @@ namespace GameTranslator
         /// </summary>
         private void BtnSavePreset_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryGetSelectedConfiguredOcrEngines(out IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines))
+            {
+                MessageBox.Show("프리셋에 저장할 OCR 엔진을 최소 1개 선택해 주세요.", "프리셋 저장", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             string presetName = GetSelectedPresetName();
             if (string.IsNullOrWhiteSpace(presetName))
             {
@@ -149,7 +155,7 @@ namespace GameTranslator
                 return;
             }
 
-            SavePreset(presetName);
+            SavePreset(presetName, configuredOcrEngines);
 
             List<string> names = ReadPresetNames();
             if (!names.Contains(presetName, StringComparer.OrdinalIgnoreCase))
@@ -274,7 +280,7 @@ namespace GameTranslator
         /// <paramref name="presetName"/>은 저장할 프리셋 이름입니다.
         /// Gemini API Key는 보안상 프리셋에 포함하지 않습니다.
         /// </summary>
-        private void SavePreset(string presetName)
+        private void SavePreset(string presetName, IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
             string section = GetPresetSectionName(presetName);
 
@@ -291,7 +297,7 @@ namespace GameTranslator
             _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false", section);
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag(), section);
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine), section);
-            _ini.Write("OcrEngineSelection", GetSelectedTag(ComboConfiguredOcrEngine, SettingsService.DefaultOcrEngineSelection), section);
+            _ini.Write("OcrEngineSelection", _settingsService.GetConfiguredOcrEngineSelectionTag(configuredOcrEngines), section);
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text), section);
             _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text), section);
             _ini.Write("LocalLlmModel", _settingsService.NormalizeLocalLlmModel(TxtLocalLlmModel?.Text), section);
@@ -335,7 +341,7 @@ namespace GameTranslator
                 _settingsService.IsEnabled(SettingsService.DefaultAutoCopyTranslationResult));
             ApplyTranslationContentMode(_settingsService.NormalizeTranslationContentMode(ReadPresetValue(section, "TranslationContentMode", SettingsService.DefaultTranslationContentMode)));
             SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(_settingsService.NormalizeTranslationEngineMode(ReadPresetValue(section, "TranslationEngine", SettingsService.DefaultTranslationEngine))));
-            SetComboByTag(ComboConfiguredOcrEngine, _settingsService.GetConfiguredOcrEngineTag(_settingsService.NormalizeConfiguredOcrEngine(ReadPresetValue(section, "OcrEngineSelection", SettingsService.DefaultOcrEngineSelection))));
+            ApplyConfiguredOcrEngineSelection(_settingsService.NormalizeConfiguredOcrEngineSelection(ReadPresetValue(section, "OcrEngineSelection", SettingsService.DefaultOcrEngineSelection)));
             TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(ReadPresetValue(section, "GeminiModel", SettingsService.DefaultGeminiModel));
             TxtLocalLlmEndpoint.Text = _settingsService.NormalizeLocalLlmEndpoint(ReadPresetValue(section, "LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint));
             TxtLocalLlmModel.Text = _settingsService.NormalizeLocalLlmModel(ReadPresetValue(section, "LocalLlmModel", SettingsService.DefaultLocalLlmModel));

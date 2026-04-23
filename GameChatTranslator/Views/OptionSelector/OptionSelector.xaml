@@ -295,18 +295,13 @@
                             <TextBlock Text="진단 점수에 사용할 OCR 엔진:"
                                        Margin="0,0,0,5"
                                        Foreground="#CCC"/>
-                            <ComboBox x:Name="ComboConfiguredOcrEngine"
-                                      Height="24"
-                                      Margin="0,0,0,6"
-                                      Background="#333"
-                                      Foreground="Black">
-                                <ComboBoxItem Content="전체 비교" Tag="All"/>
-                                <ComboBoxItem Content="Windows OCR" Tag="WindowsOcr"/>
-                                <ComboBoxItem Content="Tesseract" Tag="Tesseract"/>
-                                <ComboBoxItem Content="EasyOCR" Tag="EasyOcr"/>
-                                <ComboBoxItem Content="PaddleOCR" Tag="PaddleOcr"/>
-                            </ComboBox>
-                            <TextBlock Text="전체 비교는 모든 후보를 함께 채점하고, 나머지는 선택한 OCR 엔진만 점수 계산합니다."
+                            <WrapPanel Margin="0,0,0,6">
+                                <CheckBox x:Name="CheckDiagnosticWindowsOcr" Content="Windows OCR" Foreground="#CCC" Margin="0,0,12,6"/>
+                                <CheckBox x:Name="CheckDiagnosticTesseract" Content="Tesseract" Foreground="#CCC" Margin="0,0,12,6"/>
+                                <CheckBox x:Name="CheckDiagnosticEasyOcr" Content="EasyOCR" Foreground="#CCC" Margin="0,0,12,6"/>
+                                <CheckBox x:Name="CheckDiagnosticPaddleOcr" Content="PaddleOCR" Foreground="#CCC" Margin="0,0,0,6"/>
+                            </WrapPanel>
+                            <TextBlock Text="선택한 OCR만 후보 생성과 점수 계산에 포함합니다. 모두 체크하면 기존 전체 비교와 같습니다."
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,8"
                                        Foreground="#AFAFAF"

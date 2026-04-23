@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GameTranslator
 {
@@ -8,6 +10,14 @@ namespace GameTranslator
     /// </summary>
     public sealed class SettingsService
     {
+        private static readonly ConfiguredOcrEngine[] ConfiguredOcrEngineSelectionOrder =
+        {
+            ConfiguredOcrEngine.WindowsOcr,
+            ConfiguredOcrEngine.Tesseract,
+            ConfiguredOcrEngine.EasyOcr,
+            ConfiguredOcrEngine.PaddleOcr
+        };
+
         public const string DefaultGeminiModel = "gemini-2.5-flash";
         public const string DefaultLocalLlmEndpoint = "http://localhost:1234/v1/chat/completions";
         public const string DefaultLocalLlmModel = "qwen/qwen3.5-9b";
@@ -259,6 +269,89 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// OCR 진단 기본 선택 목록을 반환합니다.
+        /// 현재 기본값은 모든 OCR 엔진 전체 비교입니다.
+        /// </summary>
+        public IReadOnlyList<ConfiguredOcrEngine> GetDefaultConfiguredOcrEngineSelection()
+        {
+            return ConfiguredOcrEngineSelectionOrder;
+        }
+
+        /// <summary>
+        /// 저장된 OCR 엔진 선택 문자열을 다중 선택 목록으로 변환합니다.
+        /// 구버전 단일 값과 All 값도 함께 읽고, 알 수 없는 값이면 전체 비교로 되돌립니다.
+        /// </summary>
+        public IReadOnlyList<ConfiguredOcrEngine> NormalizeConfiguredOcrEngineSelection(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return ConfiguredOcrEngineSelectionOrder;
+            }
+
+            string normalized = value.Trim();
+            if (normalized.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngineSelectionOrder;
+            }
+
+            var requested = new HashSet<ConfiguredOcrEngine>();
+            string[] tokens = normalized.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string token in tokens)
+            {
+                if (TryParseConfiguredOcrEngine(token, out ConfiguredOcrEngine engine))
+                {
+                    requested.Add(engine);
+                }
+            }
+
+            if (requested.Count == 0)
+            {
+                if (TryParseConfiguredOcrEngine(normalized, out ConfiguredOcrEngine singleEngine))
+                {
+                    requested.Add(singleEngine);
+                }
+                else
+                {
+                    return ConfiguredOcrEngineSelectionOrder;
+                }
+            }
+
+            return ConfiguredOcrEngineSelectionOrder
+                .Where(requested.Contains)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// OCR 진단 다중 선택 목록을 config.ini에 저장할 문자열로 변환합니다.
+        /// 전체 선택이면 All, 일부 선택이면 쉼표 구분 태그 목록을 저장합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineSelectionTag(IEnumerable<ConfiguredOcrEngine> engines)
+        {
+            ConfiguredOcrEngine[] normalizedSelection = NormalizeConfiguredOcrEngineSelectionInternal(engines);
+            if (normalizedSelection.Length == ConfiguredOcrEngineSelectionOrder.Length)
+            {
+                return DefaultOcrEngineSelection;
+            }
+
+            return string.Join(",", normalizedSelection.Select(GetConfiguredOcrEngineTag));
+        }
+
+        /// <summary>
+        /// OCR 진단 다중 선택 목록을 설정창과 진단 요약에 표시할 사용자용 문자열로 변환합니다.
+        /// 전체 선택이면 전체 비교, 일부 선택이면 엔진 이름을 + 로 연결합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineSelectionDisplayName(IEnumerable<ConfiguredOcrEngine> engines)
+        {
+            ConfiguredOcrEngine[] normalizedSelection = NormalizeConfiguredOcrEngineSelectionInternal(engines);
+            if (normalizedSelection.Length == ConfiguredOcrEngineSelectionOrder.Length)
+            {
+                return "전체 비교";
+            }
+
+            return string.Join(" + ", normalizedSelection.Select(GetConfiguredOcrEngineDisplayName));
+        }
+
+        /// <summary>
         /// OCR 엔진 enum을 설정창과 진단 요약에 표시할 사용자용 이름으로 변환합니다.
         /// </summary>
         public string GetConfiguredOcrEngineDisplayName(ConfiguredOcrEngine engine)
@@ -348,6 +441,57 @@ namespace GameTranslator
                 DefaultKeyOcrDiagnostic,
                 DefaultKeyHotkeyGuideToggle,
                 DefaultKeyOpenSettings);
+        }
+
+        private ConfiguredOcrEngine[] NormalizeConfiguredOcrEngineSelectionInternal(IEnumerable<ConfiguredOcrEngine> engines)
+        {
+            var selected = new HashSet<ConfiguredOcrEngine>((engines ?? Enumerable.Empty<ConfiguredOcrEngine>())
+                .Where(engine => engine != ConfiguredOcrEngine.All));
+
+            if (selected.Count == 0)
+            {
+                return ConfiguredOcrEngineSelectionOrder;
+            }
+
+            return ConfiguredOcrEngineSelectionOrder
+                .Where(selected.Contains)
+                .ToArray();
+        }
+
+        private bool TryParseConfiguredOcrEngine(string value, out ConfiguredOcrEngine engine)
+        {
+            engine = ConfiguredOcrEngine.All;
+            string normalized = (value ?? "").Trim();
+
+            if (normalized.Equals("WindowsOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("Windows", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("WinOcr", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.WindowsOcr;
+                return true;
+            }
+
+            if (normalized.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.Tesseract;
+                return true;
+            }
+
+            if (normalized.Equals("EasyOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("EasyOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.EasyOcr;
+                return true;
+            }
+
+            if (normalized.Equals("PaddleOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("PaddleOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.PaddleOcr;
+                return true;
+            }
+
+            return false;
         }
     }
 
