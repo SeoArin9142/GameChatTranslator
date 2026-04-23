@@ -7,10 +7,21 @@ import warnings
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image", required=True)
+    parser.add_argument("--image")
+    parser.add_argument("--images")
     parser.add_argument("--groups", required=True)
     parser.add_argument("--gpu", default="false")
     return parser.parse_args()
+
+
+def parse_image_paths(args):
+    if getattr(args, "images", None):
+        return [value.strip() for value in args.images.split("|") if value.strip()]
+
+    if getattr(args, "image", None):
+        return [args.image.strip()] if str(args.image).strip() else []
+
+    return []
 
 
 def parse_language_groups(raw_value):
@@ -228,7 +239,7 @@ def recognize_with_legacy_ocr(ocr, image_path):
     return build_lines_from_words(build_words_from_legacy_payload(results))
 
 
-def recognize_image(language_code, image_path, use_gpu):
+def create_ocr(language_code, use_gpu):
     # PaddlePaddle 3.3.x CPU inference can fail in PIR/oneDNN conversion.
     # Set this before importing paddleocr so the diagnostic runner stays usable.
     os.environ.setdefault("FLAGS_enable_pir_api", "0")
@@ -251,6 +262,10 @@ def recognize_image(language_code, image_path, use_gpu):
             show_log=False,
         )
 
+    return ocr
+
+
+def recognize_image(ocr, image_path):
     if hasattr(ocr, "predict"):
         return recognize_with_predict(ocr, image_path)
 
@@ -259,7 +274,12 @@ def recognize_image(language_code, image_path, use_gpu):
 
 def main():
     args = parse_args()
+    image_paths = parse_image_paths(args)
     language_groups = parse_language_groups(args.groups)
+    if not image_paths:
+        print("PaddleOCR image paths are empty.", file=sys.stderr)
+        return 2
+
     if not language_groups:
         print("PaddleOCR language groups are empty.", file=sys.stderr)
         return 2
@@ -274,28 +294,40 @@ def main():
 
     warnings.filterwarnings("ignore")
 
-    response = {"groups": []}
+    response = {
+        "images": [
+            {
+                "index": index,
+                "groups": [],
+            }
+            for index in range(len(image_paths))
+        ]
+    }
 
     for language_code in language_groups:
         try:
-            lines = recognize_image(language_code, args.image, use_gpu)
-            response["groups"].append(
-                {
-                    "languageCodes": language_code,
-                    "success": True,
-                    "error": "",
-                    "lines": lines,
-                }
-            )
+            ocr = create_ocr(language_code, use_gpu)
+            for index, image_path in enumerate(image_paths):
+                lines = recognize_image(ocr, image_path)
+                response["images"][index]["groups"].append(
+                    {
+                        "languageCodes": language_code,
+                        "success": True,
+                        "error": "",
+                        "lines": lines,
+                    }
+                )
         except Exception as exc:
-            response["groups"].append(
-                {
-                    "languageCodes": language_code,
-                    "success": False,
-                    "error": str(exc),
-                    "lines": [],
-                }
-            )
+            error_text = str(exc)
+            for image in response["images"]:
+                image["groups"].append(
+                    {
+                        "languageCodes": language_code,
+                        "success": False,
+                        "error": error_text,
+                        "lines": [],
+                    }
+                )
 
     print(json.dumps(response, ensure_ascii=False))
     return 0

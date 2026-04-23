@@ -43,8 +43,32 @@ namespace GameChatTranslator.Tests
                     "-X",
                     "utf8",
                     "paddleocr_runner.py",
-                    "--image",
+                    "--images",
                     "input.png",
+                    "--groups",
+                    "korean|japan|ch",
+                    "--gpu",
+                    "false"
+                },
+                values);
+        }
+
+        [Fact]
+        public void BuildBatchArguments_UsesImagesFlagAndPreservesOrder()
+        {
+            var values = _adapter.BuildBatchArguments(
+                "paddleocr_runner.py",
+                new[] { "input-1.png", "input-2.png", "input-3.png" },
+                new[] { "korean", "japan", "ch" });
+
+            Assert.Equal(
+                new[]
+                {
+                    "-X",
+                    "utf8",
+                    "paddleocr_runner.py",
+                    "--images",
+                    "input-1.png|input-2.png|input-3.png",
                     "--groups",
                     "korean|japan|ch",
                     "--gpu",
