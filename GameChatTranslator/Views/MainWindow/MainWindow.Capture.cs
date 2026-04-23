@@ -39,6 +39,7 @@ namespace GameTranslator
             if (areaSelector != null) { areaSelector.Close(); }
             areaSelector = new AreaSelector();
             areaSelector.Owner = this;
+            areaSelector.Closed += (_, __) => areaSelector = null;
             areaSelector.Show();
         }
 

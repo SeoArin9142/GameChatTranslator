@@ -78,6 +78,7 @@ namespace GameTranslator
         private AppDataPaths appDataPaths;
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
+        private OptionSelector settingsWindow;
         private LogViewerWindow logViewerWindow;
         private OcrDiagnosticWindow ocrDiagnosticWindow;
 

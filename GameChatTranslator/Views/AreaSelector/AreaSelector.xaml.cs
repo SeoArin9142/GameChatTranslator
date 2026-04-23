@@ -56,6 +56,11 @@ namespace GameTranslator
         /// </summary>
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ChangedButton != MouseButton.Left)
+            {
+                return;
+            }
+
             // 클릭한 순간의 마우스 좌표를 시작점으로 기록
             startPoint = e.GetPosition(this);
 
@@ -116,6 +121,11 @@ namespace GameTranslator
         /// </summary>
         private void Window_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (e.ChangedButton != MouseButton.Left)
+            {
+                return;
+            }
+
             // 드래그를 해서 정상적인 영역이 만들어졌다면
             if (selectionArea != Rectangle.Empty)
             {
@@ -149,6 +159,18 @@ namespace GameTranslator
                 // 그냥 클릭만 하고 드래그를 하지 않았다면 테두리만 다시 숨김
                 SelectionBorder.Visibility = Visibility.Collapsed;
             }
+        }
+
+        /// <summary>
+        /// 영역 재지정 중 마우스 우클릭 시 현재 선택을 취소하고 오버레이를 닫습니다.
+        /// 기존 캡처 영역은 변경하지 않습니다.
+        /// </summary>
+        private void Window_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            selectionArea = Rectangle.Empty;
+            SelectionBorder.Visibility = Visibility.Collapsed;
+            Close();
         }
     }
 }
