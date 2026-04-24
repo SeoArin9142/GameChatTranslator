@@ -40,16 +40,68 @@ namespace GameTranslator
 
         public const string DefaultKeyMoveLock = "Ctrl+7";
         public const string DefaultKeyAreaSelect = "Ctrl+8";
-        public const string DefaultKeyTranslate = "Ctrl+9";
-        public const string DefaultKeyAutoTranslate = "Ctrl+0";
+        public const string DefaultKeyTranslate = "Ctrl+-";
+        public const string DefaultKeyAutoTranslate = "Ctrl+=";
         public const string DefaultKeyToggleEngine = "Ctrl+-";
         public const string DefaultKeyCopyResult = "Ctrl+6";
         public const string DefaultKeyLogViewer = "Ctrl+=";
         public const string DefaultKeyOcrDiagnostic = "Ctrl+5";
         public const string DefaultKeyHotkeyGuideToggle = "Ctrl+F10";
-        public const string DefaultKeyOpenSettings = "Ctrl+8";
+        public const string DefaultKeyOpenSettings = "Ctrl+0";
         public const string DefaultOcrEngineSelection = "All";
         public const string DefaultAutoCopyTranslationResult = "false";
+
+        public static readonly string[] SettingsSectionKeyOrder =
+        {
+            "GameLanguage",
+            "TargetLanguage",
+            "TranslationContentMode",
+            "TranslationEngine",
+            "MainOcrEngine",
+            "OcrEngineSelection",
+            "Opacity",
+            "ResultDisplayMode",
+            "ResultHistoryLimit",
+            "TranslationResultAutoClearSeconds",
+            "AutoCopyTranslationResult",
+            "AutoTranslateInterval",
+            "ScaleFactor",
+            "Threshold",
+            "CaptureX",
+            "CaptureY",
+            "CaptureW",
+            "CaptureH",
+            "CapturePixelX",
+            "CapturePixelY",
+            "CapturePixelW",
+            "CapturePixelH",
+            "WindowW",
+            "WindowH",
+            "Key_OpenSettings",
+            "Key_Translate",
+            "Key_AutoTranslate",
+            "Key_MoveLock",
+            "Key_AreaSelect",
+            "Key_ToggleEngine",
+            "Key_CopyResult",
+            "Key_LogViewer",
+            "Key_OcrDiagnostic",
+            "Key_HotkeyGuideToggle",
+            "TesseractExePath",
+            "TesseractLanguageCodes",
+            "EasyOcrPythonPath",
+            "EasyOcrLanguageCodes",
+            "PaddleOcrPythonPath",
+            "PaddleOcrLanguageCodes",
+            "GeminiKey",
+            "GeminiModel",
+            "LocalLlmEndpoint",
+            "LocalLlmModel",
+            "LocalLlmTimeoutSeconds",
+            "LocalLlmMaxTokens",
+            "SaveDebugImages",
+            "CheckUpdatesOnStartup"
+        };
 
         /// <summary>
         /// Gemini API 키를 선택합니다.

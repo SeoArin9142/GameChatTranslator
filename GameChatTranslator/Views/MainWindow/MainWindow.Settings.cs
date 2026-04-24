@@ -129,6 +129,20 @@ namespace GameTranslator
             EnsureNormalizedSetting("AutoTranslateInterval", SettingsValueNormalizer.NormalizeAutoTranslateInterval(ini.Read("AutoTranslateInterval")).ToString());
             EnsureNormalizedSetting("ScaleFactor", SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor")).ToString());
 
+            MigrateHotkeyDefaultIfUnchanged("Key_OpenSettings", "Ctrl+8", SettingsService.DefaultKeyOpenSettings);
+            MigrateHotkeyDefaultIfUnchanged("Key_Translate", "Ctrl+9", SettingsService.DefaultKeyTranslate);
+            MigrateHotkeyDefaultIfUnchanged("Key_AutoTranslate", "Ctrl+0", SettingsService.DefaultKeyAutoTranslate);
+
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_Translate")))
+            {
+                ini.Write("Key_Translate", SettingsService.DefaultKeyTranslate);
+            }
+
+            if (string.IsNullOrWhiteSpace(ini.Read("Key_AutoTranslate")))
+            {
+                ini.Write("Key_AutoTranslate", SettingsService.DefaultKeyAutoTranslate);
+            }
+
             if (string.IsNullOrWhiteSpace(ini.Read("Key_CopyResult")))
             {
                 ini.Write("Key_CopyResult", SettingsService.DefaultKeyCopyResult);
@@ -165,6 +179,7 @@ namespace GameTranslator
             EnsureNormalizedSetting("AutoCopyTranslationResult", settingsService.IsEnabled(ini.Read("AutoCopyTranslationResult"))
                 ? "true"
                 : SettingsService.DefaultAutoCopyTranslationResult);
+            ini.SortSectionKeys("Settings", SettingsService.SettingsSectionKeyOrder);
         }
 
         /// <summary>
@@ -179,6 +194,23 @@ namespace GameTranslator
             if (!string.Equals(currentValue, nextValue, StringComparison.Ordinal))
             {
                 ini.Write(key, nextValue);
+            }
+        }
+
+        private void MigrateHotkeyDefaultIfUnchanged(string key, string previousDefault, string currentDefault)
+        {
+            string currentValue = ini.Read(key);
+            if (string.IsNullOrWhiteSpace(currentValue))
+            {
+                return;
+            }
+
+            if (string.Equals(
+                settingsService.NormalizeHotkey(currentValue, previousDefault),
+                previousDefault,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                ini.Write(key, currentDefault);
             }
         }
 

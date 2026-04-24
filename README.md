@@ -401,9 +401,9 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 
 | 키 | 기본값 |
 |:---|:---|
-| `Key_OpenSettings` | `Ctrl+8` |
-| `Key_Translate` | `Ctrl+9` |
-| `Key_AutoTranslate` | `Ctrl+0` |
+| `Key_OpenSettings` | `Ctrl+0` |
+| `Key_Translate` | `Ctrl+-` |
+| `Key_AutoTranslate` | `Ctrl+=` |
 
 </details>
 

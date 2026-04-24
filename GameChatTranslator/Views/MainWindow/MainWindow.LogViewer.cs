@@ -6,7 +6,7 @@ namespace GameTranslator
 {
     /// <summary>
     /// 세션 로그를 별도 창으로 표시하는 로그 뷰어 연동 기능을 담당합니다.
-    /// Ctrl+= 전역 단축키나 환경설정창 버튼에서 호출되어 로그창을 열고 숨깁니다.
+    /// 현재는 환경설정창 버튼에서 호출되어 로그창을 열고 숨깁니다.
     /// </summary>
     public partial class MainWindow
     {
@@ -59,7 +59,7 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// Ctrl+= 단축키에서 로그창 표시 상태를 토글합니다.
+        /// 로그창 표시 상태를 토글합니다.
         /// 닫는 동작은 실제 종료가 아니라 숨김 처리이므로 다시 열면 기존 위치와 크기가 유지됩니다.
         /// </summary>
         private void ToggleLogViewerWindow()
