@@ -426,8 +426,17 @@ namespace GameTranslator
                 AppendLog("DEBUG", $"OCR 엔진: {bestCandidate.EngineDisplayName}, OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName}, 언어 선택: {bestCandidate.SelectedLanguageCode} (점수 {bestCandidate.Score})", "System");
 
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
-                if (currentRawTextCombined == lastRawTextCombined)
+                OcrDuplicateTextComparisonResult duplicateComparison = OcrDuplicateTextComparer.Compare(lastRawTextCombined, currentRawTextCombined);
+                if (duplicateComparison.IsDuplicate)
                 {
+                    if (duplicateComparison.UsedFuzzyComparison)
+                    {
+                        AppendLog(
+                            "DEBUG",
+                            $"유사 OCR 중복으로 스킵됨: distance={duplicateComparison.EditDistance}, similarity={duplicateComparison.Similarity:0.00}",
+                            "System");
+                    }
+
                     performanceStats.Outcome = "DuplicateOcrText";
                     return;
                 }
