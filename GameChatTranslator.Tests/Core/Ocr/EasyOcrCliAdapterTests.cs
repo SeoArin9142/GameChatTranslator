@@ -53,6 +53,23 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void BuildWorkerStartArguments_IncludesWorkerFlag()
+        {
+            var values = _adapter.BuildWorkerStartArguments("easyocr_runner.py");
+
+            Assert.Equal(
+                new[]
+                {
+                    "-X",
+                    "utf8",
+                    "-u",
+                    "easyocr_runner.py",
+                    "--worker"
+                },
+                values);
+        }
+
+        [Fact]
         public void BuildPythonCandidates_IncludesPyLauncherFallback()
         {
             var values = _adapter.GetPythonCandidatesForTesting("");
@@ -106,6 +123,37 @@ namespace GameChatTranslator.Tests
             Assert.Equal("ja+en", group.LanguageCodes);
             Assert.True(group.Success);
             Assert.Equal("猫は可愛い", Assert.Single(group.Lines).Text);
+        }
+
+        [Fact]
+        public void ParseWorkerResponse_ReadsTopLevelFieldsAndGroups()
+        {
+            EasyOcrCliAdapter.EasyOcrWorkerResponse response = EasyOcrCliAdapter.ParseWorkerResponse(
+                """
+                {
+                  "requestId": "req-1",
+                  "ok": true,
+                  "error": "",
+                  "errorCode": "",
+                  "groups": [
+                    {
+                      "language_codes": "ko+en",
+                      "success": true,
+                      "error": "",
+                      "lines": [
+                        { "top": 3, "bottom": 9, "text": "테스트" }
+                      ]
+                    }
+                  ]
+                }
+                """);
+
+            Assert.NotNull(response);
+            Assert.Equal("req-1", response.RequestId);
+            Assert.True(response.Ok);
+            EasyOcrCliAdapter.EasyOcrWorkerGroup group = Assert.Single(response.Groups);
+            Assert.Equal("ko+en", group.LanguageCodes);
+            Assert.Equal("테스트", Assert.Single(group.Lines).Text);
         }
     }
 }

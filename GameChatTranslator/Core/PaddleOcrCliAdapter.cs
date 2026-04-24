@@ -16,9 +16,11 @@ namespace GameTranslator
     /// 메인 번역 경로는 건드리지 않고, OCR 진단 화면에서 Win OCR/Tesseract/EasyOCR와 비교하기 위한 배치 실행만 담당합니다.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public sealed class PaddleOcrCliAdapter
+    public sealed class PaddleOcrCliAdapter : IDisposable
     {
         private const string RunnerFileName = "paddleocr_runner.py";
+        private readonly Dictionary<string, PersistentPythonOcrWorker> workerByPythonPath = new Dictionary<string, PersistentPythonOcrWorker>(StringComparer.OrdinalIgnoreCase);
+        private readonly object workerSync = new object();
 
         private static readonly Dictionary<string, string> AppLanguageToPaddleOcrMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -174,7 +176,7 @@ namespace GameTranslator
             {
                 foreach (string pythonPath in GetPythonCandidates(configuredPythonPath))
                 {
-                    PaddleOcrCliBatchResult runResult = TryRecognizeInternal(
+                    PaddleOcrCliBatchResult runResult = TryRecognizeWithResidentWorker(
                         pythonPath,
                         runnerScriptPath,
                         inputFilePaths,
@@ -210,6 +212,19 @@ namespace GameTranslator
             }
         }
 
+        public void Dispose()
+        {
+            lock (workerSync)
+            {
+                foreach (PersistentPythonOcrWorker worker in workerByPythonPath.Values)
+                {
+                    worker.Dispose();
+                }
+
+                workerByPythonPath.Clear();
+            }
+        }
+
         internal string GetRunnerScriptPath()
         {
             return Path.Combine(AppContext.BaseDirectory, RunnerFileName);
@@ -239,6 +254,18 @@ namespace GameTranslator
                 string.Join("|", languageCandidates ?? Array.Empty<string>()),
                 "--gpu",
                 "false"
+            };
+        }
+
+        internal IReadOnlyList<string> BuildWorkerStartArguments(string runnerScriptPath)
+        {
+            return new[]
+            {
+                "-X",
+                "utf8",
+                "-u",
+                runnerScriptPath,
+                "--worker"
             };
         }
 
@@ -379,6 +406,111 @@ namespace GameTranslator
             }
         }
 
+        private PaddleOcrCliBatchResult TryRecognizeWithResidentWorker(
+            string pythonExecutablePath,
+            string runnerScriptPath,
+            IReadOnlyList<string> inputFilePaths,
+            IReadOnlyList<string> languageCandidates,
+            int timeoutMs)
+        {
+            try
+            {
+                PersistentPythonOcrWorker worker = GetOrCreateWorker(pythonExecutablePath, runnerScriptPath);
+                string requestJson = JsonSerializer.Serialize(new PaddleOcrWorkerRequest
+                {
+                    RequestId = Guid.NewGuid().ToString("N"),
+                    ImagePaths = inputFilePaths?.ToList() ?? new List<string>(),
+                    Groups = string.Join("|", languageCandidates ?? Array.Empty<string>()),
+                    Gpu = false
+                });
+
+                PersistentPythonOcrWorkerResult workerResult = worker.SendRequestAsync(requestJson, timeoutMs).GetAwaiter().GetResult();
+                if (!workerResult.Success)
+                {
+                    return PaddleOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCandidates,
+                        EmptyToFallback(workerResult.ErrorMessage, "PaddleOCR 워커 요청에 실패했습니다."),
+                        isPythonMissing: workerResult.IsPythonMissing);
+                }
+
+                PaddleOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
+                if (response == null)
+                {
+                    return PaddleOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCandidates,
+                        "PaddleOCR 워커 응답을 해석하지 못했습니다.");
+                }
+
+                if (!response.Ok)
+                {
+                    bool isModuleMissing = string.Equals(response.ErrorCode, "module_missing", StringComparison.OrdinalIgnoreCase);
+                    string errorMessage = isModuleMissing
+                        ? GetFailureMessageForExitCode(3, response.Error)
+                        : EmptyToFallback(response.Error, "PaddleOCR 워커가 오류를 반환했습니다.");
+
+                    return PaddleOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCandidates,
+                        errorMessage,
+                        isModuleMissing: isModuleMissing);
+                }
+
+                List<PaddleOcrCliImageResult> imageResults = ConvertWorkerImagesToResults(response.Images);
+                if (imageResults.Count == 0)
+                {
+                    return PaddleOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCandidates,
+                        EmptyToFallback(workerResult.StandardError, "PaddleOCR 결과를 읽지 못했습니다."));
+                }
+
+                int successCount = imageResults.Sum(image => image.GroupResults.Count(group => group.Success));
+                if (successCount == 0)
+                {
+                    string firstErrorMessage = imageResults
+                        .SelectMany(image => image.GroupResults)
+                        .Select(group => group.ErrorMessage)
+                        .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+                    return PaddleOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCandidates,
+                        EmptyToFallback(firstErrorMessage, "PaddleOCR 결과가 모두 실패했습니다."));
+                }
+
+                return PaddleOcrCliBatchResult.CreateSuccess(
+                    pythonExecutablePath,
+                    languageCandidates,
+                    imageResults,
+                    workerResult.StandardError);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                lock (workerSync)
+                {
+                    if (workerByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorker worker))
+                    {
+                        worker.Dispose();
+                        workerByPythonPath.Remove(pythonExecutablePath);
+                    }
+                }
+
+                return PaddleOcrCliBatchResult.CreateFailure(
+                    pythonExecutablePath,
+                    languageCandidates,
+                    "python 또는 py 실행 파일을 찾지 못했습니다.",
+                    isPythonMissing: true);
+            }
+            catch (Exception ex)
+            {
+                return PaddleOcrCliBatchResult.CreateFailure(
+                    pythonExecutablePath,
+                    languageCandidates,
+                    ex.Message);
+            }
+        }
+
         private static List<PaddleOcrCliImageResult> ParseImageResults(string json)
         {
             PaddleOcrRunnerResponse response = JsonSerializer.Deserialize<PaddleOcrRunnerResponse>(json ?? "", new JsonSerializerOptions
@@ -437,9 +569,55 @@ namespace GameTranslator
             return new List<PaddleOcrCliImageResult>();
         }
 
+        internal static PaddleOcrWorkerResponse ParseWorkerResponse(string json)
+        {
+            return JsonSerializer.Deserialize<PaddleOcrWorkerResponse>(json ?? "", new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+
+        internal static List<PaddleOcrCliImageResult> ConvertWorkerImagesToResults(IReadOnlyList<PaddleOcrWorkerImage> images)
+        {
+            return (images ?? Array.Empty<PaddleOcrWorkerImage>())
+                .OrderBy(image => image?.Index ?? int.MaxValue)
+                .Select(image => new PaddleOcrCliImageResult(
+                    image?.Index ?? -1,
+                    (image?.Groups ?? new List<PaddleOcrWorkerGroup>())
+                        .Select(group => new PaddleOcrCliGroupResult(
+                            group?.LanguageCodes ?? "",
+                            group?.Success ?? false,
+                            (group?.Lines ?? new List<PaddleOcrWorkerLine>())
+                                .Where(line => !string.IsNullOrWhiteSpace(line?.Text))
+                                .Select(line => new OcrLine
+                                {
+                                    Top = line.Top,
+                                    Bottom = line.Bottom,
+                                    Text = line.Text.Trim()
+                                })
+                                .ToList(),
+                            group?.Error ?? ""))
+                        .ToList()))
+                .ToList();
+        }
+
         private static string EmptyToFallback(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        }
+
+        private PersistentPythonOcrWorker GetOrCreateWorker(string pythonExecutablePath, string runnerScriptPath)
+        {
+            lock (workerSync)
+            {
+                if (!workerByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorker worker))
+                {
+                    worker = new PersistentPythonOcrWorker(pythonExecutablePath, runnerScriptPath);
+                    workerByPythonPath.Add(pythonExecutablePath, worker);
+                }
+
+                return worker;
+            }
         }
 
         private sealed class PaddleOcrRunnerResponse
@@ -463,6 +641,44 @@ namespace GameTranslator
         }
 
         private sealed class PaddleOcrRunnerLine
+        {
+            public double Top { get; set; }
+            public double Bottom { get; set; }
+            public string Text { get; set; } = "";
+        }
+
+        private sealed class PaddleOcrWorkerRequest
+        {
+            public string RequestId { get; set; } = "";
+            public List<string> ImagePaths { get; set; } = new List<string>();
+            public string Groups { get; set; } = "";
+            public bool Gpu { get; set; }
+        }
+
+        internal sealed class PaddleOcrWorkerResponse
+        {
+            public string RequestId { get; set; } = "";
+            public bool Ok { get; set; }
+            public string Error { get; set; } = "";
+            public string ErrorCode { get; set; } = "";
+            public List<PaddleOcrWorkerImage> Images { get; set; } = new List<PaddleOcrWorkerImage>();
+        }
+
+        internal sealed class PaddleOcrWorkerImage
+        {
+            public int Index { get; set; }
+            public List<PaddleOcrWorkerGroup> Groups { get; set; } = new List<PaddleOcrWorkerGroup>();
+        }
+
+        internal sealed class PaddleOcrWorkerGroup
+        {
+            public string LanguageCodes { get; set; } = "";
+            public bool Success { get; set; }
+            public string Error { get; set; } = "";
+            public List<PaddleOcrWorkerLine> Lines { get; set; } = new List<PaddleOcrWorkerLine>();
+        }
+
+        internal sealed class PaddleOcrWorkerLine
         {
             public double Top { get; set; }
             public double Bottom { get; set; }

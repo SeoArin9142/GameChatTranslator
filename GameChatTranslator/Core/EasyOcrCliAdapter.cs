@@ -17,9 +17,11 @@ namespace GameTranslator
     /// 메인 번역 경로는 건드리지 않고, OCR 진단 화면에서 Win OCR/Tesseract와 비교하기 위한 배치 실행만 담당합니다.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public sealed class EasyOcrCliAdapter
+    public sealed class EasyOcrCliAdapter : IDisposable
     {
         private const string RunnerFileName = "easyocr_runner.py";
+        private readonly Dictionary<string, PersistentPythonOcrWorker> workerByPythonPath = new Dictionary<string, PersistentPythonOcrWorker>(StringComparer.OrdinalIgnoreCase);
+        private readonly object workerSync = new object();
 
         private static readonly Dictionary<string, string> AppLanguageToEasyOcrMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -160,7 +162,7 @@ namespace GameTranslator
             {
                 foreach (string pythonPath in GetPythonCandidates(configuredPythonPath))
                 {
-                    EasyOcrCliBatchResult runResult = TryRecognizeInternal(
+                    EasyOcrCliBatchResult runResult = TryRecognizeWithResidentWorker(
                         pythonPath,
                         runnerScriptPath,
                         inputFilePath,
@@ -193,6 +195,19 @@ namespace GameTranslator
             }
         }
 
+        public void Dispose()
+        {
+            lock (workerSync)
+            {
+                foreach (PersistentPythonOcrWorker worker in workerByPythonPath.Values)
+                {
+                    worker.Dispose();
+                }
+
+                workerByPythonPath.Clear();
+            }
+        }
+
         internal string GetRunnerScriptPath()
         {
             return Path.Combine(AppContext.BaseDirectory, RunnerFileName);
@@ -214,6 +229,18 @@ namespace GameTranslator
                 string.Join("|", languageCombinations ?? Array.Empty<string>()),
                 "--gpu",
                 "false"
+            };
+        }
+
+        internal IReadOnlyList<string> BuildWorkerStartArguments(string runnerScriptPath)
+        {
+            return new[]
+            {
+                "-X",
+                "utf8",
+                "-u",
+                runnerScriptPath,
+                "--worker"
             };
         }
 
@@ -360,6 +387,110 @@ namespace GameTranslator
             }
         }
 
+        private EasyOcrCliBatchResult TryRecognizeWithResidentWorker(
+            string pythonExecutablePath,
+            string runnerScriptPath,
+            string inputFilePath,
+            IReadOnlyList<string> languageCombinations,
+            int timeoutMs)
+        {
+            try
+            {
+                PersistentPythonOcrWorker worker = GetOrCreateWorker(pythonExecutablePath, runnerScriptPath);
+                string requestJson = JsonSerializer.Serialize(new EasyOcrWorkerRequest
+                {
+                    RequestId = Guid.NewGuid().ToString("N"),
+                    ImagePath = inputFilePath,
+                    Groups = string.Join("|", languageCombinations ?? Array.Empty<string>()),
+                    Gpu = false
+                });
+
+                PersistentPythonOcrWorkerResult workerResult = worker.SendRequestAsync(requestJson, timeoutMs).GetAwaiter().GetResult();
+                if (!workerResult.Success)
+                {
+                    return EasyOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCombinations,
+                        EmptyToFallback(workerResult.ErrorMessage, "EasyOCR 워커 요청에 실패했습니다."),
+                        isPythonMissing: workerResult.IsPythonMissing);
+                }
+
+                EasyOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
+                if (response == null)
+                {
+                    return EasyOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCombinations,
+                        "EasyOCR 워커 응답을 해석하지 못했습니다.");
+                }
+
+                if (!response.Ok)
+                {
+                    bool isModuleMissing = string.Equals(response.ErrorCode, "module_missing", StringComparison.OrdinalIgnoreCase);
+                    string errorMessage = isModuleMissing
+                        ? GetFailureMessageForExitCode(3, response.Error)
+                        : EmptyToFallback(response.Error, "EasyOCR 워커가 오류를 반환했습니다.");
+
+                    return EasyOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCombinations,
+                        errorMessage,
+                        isModuleMissing: isModuleMissing);
+                }
+
+                List<EasyOcrCliGroupResult> groupResults = ConvertWorkerGroupsToResults(response.Groups);
+                if (groupResults.Count == 0)
+                {
+                    return EasyOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCombinations,
+                        EmptyToFallback(workerResult.StandardError, "EasyOCR 결과를 읽지 못했습니다."));
+                }
+
+                int successCount = groupResults.Count(group => group.Success);
+                if (successCount == 0)
+                {
+                    string firstErrorMessage = groupResults
+                        .Select(group => group.ErrorMessage)
+                        .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+                    return EasyOcrCliBatchResult.CreateFailure(
+                        pythonExecutablePath,
+                        languageCombinations,
+                        EmptyToFallback(firstErrorMessage, "EasyOCR 결과가 모두 실패했습니다."));
+                }
+
+                return EasyOcrCliBatchResult.CreateSuccess(
+                    pythonExecutablePath,
+                    languageCombinations,
+                    groupResults,
+                    workerResult.StandardError);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                lock (workerSync)
+                {
+                    if (workerByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorker worker))
+                    {
+                        worker.Dispose();
+                        workerByPythonPath.Remove(pythonExecutablePath);
+                    }
+                }
+
+                return EasyOcrCliBatchResult.CreateFailure(
+                    pythonExecutablePath,
+                    languageCombinations,
+                    "python 또는 py 실행 파일을 찾지 못했습니다.",
+                    isPythonMissing: true);
+            }
+            catch (Exception ex)
+            {
+                return EasyOcrCliBatchResult.CreateFailure(
+                    pythonExecutablePath,
+                    languageCombinations,
+                    ex.Message);
+            }
+        }
+
         internal static List<EasyOcrCliGroupResult> ParseGroupResults(string json)
         {
             EasyOcrRunnerResponse response = JsonSerializer.Deserialize<EasyOcrRunnerResponse>(json ?? "", new JsonSerializerOptions
@@ -384,9 +515,50 @@ namespace GameTranslator
                 .ToList();
         }
 
+        internal static EasyOcrWorkerResponse ParseWorkerResponse(string json)
+        {
+            return JsonSerializer.Deserialize<EasyOcrWorkerResponse>(json ?? "", new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+
+        internal static List<EasyOcrCliGroupResult> ConvertWorkerGroupsToResults(IReadOnlyList<EasyOcrWorkerGroup> groups)
+        {
+            return (groups ?? Array.Empty<EasyOcrWorkerGroup>())
+                .Select(group => new EasyOcrCliGroupResult(
+                    group?.LanguageCodes ?? "",
+                    group?.Success ?? false,
+                    (group?.Lines ?? new List<EasyOcrWorkerLine>())
+                        .Where(line => !string.IsNullOrWhiteSpace(line?.Text))
+                        .Select(line => new OcrLine
+                        {
+                            Top = line.Top,
+                            Bottom = line.Bottom,
+                            Text = line.Text.Trim()
+                        })
+                        .ToList(),
+                    group?.Error ?? ""))
+                .ToList();
+        }
+
         private static string EmptyToFallback(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        }
+
+        private PersistentPythonOcrWorker GetOrCreateWorker(string pythonExecutablePath, string runnerScriptPath)
+        {
+            lock (workerSync)
+            {
+                if (!workerByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorker worker))
+                {
+                    worker = new PersistentPythonOcrWorker(pythonExecutablePath, runnerScriptPath);
+                    workerByPythonPath.Add(pythonExecutablePath, worker);
+                }
+
+                return worker;
+            }
         }
 
         private sealed class EasyOcrRunnerResponse
@@ -404,6 +576,39 @@ namespace GameTranslator
         }
 
         private sealed class EasyOcrRunnerLine
+        {
+            public double Top { get; set; }
+            public double Bottom { get; set; }
+            public string Text { get; set; } = "";
+        }
+
+        private sealed class EasyOcrWorkerRequest
+        {
+            public string RequestId { get; set; } = "";
+            public string ImagePath { get; set; } = "";
+            public string Groups { get; set; } = "";
+            public bool Gpu { get; set; }
+        }
+
+        internal sealed class EasyOcrWorkerResponse
+        {
+            public string RequestId { get; set; } = "";
+            public bool Ok { get; set; }
+            public string Error { get; set; } = "";
+            public string ErrorCode { get; set; } = "";
+            public List<EasyOcrWorkerGroup> Groups { get; set; } = new List<EasyOcrWorkerGroup>();
+        }
+
+        internal sealed class EasyOcrWorkerGroup
+        {
+            [JsonPropertyName("language_codes")]
+            public string LanguageCodes { get; set; } = "";
+            public bool Success { get; set; }
+            public string Error { get; set; } = "";
+            public List<EasyOcrWorkerLine> Lines { get; set; } = new List<EasyOcrWorkerLine>();
+        }
+
+        internal sealed class EasyOcrWorkerLine
         {
             public double Top { get; set; }
             public double Bottom { get; set; }
