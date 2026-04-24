@@ -281,6 +281,10 @@ py -m pip install "paddleocr[all]"
 - 비동기 큐/병렬 처리
 ```
 
+2차 개선 검토 문서:
+
+- [OCR Resident Worker 2차 개선 검토](./docs/ocr-resident-worker-phase2.md)
+
 ### 5. 번역 엔진 선택
 
 환경설정창의 **기본 번역 엔진**에서 Google / Gemini / Local LLM을 선택합니다.
