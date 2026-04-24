@@ -19,7 +19,7 @@ namespace GameTranslator
     public sealed class PaddleOcrCliAdapter : IDisposable
     {
         private const string RunnerFileName = "paddleocr_runner.py";
-        private readonly Dictionary<string, PersistentPythonOcrWorker> workerByPythonPath = new Dictionary<string, PersistentPythonOcrWorker>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, PersistentPythonOcrWorkerLease> workerLeaseByPythonPath = new Dictionary<string, PersistentPythonOcrWorkerLease>(StringComparer.OrdinalIgnoreCase);
         private readonly object workerSync = new object();
 
         private static readonly Dictionary<string, string> AppLanguageToPaddleOcrMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -216,12 +216,12 @@ namespace GameTranslator
         {
             lock (workerSync)
             {
-                foreach (PersistentPythonOcrWorker worker in workerByPythonPath.Values)
+                foreach (PersistentPythonOcrWorkerLease workerLease in workerLeaseByPythonPath.Values)
                 {
-                    worker.Dispose();
+                    workerLease.Dispose();
                 }
 
-                workerByPythonPath.Clear();
+                workerLeaseByPythonPath.Clear();
             }
         }
 
@@ -518,14 +518,7 @@ namespace GameTranslator
             }
             catch (System.ComponentModel.Win32Exception)
             {
-                lock (workerSync)
-                {
-                    if (workerByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorker worker))
-                    {
-                        worker.Dispose();
-                        workerByPythonPath.Remove(pythonExecutablePath);
-                    }
-                }
+                ReleaseWorkerLease(pythonExecutablePath);
 
                 return PaddleOcrCliBatchResult.CreateFailure(
                     pythonExecutablePath,
@@ -641,13 +634,32 @@ namespace GameTranslator
         {
             lock (workerSync)
             {
-                if (!workerByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorker worker))
+                if (!workerLeaseByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorkerLease workerLease))
                 {
-                    worker = new PersistentPythonOcrWorker(pythonExecutablePath, runnerScriptPath);
-                    workerByPythonPath.Add(pythonExecutablePath, worker);
+                    workerLease = PersistentPythonOcrWorkerRegistry.Acquire(RunnerFileName, pythonExecutablePath, runnerScriptPath);
+                    workerLeaseByPythonPath.Add(pythonExecutablePath, workerLease);
                 }
 
-                return worker;
+                return workerLease.Worker;
+            }
+        }
+
+        private void ReleaseWorkerLease(string pythonExecutablePath)
+        {
+            if (string.IsNullOrWhiteSpace(pythonExecutablePath))
+            {
+                return;
+            }
+
+            lock (workerSync)
+            {
+                if (!workerLeaseByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorkerLease workerLease))
+                {
+                    return;
+                }
+
+                workerLease.Dispose();
+                workerLeaseByPythonPath.Remove(pythonExecutablePath);
             }
         }
 
