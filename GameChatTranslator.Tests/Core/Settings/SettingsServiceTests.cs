@@ -153,6 +153,39 @@ namespace GameChatTranslator.Tests
         }
 
         [Theory]
+        [InlineData(null, MainOcrEngine.WindowsOcr)]
+        [InlineData("", MainOcrEngine.WindowsOcr)]
+        [InlineData("WindowsOcr", MainOcrEngine.WindowsOcr)]
+        [InlineData("Tesseract", MainOcrEngine.Tesseract)]
+        [InlineData("EasyOCR", MainOcrEngine.EasyOcr)]
+        [InlineData("PaddleOCR", MainOcrEngine.PaddleOcr)]
+        [InlineData("unknown", MainOcrEngine.WindowsOcr)]
+        public void NormalizeMainOcrEngine_MapsKnownValuesAndDefaultsToWindows(string rawValue, MainOcrEngine expected)
+        {
+            Assert.Equal(expected, _service.NormalizeMainOcrEngine(rawValue));
+        }
+
+        [Theory]
+        [InlineData(MainOcrEngine.WindowsOcr, "WindowsOcr")]
+        [InlineData(MainOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(MainOcrEngine.EasyOcr, "EasyOcr")]
+        [InlineData(MainOcrEngine.PaddleOcr, "PaddleOcr")]
+        public void GetMainOcrEngineTag_ReturnsConfigValue(MainOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetMainOcrEngineTag(engine));
+        }
+
+        [Theory]
+        [InlineData(MainOcrEngine.WindowsOcr, "Windows OCR")]
+        [InlineData(MainOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(MainOcrEngine.EasyOcr, "EasyOCR")]
+        [InlineData(MainOcrEngine.PaddleOcr, "PaddleOCR")]
+        public void GetMainOcrEngineDisplayName_ReturnsUserFacingLabel(MainOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetMainOcrEngineDisplayName(engine));
+        }
+
+        [Theory]
         [InlineData(null, TranslationContentMode.Strinova)]
         [InlineData("", TranslationContentMode.Strinova)]
         [InlineData("Strinova", TranslationContentMode.Strinova)]

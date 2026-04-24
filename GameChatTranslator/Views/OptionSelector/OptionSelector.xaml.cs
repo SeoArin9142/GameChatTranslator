@@ -141,6 +141,11 @@ namespace GameTranslator
                 TranslationEngineMode engineMode = _settingsService.NormalizeTranslationEngineMode(_ini.Read("TranslationEngine"));
                 SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(engineMode));
             }
+            if (ComboMainOcrEngine != null)
+            {
+                MainOcrEngine mainOcrEngine = _settingsService.NormalizeMainOcrEngine(_ini.Read("MainOcrEngine"));
+                SetComboByTag(ComboMainOcrEngine, _settingsService.GetMainOcrEngineTag(mainOcrEngine));
+            }
             ApplyConfiguredOcrEngineSelection(_settingsService.NormalizeConfiguredOcrEngineSelection(_ini.Read("OcrEngineSelection")));
             if (TxtResultHistoryLimit != null)
             {
@@ -644,6 +649,7 @@ namespace GameTranslator
             _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false");
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag());
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine));
+            _ini.Write("MainOcrEngine", GetSelectedTag(ComboMainOcrEngine, SettingsService.DefaultMainOcrEngine));
             _ini.Write("OcrEngineSelection", _settingsService.GetConfiguredOcrEngineSelectionTag(configuredOcrEngines));
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));

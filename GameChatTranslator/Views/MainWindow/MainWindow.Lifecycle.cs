@@ -88,8 +88,9 @@ namespace GameTranslator
             string geminiKey = ReadGeminiKey();
 
             string currentEngine = GetCurrentTranslationEngineDisplayName();
+            string currentMainOcrEngineName = settingsService.GetMainOcrEngineDisplayName(currentMainOcrEngine);
 
-            AppendLog($"프로그램이 시작되었습니다. (적용 엔진: {currentEngine})");
+            AppendLog($"프로그램이 시작되었습니다. (적용 엔진: {currentEngine}, OCR: {currentMainOcrEngineName})");
 
             // 🌟 [추가] 프로그램 시작 시 현재 세팅값(API 키 제외)을 로그에 기록합니다.
             string log_gLang = ini.Read("GameLanguage") ?? "ko";
@@ -102,10 +103,12 @@ namespace GameTranslator
             string log_local_llm_endpoint = ReadLocalLlmEndpoint();
             string log_local_llm_model = ReadLocalLlmModel();
             string log_content_mode = settingsService.GetTranslationContentModeTag(ReadTranslationContentMode());
+            string log_main_ocr_engine = settingsService.GetMainOcrEngineDisplayName(ReadMainOcrEngine());
 
             AppendLog($"[현재 세팅]");
             AppendLog($"\t[게임 언어\t\t\t: {log_gLang}\t]");
             AppendLog($"\t[번역 언어\t\t\t: {log_tLang}\t]");
+            AppendLog($"\t[OCR 엔진\t\t\t: {log_main_ocr_engine}\t]");
             AppendLog($"\t[Threshold\t\t\t: {log_threshold}\t]");
             AppendLog($"\t[Scale\t\t\t: {log_scale}배\t]");
             AppendLog($"\t[번역 주기\t\t\t: {log_interval}초\t]");

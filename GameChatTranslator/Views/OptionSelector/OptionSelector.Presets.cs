@@ -297,6 +297,7 @@ namespace GameTranslator
             _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false", section);
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag(), section);
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine), section);
+            _ini.Write("MainOcrEngine", GetSelectedTag(ComboMainOcrEngine, SettingsService.DefaultMainOcrEngine), section);
             _ini.Write("OcrEngineSelection", _settingsService.GetConfiguredOcrEngineSelectionTag(configuredOcrEngines), section);
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text), section);
             _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text), section);
@@ -341,6 +342,7 @@ namespace GameTranslator
                 _settingsService.IsEnabled(SettingsService.DefaultAutoCopyTranslationResult));
             ApplyTranslationContentMode(_settingsService.NormalizeTranslationContentMode(ReadPresetValue(section, "TranslationContentMode", SettingsService.DefaultTranslationContentMode)));
             SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(_settingsService.NormalizeTranslationEngineMode(ReadPresetValue(section, "TranslationEngine", SettingsService.DefaultTranslationEngine))));
+            SetComboByTag(ComboMainOcrEngine, _settingsService.GetMainOcrEngineTag(_settingsService.NormalizeMainOcrEngine(ReadPresetValue(section, "MainOcrEngine", SettingsService.DefaultMainOcrEngine))));
             ApplyConfiguredOcrEngineSelection(_settingsService.NormalizeConfiguredOcrEngineSelection(ReadPresetValue(section, "OcrEngineSelection", SettingsService.DefaultOcrEngineSelection)));
             TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(ReadPresetValue(section, "GeminiModel", SettingsService.DefaultGeminiModel));
             TxtLocalLlmEndpoint.Text = _settingsService.NormalizeLocalLlmEndpoint(ReadPresetValue(section, "LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint));

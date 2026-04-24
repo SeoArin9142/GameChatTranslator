@@ -44,6 +44,8 @@ namespace GameTranslator
         public IniFile ini;
         private string gameLang = "ko";
         private string targetLang = "ko";
+        private MainOcrEngine currentMainOcrEngine = MainOcrEngine.WindowsOcr;
+        private string lastMainOcrFallbackNotice = "";
 
         private uint modTrans, modAuto, modSettings;
         private uint keyTrans, keyAuto, keySettings;

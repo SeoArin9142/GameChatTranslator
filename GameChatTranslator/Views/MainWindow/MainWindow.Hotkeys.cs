@@ -133,6 +133,7 @@ namespace GameTranslator
                 FontWeight = FontWeights.Bold
             });
             TxtHotkeyGuide.Inlines.Add(new Run($"  번역기: {engineStr}"));
+            TxtHotkeyGuide.Inlines.Add(new Run($"  OCR: {GetCurrentMainOcrEngineShortName()}"));
         }
 
         /// <summary>
