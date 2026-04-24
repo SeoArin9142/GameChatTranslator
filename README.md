@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.31-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.31-alpha/GameChatTranslator_v1.0.31-alpha.zip)
+[GameChatTranslator v1.0.32-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.32-alpha/GameChatTranslator_v1.0.32-alpha.zip)
 
 릴리즈 페이지:
 
@@ -499,8 +499,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v1.0.31-alpha
-git push origin v1.0.31-alpha
+git tag v1.0.32-alpha
+git push origin v1.0.32-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -512,6 +512,17 @@ git push origin v1.0.31-alpha
 스트리노바 유저분들의 피드백은 GitHub **Issues** 탭에 남겨주세요.
 
 ## 업데이트 내역
+
+### v1.0.32-alpha
+
+이번 버전에서는 OCR 메인 경로 확장, 번역 파이프라인 병목 완화, 설정 파일 구조 개편, 문서 정리를 한 번에 반영했습니다.
+
+- 메인 번역 OCR 엔진에 EasyOCR / PaddleOCR를 추가하고, 실패 시 `EasyOCR/PaddleOCR -> Tesseract -> Windows OCR` fallback 체인을 적용했습니다.
+- 자동 번역 및 수동 번역 경로에서 캡처/리사이즈/OCR 후보 준비 일부를 UI 스레드 밖으로 분리해 프리징 가능성을 줄였습니다.
+- `config.ini`를 기능별 섹션으로 재정리하고, 기존 `[Settings]` 단일 섹션 파일도 계속 읽을 수 있게 하위 호환을 유지했습니다.
+- 실행 폴더에 `config.ini`가 있거나 `portable.mode` 파일이 있으면 실행 파일 폴더를 그대로 사용하는 portable 모드를 추가했습니다.
+- 기본 단축키를 `Ctrl + 0`(환경설정), `Ctrl + -`(수동 번역), `Ctrl + =`(자동 번역) 기준으로 정리하고, 기존 기본값 사용자는 자동 마이그레이션되도록 보강했습니다.
+- README에 OCR 엔진 비교표, 번역 엔진 비교표, 설치 안내, 시스템 요구사항 해석 기준, 2차 개발/검증 환경(노트북)을 추가했습니다.
 
 ### v1.0.31-alpha
 
