@@ -664,7 +664,7 @@ namespace GameTranslator
             _ini.Write("LocalLlmMaxTokens", localLlmMaxTokens.ToString());
             if (TxtLocalLlmMaxTokens != null) TxtLocalLlmMaxTokens.Text = localLlmMaxTokens.ToString();
 
-            _ini.SortSectionKeys("Settings", SettingsService.SettingsSectionKeyOrder);
+            _ini.RewriteManagedSettingsSections();
 
             return true;
         }

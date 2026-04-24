@@ -54,14 +54,21 @@ namespace GameTranslator
         /// </summary>
         public string Read(string Key, string Section = "Settings")
         {
-            // Windows API가 읽어온 글자를 담아둘 255자 크기의 넉넉한 바구니(메모리 공간)를 준비합니다.
-            var RetVal = new StringBuilder(255);
+            if (!string.Equals(Section, SettingsService.LegacySettingsSectionName, StringComparison.OrdinalIgnoreCase))
+            {
+                return ReadExact(Key, Section);
+            }
 
-            // API를 호출하여 값을 찾습니다. 값이 없다면 null을 돌려 기본값 처리가 가능하게 합니다.
-            int length = GetPrivateProfileString(Section, Key, "", RetVal, 255, Path);
+            string mappedSection = ResolveSettingsSection(Key);
+            string mappedValue = ReadExact(Key, mappedSection);
+            if (mappedValue != null)
+            {
+                return mappedValue;
+            }
 
-            // 바구니에 담긴 텍스트를 C#에서 쓸 수 있는 String 형태로 바꿔서 반환합니다.
-            return length == 0 ? null : RetVal.ToString();
+            return string.Equals(mappedSection, SettingsService.LegacySettingsSectionName, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : ReadExact(Key, SettingsService.LegacySettingsSectionName);
         }
 
         // ==========================================
@@ -76,8 +83,70 @@ namespace GameTranslator
         /// </summary>
         public void Write(string Key, string Value, string Section = "Settings")
         {
-            // 지정된 섹션의 키 위치에 새로운 값을 덮어씁니다.
-            WritePrivateProfileString(Section, Key, Value, Path);
+            if (!string.Equals(Section, SettingsService.LegacySettingsSectionName, StringComparison.OrdinalIgnoreCase))
+            {
+                WritePrivateProfileString(Section, Key, Value, Path);
+                return;
+            }
+
+            string mappedSection = ResolveSettingsSection(Key);
+            WritePrivateProfileString(mappedSection, Key, Value, Path);
+
+            if (!string.Equals(mappedSection, SettingsService.LegacySettingsSectionName, StringComparison.OrdinalIgnoreCase))
+            {
+                DeleteKey(SettingsService.LegacySettingsSectionName, Key);
+            }
+        }
+
+        public void RewriteManagedSettingsSections()
+        {
+            if (!File.Exists(Path))
+            {
+                return;
+            }
+
+            string[] lines = File.ReadAllLines(Path);
+            ParseSections(
+                lines,
+                out List<string> preambleLines,
+                out List<IniSectionBlock> sectionBlocks);
+
+            HashSet<string> managedSections = new HashSet<string>(
+                SettingsService.ManagedSettingsSectionOrder.Append(SettingsService.LegacySettingsSectionName),
+                StringComparer.OrdinalIgnoreCase);
+            HashSet<string> managedKeys = new HashSet<string>(SettingsService.SettingsSectionKeyOrder, StringComparer.OrdinalIgnoreCase);
+
+            Dictionary<string, string> legacyUnknownSettings = ReadUnknownLegacySettings(sectionBlocks, managedKeys);
+            Dictionary<string, string> managedValues = ReadManagedSettingsValues(sectionBlocks);
+
+            List<string> rewrittenLines = new List<string>();
+            rewrittenLines.AddRange(preambleLines);
+
+            AppendManagedSections(rewrittenLines, managedValues);
+            AppendLegacyUnknownSettingsSection(rewrittenLines, legacyUnknownSettings);
+
+            foreach (IniSectionBlock block in sectionBlocks)
+            {
+                if (managedSections.Contains(block.SectionName))
+                {
+                    continue;
+                }
+
+                if (rewrittenLines.Count > 0 && !string.IsNullOrWhiteSpace(rewrittenLines[^1]))
+                {
+                    rewrittenLines.Add("");
+                }
+
+                rewrittenLines.Add(block.HeaderLine);
+                rewrittenLines.AddRange(block.ContentLines);
+            }
+
+            while (rewrittenLines.Count > 0 && string.IsNullOrWhiteSpace(rewrittenLines[^1]))
+            {
+                rewrittenLines.RemoveAt(rewrittenLines.Count - 1);
+            }
+
+            File.WriteAllLines(Path, rewrittenLines);
         }
 
         /// <summary>
@@ -236,6 +305,197 @@ namespace GameTranslator
 
             value = trimmed.Substring(separatorIndex + 1);
             return true;
+        }
+
+        private string ReadExact(string key, string section)
+        {
+            var retVal = new StringBuilder(255);
+            int length = GetPrivateProfileString(section, key, "", retVal, 255, Path);
+            return length == 0 ? null : retVal.ToString();
+        }
+
+        private static string ResolveSettingsSection(string key)
+        {
+            SettingsService settingsService = new SettingsService();
+            return settingsService.TryGetSettingsSectionForKey(key, out string section)
+                ? section
+                : SettingsService.LegacySettingsSectionName;
+        }
+
+        private void DeleteKey(string section, string key)
+        {
+            WritePrivateProfileString(section, key, null, Path);
+        }
+
+        private Dictionary<string, string> ReadManagedSettingsValues(IEnumerable<IniSectionBlock> sectionBlocks)
+        {
+            Dictionary<string, Dictionary<string, string>> parsedSections = ParseSectionValues(sectionBlocks);
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string key in SettingsService.SettingsSectionKeyOrder)
+            {
+                string mappedSection = ResolveSettingsSection(key);
+                if (TryGetParsedValue(parsedSections, mappedSection, key, out string value) ||
+                    (!string.Equals(mappedSection, SettingsService.LegacySettingsSectionName, StringComparison.OrdinalIgnoreCase) &&
+                     TryGetParsedValue(parsedSections, SettingsService.LegacySettingsSectionName, key, out value)))
+                {
+                    values[key] = value;
+                }
+            }
+
+            return values;
+        }
+
+        private static Dictionary<string, string> ReadUnknownLegacySettings(
+            IEnumerable<IniSectionBlock> sectionBlocks,
+            ISet<string> managedKeys)
+        {
+            var unknownSettings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            IniSectionBlock settingsBlock = sectionBlocks.FirstOrDefault(block =>
+                string.Equals(block.SectionName, SettingsService.LegacySettingsSectionName, StringComparison.OrdinalIgnoreCase));
+
+            if (settingsBlock == null)
+            {
+                return unknownSettings;
+            }
+
+            foreach (string line in settingsBlock.ContentLines)
+            {
+                if (!TryParseKeyValue(line, out string key, out string value) || managedKeys.Contains(key))
+                {
+                    continue;
+                }
+
+                unknownSettings[key] = value;
+            }
+
+            return unknownSettings;
+        }
+
+        private static void AppendManagedSections(List<string> targetLines, IReadOnlyDictionary<string, string> managedValues)
+        {
+            foreach (string sectionName in SettingsService.ManagedSettingsSectionOrder)
+            {
+                if (!SettingsService.ManagedSettingsSections.TryGetValue(sectionName, out string[] keys))
+                {
+                    continue;
+                }
+
+                List<string> sectionLines = keys
+                    .Where(key => managedValues.TryGetValue(key, out _))
+                    .Select(key => $"{key}={managedValues[key]}")
+                    .ToList();
+
+                if (sectionLines.Count == 0)
+                {
+                    continue;
+                }
+
+                if (targetLines.Count > 0 && !string.IsNullOrWhiteSpace(targetLines[^1]))
+                {
+                    targetLines.Add("");
+                }
+
+                targetLines.Add($"[{sectionName}]");
+                targetLines.AddRange(sectionLines);
+            }
+        }
+
+        private static void AppendLegacyUnknownSettingsSection(List<string> targetLines, IReadOnlyDictionary<string, string> unknownSettings)
+        {
+            if (unknownSettings.Count == 0)
+            {
+                return;
+            }
+
+            if (targetLines.Count > 0 && !string.IsNullOrWhiteSpace(targetLines[^1]))
+            {
+                targetLines.Add("");
+            }
+
+            targetLines.Add($"[{SettingsService.LegacySettingsSectionName}]");
+            foreach (KeyValuePair<string, string> entry in unknownSettings.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                targetLines.Add($"{entry.Key}={entry.Value}");
+            }
+        }
+
+        private static Dictionary<string, Dictionary<string, string>> ParseSectionValues(IEnumerable<IniSectionBlock> sectionBlocks)
+        {
+            var parsedSections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (IniSectionBlock block in sectionBlocks ?? Enumerable.Empty<IniSectionBlock>())
+            {
+                if (!parsedSections.TryGetValue(block.SectionName, out Dictionary<string, string> keyValues))
+                {
+                    keyValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    parsedSections[block.SectionName] = keyValues;
+                }
+
+                foreach (string line in block.ContentLines)
+                {
+                    if (!TryParseKeyValue(line, out string key, out string value))
+                    {
+                        continue;
+                    }
+
+                    keyValues[key] = value;
+                }
+            }
+
+            return parsedSections;
+        }
+
+        private static bool TryGetParsedValue(
+            IReadOnlyDictionary<string, Dictionary<string, string>> parsedSections,
+            string section,
+            string key,
+            out string value)
+        {
+            value = null;
+            return parsedSections.TryGetValue(section, out Dictionary<string, string> keyValues) &&
+                keyValues.TryGetValue(key, out value);
+        }
+
+        private static void ParseSections(
+            IReadOnlyList<string> lines,
+            out List<string> preambleLines,
+            out List<IniSectionBlock> sectionBlocks)
+        {
+            preambleLines = new List<string>();
+            sectionBlocks = new List<IniSectionBlock>();
+
+            IniSectionBlock currentBlock = null;
+            foreach (string line in lines ?? Array.Empty<string>())
+            {
+                if (TryParseSectionHeader(line, out string section))
+                {
+                    currentBlock = new IniSectionBlock(section, line);
+                    sectionBlocks.Add(currentBlock);
+                    continue;
+                }
+
+                if (currentBlock == null)
+                {
+                    preambleLines.Add(line);
+                    continue;
+                }
+
+                currentBlock.ContentLines.Add(line);
+            }
+        }
+
+        private sealed class IniSectionBlock
+        {
+            public IniSectionBlock(string sectionName, string headerLine)
+            {
+                SectionName = sectionName ?? "";
+                HeaderLine = headerLine ?? "";
+                ContentLines = new List<string>();
+            }
+
+            public string SectionName { get; }
+            public string HeaderLine { get; }
+            public List<string> ContentLines { get; }
         }
     }
 }

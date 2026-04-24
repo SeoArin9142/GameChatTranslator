@@ -51,6 +51,126 @@ namespace GameTranslator
         public const string DefaultOcrEngineSelection = "All";
         public const string DefaultAutoCopyTranslationResult = "false";
 
+        public const string LegacySettingsSectionName = "Settings";
+        public const string LanguageSectionName = "Language";
+        public const string TranslationSectionName = "Translation";
+        public const string OcrSectionName = "OCR";
+        public const string DisplaySectionName = "Display";
+        public const string CaptureSectionName = "Capture";
+        public const string WindowSectionName = "Window";
+        public const string HotkeysSectionName = "Hotkeys";
+        public const string GeminiSectionName = "Gemini";
+        public const string LocalLlmSectionName = "LocalLlm";
+        public const string UpdateSectionName = "Update";
+        public const string DebugSectionName = "Debug";
+
+        public static readonly string[] LanguageSectionKeyOrder =
+        {
+            "GameLanguage",
+            "TargetLanguage",
+            "TranslationContentMode"
+        };
+
+        public static readonly string[] TranslationSectionKeyOrder =
+        {
+            "TranslationEngine",
+            "MainOcrEngine",
+            "OcrEngineSelection",
+            "AutoTranslateInterval"
+        };
+
+        public static readonly string[] DisplaySectionKeyOrder =
+        {
+            "Opacity",
+            "ResultDisplayMode",
+            "ResultHistoryLimit",
+            "TranslationResultAutoClearSeconds",
+            "AutoCopyTranslationResult"
+        };
+
+        public static readonly string[] OcrSectionKeyOrder =
+        {
+            "ScaleFactor",
+            "Threshold",
+            "TesseractExePath",
+            "TesseractLanguageCodes",
+            "EasyOcrPythonPath",
+            "EasyOcrLanguageCodes",
+            "PaddleOcrPythonPath",
+            "PaddleOcrLanguageCodes"
+        };
+
+        public static readonly string[] CaptureSectionKeyOrder =
+        {
+            "CaptureX",
+            "CaptureY",
+            "CaptureW",
+            "CaptureH",
+            "CapturePixelX",
+            "CapturePixelY",
+            "CapturePixelW",
+            "CapturePixelH"
+        };
+
+        public static readonly string[] WindowSectionKeyOrder =
+        {
+            "WindowW",
+            "WindowH"
+        };
+
+        public static readonly string[] HotkeysSectionKeyOrder =
+        {
+            "Key_OpenSettings",
+            "Key_Translate",
+            "Key_AutoTranslate",
+            "Key_MoveLock",
+            "Key_AreaSelect",
+            "Key_ToggleEngine",
+            "Key_CopyResult",
+            "Key_LogViewer",
+            "Key_OcrDiagnostic",
+            "Key_HotkeyGuideToggle"
+        };
+
+        public static readonly string[] GeminiSectionKeyOrder =
+        {
+            "GeminiKey",
+            "GeminiModel"
+        };
+
+        public static readonly string[] LocalLlmSectionKeyOrder =
+        {
+            "LocalLlmEndpoint",
+            "LocalLlmModel",
+            "LocalLlmTimeoutSeconds",
+            "LocalLlmMaxTokens"
+        };
+
+        public static readonly string[] UpdateSectionKeyOrder =
+        {
+            "CheckUpdatesOnStartup"
+        };
+
+        public static readonly string[] DebugSectionKeyOrder =
+        {
+            "SaveDebugImages"
+        };
+
+        public static readonly string[] ManagedSettingsSectionOrder =
+        {
+            LanguageSectionName,
+            TranslationSectionName,
+            OcrSectionName,
+            DisplaySectionName,
+            CaptureSectionName,
+            WindowSectionName,
+            HotkeysSectionName,
+            GeminiSectionName,
+            LocalLlmSectionName,
+            UpdateSectionName,
+            DebugSectionName
+        };
+
         public static readonly string[] SettingsSectionKeyOrder =
         {
             "GameLanguage",
@@ -59,14 +179,14 @@ namespace GameTranslator
             "TranslationEngine",
             "MainOcrEngine",
             "OcrEngineSelection",
+            "AutoTranslateInterval",
+            "ScaleFactor",
+            "Threshold",
             "Opacity",
             "ResultDisplayMode",
             "ResultHistoryLimit",
             "TranslationResultAutoClearSeconds",
             "AutoCopyTranslationResult",
-            "AutoTranslateInterval",
-            "ScaleFactor",
-            "Threshold",
             "CaptureX",
             "CaptureY",
             "CaptureW",
@@ -99,9 +219,25 @@ namespace GameTranslator
             "LocalLlmModel",
             "LocalLlmTimeoutSeconds",
             "LocalLlmMaxTokens",
-            "SaveDebugImages",
-            "CheckUpdatesOnStartup"
+            "CheckUpdatesOnStartup",
+            "SaveDebugImages"
         };
+
+        public static readonly IReadOnlyDictionary<string, string[]> ManagedSettingsSections =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                [LanguageSectionName] = LanguageSectionKeyOrder,
+                [TranslationSectionName] = TranslationSectionKeyOrder,
+                [OcrSectionName] = OcrSectionKeyOrder,
+                [DisplaySectionName] = DisplaySectionKeyOrder,
+                [CaptureSectionName] = CaptureSectionKeyOrder,
+                [WindowSectionName] = WindowSectionKeyOrder,
+                [HotkeysSectionName] = HotkeysSectionKeyOrder,
+                [GeminiSectionName] = GeminiSectionKeyOrder,
+                [LocalLlmSectionName] = LocalLlmSectionKeyOrder,
+                [UpdateSectionName] = UpdateSectionKeyOrder,
+                [DebugSectionName] = DebugSectionKeyOrder
+            };
 
         /// <summary>
         /// Gemini API 키를 선택합니다.
@@ -120,6 +256,26 @@ namespace GameTranslator
             }
 
             return new GeminiKeySelection("", false);
+        }
+
+        public bool TryGetSettingsSectionForKey(string key, out string section)
+        {
+            section = LegacySettingsSectionName;
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+
+            foreach (KeyValuePair<string, string[]> entry in ManagedSettingsSections)
+            {
+                if (entry.Value.Contains(key, StringComparer.OrdinalIgnoreCase))
+                {
+                    section = entry.Key;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

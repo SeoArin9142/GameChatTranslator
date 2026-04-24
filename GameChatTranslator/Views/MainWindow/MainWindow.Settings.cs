@@ -61,6 +61,7 @@ namespace GameTranslator
         /// </summary>
         private void AppendDataStorageStartupLog(AppDataMigrationSummary migrationSummary)
         {
+            AppendLog($"사용자 데이터 모드: {(appDataPaths.IsPortableMode ? "Portable (실행 폴더)" : "LocalAppData")}");
             AppendLog($"사용자 데이터 폴더: {appDataPaths.RootDirectory}");
             AppendLog($"설정 파일: {appDataPaths.ConfigFilePath}");
 
@@ -179,7 +180,7 @@ namespace GameTranslator
             EnsureNormalizedSetting("AutoCopyTranslationResult", settingsService.IsEnabled(ini.Read("AutoCopyTranslationResult"))
                 ? "true"
                 : SettingsService.DefaultAutoCopyTranslationResult);
-            ini.SortSectionKeys("Settings", SettingsService.SettingsSectionKeyOrder);
+            ini.RewriteManagedSettingsSections();
         }
 
         /// <summary>

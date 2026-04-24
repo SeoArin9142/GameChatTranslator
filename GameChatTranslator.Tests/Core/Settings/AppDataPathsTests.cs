@@ -112,6 +112,29 @@ namespace GameChatTranslator.Tests
             }
         }
 
+        [Fact]
+        public void Constructor_UsesInstallDirectoryWhenPortableConfigExists()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string installDirectory = Path.Combine(tempRoot, "install");
+                Directory.CreateDirectory(installDirectory);
+                File.WriteAllText(Path.Combine(installDirectory, "config.ini"), "[Language]\nGameLanguage=ko");
+
+                var paths = new AppDataPaths(installDirectory);
+
+                Assert.True(paths.IsPortableMode);
+                Assert.Equal(installDirectory, paths.RootDirectory);
+                Assert.Equal(Path.Combine(installDirectory, "config.ini"), paths.ConfigFilePath);
+                Assert.Equal(Path.Combine(installDirectory, "logs"), paths.LogsDirectory);
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+
         private static string CreateTempDirectory()
         {
             string path = Path.Combine(Path.GetTempPath(), "gct-tests-" + Guid.NewGuid().ToString("N"));
