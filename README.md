@@ -29,7 +29,7 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
    - `Setup.exe`를 명령줄로 실행하는 경우 `GameChatTranslator-win-Setup.exe --installto D:\Apps\GameChatTranslator` 형식으로 경로를 지정할 수 있습니다.
    - 설치형 배포가 아직 없거나 수동 실행이 필요하면 ZIP 파일을 내려받아 압축을 풉니다.
    - 설치형으로 설치한 경우 이후 업데이트 확인 시 새 버전을 앱에서 바로 적용할 수 있습니다.
-2. `LangInstall.bat`를 **관리자 권한**으로 실행해 필요한 Windows OCR 언어팩을 설치합니다.
+2. 기본 메인 OCR은 Windows OCR이므로 `LangInstall.bat`를 **관리자 권한**으로 실행해 필요한 Windows OCR 언어팩을 설치합니다.
    - 선택 가능: 영어, 일본어, 중국어 간체, 러시아어
 3. 언어팩 설치 후 Windows를 재부팅합니다.
 4. `GameChatTranslator.exe`를 실행하고 UAC 관리자 권한 요청을 승인합니다.
@@ -104,6 +104,98 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 | GPU | 게임을 안정적으로 실행할 수 있는 외장 GPU |
 | Local LLM | 7B~9B Q4/Q5 모델 기준 VRAM 8GB 이상 권장 |
 | 디스플레이 | 1920 x 1080 이상, 멀티모니터 권장 |
+
+## OCR 엔진별 설치 안내
+
+GameChatTranslator는 OCR 엔진별로 필요한 설치 조건이 다릅니다.
+
+### 1. Windows OCR
+
+용도:
+- 기본 메인 번역 OCR
+- 설치 직후 가장 먼저 동작해야 하는 기본 경로
+
+필요한 것:
+- Windows OCR 지원 OS
+- `LangInstall.bat`로 필요한 OCR 언어팩 설치
+- 설치 후 재부팅
+
+설치 방법:
+```text
+1. LangInstall.bat 관리자 권한 실행
+2. 필요한 OCR 언어 선택/설치
+3. Windows 재부팅
+```
+
+주의:
+- 메인 번역 경로에서 기본값입니다.
+- 언어팩이 없으면 OCR 결과가 비거나 언어별 인식이 제한됩니다.
+
+### 2. Tesseract
+
+용도:
+- 메인 번역용 대체 OCR
+- Windows OCR과 런타임 전환 가능
+
+필요한 것:
+- `tesseract.exe` 설치
+- 언어 데이터(`eng`, `kor`, `jpn`, `chi_sim` 등) 설치
+- 필요 시 `config.ini`의 `TesseractExePath` 지정
+
+확인 포인트:
+```text
+- PATH에서 tesseract 실행 가능
+또는
+- config.ini의 TesseractExePath에 실행 파일 경로 지정
+```
+
+주의:
+- 설치되어 있지 않거나 실패하면 Windows OCR로 자동 fallback 됩니다.
+- 현재 메인 번역 경로에 실제 연결된 외부 OCR은 Tesseract만 지원합니다.
+
+### 3. EasyOCR
+
+용도:
+- OCR 진단 화면 비교용
+- 메인 번역 경로에는 아직 미연결
+
+필요한 것:
+- Python 실행 환경
+- `torch`
+- `torchvision`
+- `easyocr`
+
+설치 예시:
+```bash
+py -m pip install torch torchvision easyocr
+```
+
+주의:
+- 메인 번역 경로에는 사용되지 않습니다.
+- 현재는 OCR 진단 점수 비교용 엔진입니다.
+- Python 실행 파일은 `EasyOcrPythonPath`로 바꿀 수 있습니다.
+
+### 4. PaddleOCR
+
+용도:
+- OCR 진단 화면 비교용
+- 메인 번역 경로에는 아직 미연결
+
+필요한 것:
+- Python 실행 환경
+- `paddlepaddle`
+- `paddleocr`
+
+설치 예시:
+```bash
+py -m pip install paddlepaddle
+py -m pip install "paddleocr[all]"
+```
+
+주의:
+- 메인 번역 경로에는 사용되지 않습니다.
+- 현재는 OCR 진단 점수 비교용 엔진입니다.
+- Python 실행 파일은 `PaddleOcrPythonPath`로 바꿀 수 있습니다.
 
 ## 기본 사용 흐름
 
