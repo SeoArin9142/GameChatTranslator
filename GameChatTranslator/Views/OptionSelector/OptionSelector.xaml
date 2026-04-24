@@ -292,6 +292,19 @@
 
                     <GroupBox Header="OCR 테스트 / 진단" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
+                            <TextBlock Text="메인 번역용 OCR 엔진:"
+                                       Margin="0,0,0,5"
+                                       Foreground="#CCC"/>
+                            <ComboBox x:Name="ComboMainOcrEngine" Height="24" Margin="0,0,0,6" Background="#333" Foreground="Black">
+                                <ComboBoxItem Content="Windows OCR (기본)" Tag="WindowsOcr"/>
+                                <ComboBoxItem Content="Tesseract (실험)" Tag="Tesseract"/>
+                            </ComboBox>
+                            <TextBlock Text="현재 메인 번역 경로는 Windows OCR/Tesseract만 연결되어 있습니다. EasyOCR/PaddleOCR는 같은 구조로 추후 추가할 수 있게 준비합니다."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10"
+                                       Foreground="#AFAFAF"
+                                       FontSize="11"/>
+
                             <TextBlock Text="진단 점수에 사용할 OCR 엔진:"
                                        Margin="0,0,0,5"
                                        Foreground="#CCC"/>

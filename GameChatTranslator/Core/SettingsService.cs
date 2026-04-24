@@ -34,6 +34,7 @@ namespace GameTranslator
         public const string DefaultPaddleOcrPythonPath = "python";
         public const string DefaultPaddleOcrLanguageCodes = "en+korean+japan+ch";
         public const string DefaultTranslationEngine = "Google";
+        public const string DefaultMainOcrEngine = "WindowsOcr";
         public const string DefaultTranslationContentMode = "Strinova";
         public const string DefaultResultDisplayMode = "Latest";
 
@@ -190,6 +191,61 @@ namespace GameTranslator
                 TranslationEngineMode.Gemini => "Gemini",
                 TranslationEngineMode.LocalLlm => "LocalLlm",
                 _ => DefaultTranslationEngine
+            };
+        }
+
+        /// <summary>
+        /// 메인 번역 파이프라인에서 사용할 OCR 엔진 단일 선택값을 앱 내부 enum으로 변환합니다.
+        /// 현재 UI는 Windows OCR/Tesseract만 노출하지만, EasyOCR/PaddleOCR 추가를 고려해 enum은 미리 열어둡니다.
+        /// </summary>
+        public MainOcrEngine NormalizeMainOcrEngine(string value)
+        {
+            string normalized = (value ?? "").Trim();
+            if (normalized.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                return MainOcrEngine.Tesseract;
+            }
+
+            if (normalized.Equals("EasyOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("EasyOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return MainOcrEngine.EasyOcr;
+            }
+
+            if (normalized.Equals("PaddleOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("PaddleOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return MainOcrEngine.PaddleOcr;
+            }
+
+            return MainOcrEngine.WindowsOcr;
+        }
+
+        /// <summary>
+        /// 메인 번역용 OCR 엔진 enum을 config.ini에 저장할 문자열로 변환합니다.
+        /// </summary>
+        public string GetMainOcrEngineTag(MainOcrEngine engine)
+        {
+            return engine switch
+            {
+                MainOcrEngine.Tesseract => "Tesseract",
+                MainOcrEngine.EasyOcr => "EasyOcr",
+                MainOcrEngine.PaddleOcr => "PaddleOcr",
+                _ => DefaultMainOcrEngine
+            };
+        }
+
+        /// <summary>
+        /// 메인 번역용 OCR 엔진 enum을 사용자 표시명으로 변환합니다.
+        /// </summary>
+        public string GetMainOcrEngineDisplayName(MainOcrEngine engine)
+        {
+            return engine switch
+            {
+                MainOcrEngine.Tesseract => "Tesseract",
+                MainOcrEngine.EasyOcr => "EasyOCR",
+                MainOcrEngine.PaddleOcr => "PaddleOCR",
+                _ => "Windows OCR"
             };
         }
 
@@ -559,6 +615,18 @@ namespace GameTranslator
     public enum ConfiguredOcrEngine
     {
         All,
+        WindowsOcr,
+        Tesseract,
+        EasyOcr,
+        PaddleOcr
+    }
+
+    /// <summary>
+    /// 메인 번역 파이프라인에서 실제 OCR에 사용할 엔진 단일 선택값입니다.
+    /// 진단용 다중 선택과 분리해, 런타임에서는 하나의 엔진만 고르게 합니다.
+    /// </summary>
+    public enum MainOcrEngine
+    {
         WindowsOcr,
         Tesseract,
         EasyOcr,

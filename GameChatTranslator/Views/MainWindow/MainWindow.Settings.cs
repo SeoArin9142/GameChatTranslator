@@ -113,6 +113,7 @@ namespace GameTranslator
             EnsureNormalizedSetting("EasyOcrLanguageCodes", settingsService.NormalizeEasyOcrLanguageCodes(ini.Read("EasyOcrLanguageCodes")));
             EnsureNormalizedSetting("PaddleOcrPythonPath", settingsService.NormalizePaddleOcrPythonPath(ini.Read("PaddleOcrPythonPath")));
             EnsureNormalizedSetting("PaddleOcrLanguageCodes", settingsService.NormalizePaddleOcrLanguageCodes(ini.Read("PaddleOcrLanguageCodes")));
+            EnsureNormalizedSetting("MainOcrEngine", settingsService.GetMainOcrEngineTag(settingsService.NormalizeMainOcrEngine(ini.Read("MainOcrEngine"))));
 
             if (string.IsNullOrWhiteSpace(ini.Read("SaveDebugImages")))
             {
@@ -236,6 +237,15 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 메인 번역 파이프라인에서 사용할 OCR 엔진 단일 선택값을 읽습니다.
+        /// 현재는 Windows OCR/Tesseract를 우선 지원하고, EasyOCR/PaddleOCR는 같은 슬롯에 후속 추가할 수 있게 유지합니다.
+        /// </summary>
+        private MainOcrEngine ReadMainOcrEngine()
+        {
+            return settingsService.NormalizeMainOcrEngine(ini.Read("MainOcrEngine"));
+        }
+
+        /// <summary>
         /// 번역 결과를 매번 클립보드에 자동 복사할지 읽습니다.
         /// 기본값은 OFF이며, 설정창에서 켠 경우에만 동작합니다.
         /// </summary>
@@ -254,6 +264,8 @@ namespace GameTranslator
         {
             gameLang = ini.Read("GameLanguage") ?? "ko";
             targetLang = ini.Read("TargetLanguage") ?? "ko";
+            currentMainOcrEngine = ReadMainOcrEngine();
+            lastMainOcrFallbackNotice = "";
 
             TranslationEngineMode configuredEngine = ReadTranslationEngineMode();
             string geminiKey = ReadGeminiKey();
