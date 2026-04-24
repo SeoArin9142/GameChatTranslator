@@ -25,7 +25,6 @@ namespace GameTranslator
         private readonly Queue<string> standardErrorLines = new Queue<string>();
 
         private Process process;
-        private Task standardErrorPumpTask = Task.CompletedTask;
         private bool isWarm;
         private bool disposed;
 
@@ -104,7 +103,9 @@ namespace GameTranslator
                     return PersistentPythonOcrWorkerResult.CreateSuccess(
                         responseLine,
                         GetCapturedStandardErrorText(),
-                        usedInitializationTimeout);
+                        usedInitializationTimeout,
+                        startedNow,
+                        false);
                 }
                 catch (TimeoutException)
                 {
@@ -113,7 +114,8 @@ namespace GameTranslator
                     return PersistentPythonOcrWorkerResult.CreateFailure(
                         $"Python 워커 응답이 {effectiveTimeoutMs}ms 안에 도착하지 않았습니다.",
                         standardError,
-                        timedOut: true);
+                        timedOut: true,
+                        restartedWorker: true);
                 }
                 catch (Win32Exception)
                 {
@@ -121,13 +123,14 @@ namespace GameTranslator
                     return PersistentPythonOcrWorkerResult.CreateFailure(
                         "python 또는 py 실행 파일을 찾지 못했습니다.",
                         isPythonMissing: true,
-                        standardError: GetCapturedStandardErrorText());
+                        standardError: GetCapturedStandardErrorText(),
+                        restartedWorker: true);
                 }
                 catch (Exception ex)
                 {
                     string standardError = GetCapturedStandardErrorText();
                     RestartProcess();
-                    return PersistentPythonOcrWorkerResult.CreateFailure(ex.Message, standardError);
+                    return PersistentPythonOcrWorkerResult.CreateFailure(ex.Message, standardError, restartedWorker: true);
                 }
             }
             finally
@@ -197,7 +200,7 @@ namespace GameTranslator
                 }
 
                 isWarm = false;
-                standardErrorPumpTask = PumpStandardErrorAsync(process);
+                _ = PumpStandardErrorAsync(process);
                 return true;
             }
         }
@@ -333,7 +336,9 @@ namespace GameTranslator
             string standardError,
             bool isPythonMissing,
             bool timedOut,
-            bool usedInitializationTimeout)
+            bool usedInitializationTimeout,
+            bool startedWorker,
+            bool restartedWorker)
         {
             Success = success;
             ResponseJson = responseJson ?? "";
@@ -342,6 +347,8 @@ namespace GameTranslator
             IsPythonMissing = isPythonMissing;
             TimedOut = timedOut;
             UsedInitializationTimeout = usedInitializationTimeout;
+            StartedWorker = startedWorker;
+            RestartedWorker = restartedWorker;
         }
 
         public bool Success { get; }
@@ -351,11 +358,15 @@ namespace GameTranslator
         public bool IsPythonMissing { get; }
         public bool TimedOut { get; }
         public bool UsedInitializationTimeout { get; }
+        public bool StartedWorker { get; }
+        public bool RestartedWorker { get; }
 
         public static PersistentPythonOcrWorkerResult CreateSuccess(
             string responseJson,
             string standardError,
-            bool usedInitializationTimeout)
+            bool usedInitializationTimeout,
+            bool startedWorker,
+            bool restartedWorker)
         {
             return new PersistentPythonOcrWorkerResult(
                 true,
@@ -364,14 +375,17 @@ namespace GameTranslator
                 standardError,
                 false,
                 false,
-                usedInitializationTimeout);
+                usedInitializationTimeout,
+                startedWorker,
+                restartedWorker);
         }
 
         public static PersistentPythonOcrWorkerResult CreateFailure(
             string errorMessage,
             string standardError = "",
             bool isPythonMissing = false,
-            bool timedOut = false)
+            bool timedOut = false,
+            bool restartedWorker = false)
         {
             return new PersistentPythonOcrWorkerResult(
                 false,
@@ -380,7 +394,9 @@ namespace GameTranslator
                 standardError,
                 isPythonMissing,
                 timedOut,
-                false);
+                false,
+                false,
+                restartedWorker);
         }
     }
 }

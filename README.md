@@ -180,6 +180,8 @@ py -m pip install torch torchvision easyocr
 
 주의:
 - 메인 번역 경로에서 선택할 수 있습니다.
+- 현재는 resident worker를 lazy init으로 사용합니다. 첫 요청은 Python 기동과 모델 로딩 때문에 느릴 수 있지만, 이후 요청은 같은 워커를 재사용합니다.
+- 워커가 timeout 또는 비정상 종료되면 자동 재기동 후 다음 요청부터 복구를 시도합니다.
 - 메인 번역에서 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다.
 - OCR 진단 점수 비교용 엔진으로도 계속 사용할 수 있습니다.
 - Python 실행 파일은 `EasyOcrPythonPath`로 바꿀 수 있습니다.
@@ -203,6 +205,8 @@ py -m pip install "paddleocr[all]"
 
 주의:
 - 메인 번역 경로에서 선택할 수 있습니다.
+- 현재는 resident worker를 lazy init으로 사용합니다. 첫 요청은 Python 기동과 모델 로딩 때문에 느릴 수 있지만, 이후 요청은 같은 워커를 재사용합니다.
+- 워커가 timeout 또는 비정상 종료되면 자동 재기동 후 다음 요청부터 복구를 시도합니다.
 - 메인 번역에서 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다.
 - OCR 진단 점수 비교용 엔진으로도 계속 사용할 수 있습니다.
 - Python 실행 파일은 `PaddleOcrPythonPath`로 바꿀 수 있습니다.
@@ -247,8 +251,35 @@ py -m pip install "paddleocr[all]"
 |:---|:---|:---|:---|:---|:---|
 | Windows OCR | 기본 경로 | Windows OCR 언어팩 | 빠름 | 설치만 끝나면 바로 동작, 앱 내부 의존성 적음 | 언어팩 설치/재부팅 필요, 난잡한 배경에서는 인식률 한계가 있음 |
 | Tesseract | 선택 가능 | `tesseract.exe`, 언어 데이터 | 중간 | 외부 의존성이 단순하고 fallback 체인 중간 단계로 안정적 | 언어 데이터 품질 영향이 크고, Windows OCR보다 느릴 수 있음 |
-| EasyOCR | 선택 가능 | Python, `torch`, `torchvision`, `easyocr` | 느림 | 난잡한 채팅 이미지나 일부 폰트에서 강한 경우가 있음 | Python 기동 비용이 크고, 현재는 실험 기능 성격이 강함 |
-| PaddleOCR | 선택 가능 | Python, `paddlepaddle`, `paddleocr` | 느림 | 중국어 계열이나 특정 UI 폰트에서 강한 경우가 있음 | Python 기동 비용이 크고, 설치 의존성이 가장 무거운 편 |
+| EasyOCR | 선택 가능 | Python, `torch`, `torchvision`, `easyocr` | 느림 | 난잡한 채팅 이미지나 일부 폰트에서 강한 경우가 있음 | 첫 요청은 느릴 수 있지만 resident worker 재사용으로 이후 호출 부담이 줄어듦 |
+| PaddleOCR | 선택 가능 | Python, `paddlepaddle`, `paddleocr` | 느림 | 중국어 계열이나 특정 UI 폰트에서 강한 경우가 있음 | 첫 요청은 느릴 수 있지만 resident worker 재사용으로 이후 호출 부담이 줄어듦. 설치 의존성은 가장 무거운 편 |
+
+### 4-1. EasyOCR / PaddleOCR resident worker
+
+현재 EasyOCR / PaddleOCR는 매 요청마다 Python을 새로 종료/실행하지 않고, 엔진별 resident worker를 lazy init으로 띄운 뒤 재사용합니다.
+
+핵심 동작:
+```text
+- 첫 요청: Python 기동 + 모델 로딩 때문에 상대적으로 느릴 수 있음
+- 이후 요청: 같은 워커를 재사용
+- timeout 또는 비정상 종료: 워커를 자동 재기동하고 기존 fallback 체인 유지
+- stdout: JSON 응답 전용
+- stderr: 앱 세션 로그에 요약 기록
+```
+
+현재 1차 구현 범위:
+```text
+- PNG 임시 파일 전달 유지
+- 엔진별 별도 워커
+- 순차 blocking 요청
+```
+
+추가 검토 항목:
+```text
+- PNG 파일 대신 메모리 직접 전달
+- worker 상태 가시화 확대
+- 비동기 큐/병렬 처리
+```
 
 ### 5. 번역 엔진 선택
 

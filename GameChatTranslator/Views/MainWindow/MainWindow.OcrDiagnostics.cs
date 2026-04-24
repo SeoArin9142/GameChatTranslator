@@ -372,6 +372,14 @@ namespace GameTranslator
                         configuredLanguageCodes,
                         gameLang,
                         EasyOcrDiagnosticTimeoutMs));
+                AppendOcrWorkerStatusLog(
+                    "EasyOCR",
+                    batchResult.UsedResidentWorker,
+                    batchResult.StartedWorker,
+                    batchResult.RestartedWorker,
+                    batchResult.UsedInitializationTimeout,
+                    batchResult.TimedOut,
+                    batchResult.StandardError);
                 stopwatch.Stop();
                 totalElapsedMs += stopwatch.ElapsedMilliseconds;
                 totalCallCount += batchResult.LanguageCombinations.Count;
@@ -504,6 +512,14 @@ namespace GameTranslator
                         configuredLanguageCodes,
                         gameLang,
                         PaddleOcrDiagnosticTimeoutMs));
+                AppendOcrWorkerStatusLog(
+                    "PaddleOCR",
+                    batchResult.UsedResidentWorker,
+                    batchResult.StartedWorker,
+                    batchResult.RestartedWorker,
+                    batchResult.UsedInitializationTimeout,
+                    batchResult.TimedOut,
+                    batchResult.StandardError);
                 stopwatch.Stop();
                 totalElapsedMs += stopwatch.ElapsedMilliseconds;
                 totalCallCount += batchResult.ImageResults.Sum(image => image.GroupResults.Count);

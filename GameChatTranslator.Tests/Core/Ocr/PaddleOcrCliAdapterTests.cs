@@ -162,5 +162,32 @@ namespace GameChatTranslator.Tests
             Assert.Equal("korean", group.LanguageCodes);
             Assert.Equal("테스트", Assert.Single(group.Lines).Text);
         }
+
+        [Fact]
+        public void CreateSuccess_PreservesResidentWorkerMetadata()
+        {
+            PaddleOcrCliBatchResult result = PaddleOcrCliBatchResult.CreateSuccess(
+                "python",
+                new[] { "korean" },
+                new[]
+                {
+                    new PaddleOcrCliImageResult(0, new[]
+                    {
+                        new PaddleOcrCliGroupResult("korean", true, new[] { new OcrLine { Text = "테스트" } }, "")
+                    })
+                },
+                standardError: "stderr",
+                usedResidentWorker: true,
+                startedWorker: true,
+                restartedWorker: false,
+                usedInitializationTimeout: true);
+
+            Assert.True(result.UsedResidentWorker);
+            Assert.True(result.StartedWorker);
+            Assert.False(result.RestartedWorker);
+            Assert.True(result.UsedInitializationTimeout);
+            Assert.False(result.TimedOut);
+            Assert.Equal("stderr", result.StandardError);
+        }
     }
 }
