@@ -96,6 +96,9 @@ portable 모드: 실행 파일 폴더
 | 저장공간 | 1GB 이상 |
 | 디스플레이 | 1920 x 1080 이상 권장 |
 
+위 최소사양은 **Windows OCR 또는 Tesseract 기반의 기본 번역 경로**를 기준으로 합니다.
+EasyOCR / PaddleOCR를 메인 OCR 또는 진단용으로 자주 사용할 경우에는 Python 런타임과 추가 패키지 로딩 비용 때문에 권장사양 이상을 기준으로 보는 편이 맞습니다.
+
 ### 권장사양
 
 | 항목 | 기준 |
@@ -106,6 +109,9 @@ portable 모드: 실행 파일 폴더
 | GPU | 게임을 안정적으로 실행할 수 있는 외장 GPU |
 | Local LLM | 7B~9B Q4/Q5 모델 기준 VRAM 8GB 이상 권장 |
 | 디스플레이 | 1920 x 1080 이상, 멀티모니터 권장 |
+
+현재 권장사양은 **4개 OCR 엔진 비교, EasyOCR / PaddleOCR 실사용, Local LLM 연결 테스트**까지 포함한 기준으로는 그대로 유지해도 됩니다.
+다만 Google / Gemini + Windows OCR만 사용할 경우에는 실제 요구 사양이 이보다 낮아도 동작할 수 있습니다.
 
 ## OCR 엔진별 설치 안내
 
@@ -443,6 +449,8 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 
 아래 사양은 개발자가 빌드, 게시, 실사용 테스트에 사용한 기준 시스템입니다. 최소/권장사양이 아닙니다.
 
+### 환경 A - 데스크톱
+
 | 항목 | 사양 |
 |:---|:---|
 | OS | Windows 11 Pro 64-bit, Build 26200 |
@@ -454,6 +462,22 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | DirectX | DirectX 12 |
 | 주 모니터 | 2560 x 1440, 180Hz |
 | 보조 모니터 | 1920 x 1080, 240Hz |
+
+### 환경 B - 노트북
+
+| 항목 | 사양 |
+|:---|:---|
+| 모델 | ASUS TUF Gaming A18 FA808UP |
+| OS | Windows 11 Pro 64-bit, Build 26200 |
+| 개발 도구 | Visual Studio 2026 Community |
+| 대상 런타임 | .NET 8 / WPF / Windows Forms |
+| CPU | AMD Ryzen 7 260 w/ Radeon 780M Graphics, 8코어 16스레드 |
+| 메모리 | 32GB RAM |
+| dGPU | NVIDIA GeForce RTX 5070 Laptop GPU, VRAM 8GB |
+| iGPU | AMD Radeon 780M Graphics |
+| DirectX | DirectX 12 |
+| 내장 디스플레이 | 1920 x 1200, 144Hz |
+| 외부 디스플레이 테스트 | 1920 x 1080, 60Hz |
 
 CPU-Z / DxDiag 원본에는 PC 이름, 장치 식별자 등 민감할 수 있는 항목이 포함될 수 있으므로 저장소에는 원본 텍스트를 보관하지 않습니다.
 
