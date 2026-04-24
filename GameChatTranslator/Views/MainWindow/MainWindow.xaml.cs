@@ -122,7 +122,7 @@ namespace GameTranslator
 
             autoTranslateTimer = new DispatcherTimer();
             autoTranslateTimer.Interval = TimeSpan.FromSeconds(intervalSeconds);
-            autoTranslateTimer.Tick += (s, e) => { if (!isTranslating) runTranslation(GetCurrentOcrProcessingMode()); };
+            autoTranslateTimer.Tick += (s, e) => { if (!isTranslating) _ = runTranslationAsync(GetCurrentOcrProcessingMode()); };
 
             string[] tags = { "ko", "en-US", "zh-Hans-CN", "ja", "ru" };
             foreach (var tag in tags)
