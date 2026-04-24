@@ -10,7 +10,7 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.32-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.32-alpha/GameChatTranslator_v1.0.32-alpha.zip)
+[GameChatTranslator v1.0.33-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.33-alpha/GameChatTranslator_v1.0.33-alpha.zip)
 
 릴리즈 페이지:
 
@@ -534,8 +534,8 @@ dotnet build GameChatTranslator.sln -c Release -p:EnableWindowsTargeting=true
 릴리즈는 태그 push 시 GitHub Actions가 자동으로 수행합니다.
 
 ```bash
-git tag v1.0.32-alpha
-git push origin v1.0.32-alpha
+git tag v1.0.33-alpha
+git push origin v1.0.33-alpha
 ```
 
 자동 릴리즈는 win-x64 self-contained publish 뒤 Velopack Setup.exe / nupkg / releases.win.json 과 ZIP / SHA256 생성, GitHub Release asset 업로드까지 진행합니다.
@@ -547,6 +547,16 @@ git push origin v1.0.32-alpha
 스트리노바 유저분들의 피드백은 GitHub **Issues** 탭에 남겨주세요.
 
 ## 업데이트 내역
+
+### v1.0.33-alpha
+
+이번 버전에서는 OCR 중복 번역 방지, resident worker 안정화, 자동 번역 queue 정책 개선을 묶어 반영했습니다.
+
+- OCR 결과가 한두 글자만 흔들려도 같은 문장을 반복 번역하던 문제를 줄이기 위해 fuzzy dedupe를 추가했습니다.
+- EasyOCR / PaddleOCR를 resident worker로 유지하고, worker 상태 로그와 재기동 흐름을 보강했습니다.
+- EasyOCR / PaddleOCR worker를 engine/pythonPath 기준 static 공유 풀로 관리해 어댑터 인스턴스 중복 worker 생성을 막았습니다.
+- 자동 번역 경로에 latest-only queue를 추가해, 번역 실행 중 새 요청이 몰려도 최신 요청 1개만 대기하도록 정리했습니다.
+- README에 resident worker 동작, 2차 개선 검토 문서, 상태 로그 관련 안내를 보강했습니다.
 
 ### v1.0.32-alpha
 
