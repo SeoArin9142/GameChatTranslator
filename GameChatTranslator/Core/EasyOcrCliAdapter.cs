@@ -19,6 +19,7 @@ namespace GameTranslator
     [SupportedOSPlatform("windows")]
     public sealed class EasyOcrCliAdapter : IDisposable
     {
+        private const string EngineType = "easyocr";
         private const string RunnerFileName = "easyocr_runner.py";
         private readonly Dictionary<string, PersistentPythonOcrWorkerLease> workerLeaseByPythonPath = new Dictionary<string, PersistentPythonOcrWorkerLease>(StringComparer.OrdinalIgnoreCase);
         private readonly object workerSync = new object();
@@ -577,7 +578,7 @@ namespace GameTranslator
             {
                 if (!workerLeaseByPythonPath.TryGetValue(pythonExecutablePath, out PersistentPythonOcrWorkerLease workerLease))
                 {
-                    workerLease = PersistentPythonOcrWorkerRegistry.Acquire(RunnerFileName, pythonExecutablePath, runnerScriptPath);
+                    workerLease = PersistentPythonOcrWorkerRegistry.Acquire(EngineType, pythonExecutablePath, runnerScriptPath);
                     workerLeaseByPythonPath.Add(pythonExecutablePath, workerLease);
                 }
 
