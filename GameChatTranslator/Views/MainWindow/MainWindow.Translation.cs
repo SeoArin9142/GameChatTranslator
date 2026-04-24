@@ -61,6 +61,28 @@ namespace GameTranslator
             public string ErrorMessage { get; set; } = "";
         }
 
+        private sealed class TranslationCaptureFrame : IDisposable
+        {
+            public TranslationCaptureFrame(Bitmap rawBitmap, Bitmap resizedBitmap, long captureMs, long resizeMs)
+            {
+                RawBitmap = rawBitmap;
+                ResizedBitmap = resizedBitmap;
+                CaptureMs = captureMs;
+                ResizeMs = resizeMs;
+            }
+
+            public Bitmap RawBitmap { get; }
+            public Bitmap ResizedBitmap { get; }
+            public long CaptureMs { get; }
+            public long ResizeMs { get; }
+
+            public void Dispose()
+            {
+                ResizedBitmap.Dispose();
+                RawBitmap.Dispose();
+            }
+        }
+
         /// <summary>
         /// Ctrl+=으로 순환되는 자동 번역 상태입니다.
         /// Off는 타이머 정지, Fast/Auto/Accurate는 각각 속도/균형/정확도 우선 OCR 전략입니다.
@@ -89,7 +111,7 @@ namespace GameTranslator
 
             if (isAutoTranslating)
             {
-                runTranslation(GetCurrentOcrProcessingMode());
+                _ = runTranslationAsync(GetCurrentOcrProcessingMode());
                 autoTranslateTimer.Start();
             }
             else
@@ -348,14 +370,14 @@ namespace GameTranslator
         /// </summary>
         private void runTranslation()
         {
-            runTranslation(OcrProcessingMode.Accurate);
+            _ = runTranslationAsync(OcrProcessingMode.Accurate);
         }
 
         /// <summary>
         /// 화면 캡처부터 OCR, 번역 API 호출, 번역창 출력까지 한 번의 번역 사이클을 수행합니다.
         /// <paramref name="processingMode"/>는 이번 실행에서 사용할 OCR 전처리/언어 후보 전략입니다.
         /// </summary>
-        private async void runTranslation(OcrProcessingMode processingMode)
+        private async Task runTranslationAsync(OcrProcessingMode processingMode)
         {
             if (isTranslating || gameChatArea == Rectangle.Empty) return;
             isTranslating = true;
@@ -368,41 +390,18 @@ namespace GameTranslator
             int threshold = SettingsValueNormalizer.NormalizeThreshold(ini.Read("Threshold"));
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(ini.Read("ScaleFactor"));
             TranslationContentMode contentMode = ReadTranslationContentMode();
+            Rectangle captureArea = GetCapturePixelArea();
+            bool shouldSaveDebugImages = ShouldSaveDebugImages();
 
             try
             {
-                // 1. 저장된 채팅 영역을 실제 화면 픽셀 기준으로 캡처합니다.
-                Stopwatch captureStopwatch = Stopwatch.StartNew();
-                Rectangle captureArea = GetCapturePixelArea();
-                using Bitmap rawBitmap = new Bitmap(captureArea.Width, captureArea.Height);
-                using (Graphics g = Graphics.FromImage(rawBitmap))
-                {
-                    IntPtr hdcSrc = GetWindowDC(IntPtr.Zero);
-                    IntPtr hdcDest = g.GetHdc();
-                    BitBlt(hdcDest, 0, 0, captureArea.Width, captureArea.Height, hdcSrc, captureArea.X, captureArea.Y, 0x00CC0020);
-                    g.ReleaseHdc(hdcDest);
-                    ReleaseDC(IntPtr.Zero, hdcSrc);
-                }
-                captureStopwatch.Stop();
-                performanceStats.CaptureMs += captureStopwatch.ElapsedMilliseconds;
+                using TranslationCaptureFrame captureFrame = await Task.Run(() => CaptureAndResizeTranslationFrame(captureArea, scaleFactor));
+                performanceStats.CaptureMs += captureFrame.CaptureMs;
+                performanceStats.ResizeMs += captureFrame.ResizeMs;
 
-                // 2. OCR 인식률 향상을 위해 설정된 배율만큼 이미지를 확대합니다.
-                Stopwatch resizeStopwatch = Stopwatch.StartNew();
-                int newWidth = rawBitmap.Width * scaleFactor;
-                int newHeight = rawBitmap.Height * scaleFactor;
-                using Bitmap resizedBitmap = new Bitmap(newWidth, newHeight);
-                using (Graphics g = Graphics.FromImage(resizedBitmap))
+                if (shouldSaveDebugImages)
                 {
-                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    g.DrawImage(rawBitmap, 0, 0, newWidth, newHeight);
-                }
-                resizeStopwatch.Stop();
-                performanceStats.ResizeMs += resizeStopwatch.ElapsedMilliseconds;
-
-                if (ShouldSaveDebugImages())
-                {
-                    // 🌟 [프레임 방어 최적화] 메인 스레드 대기 방지를 위해 복사본을 만들어 백그라운드 저장
-                    Bitmap rawClone = new Bitmap(rawBitmap);
+                    Bitmap rawClone = new Bitmap(captureFrame.RawBitmap);
                     _ = Task.Run(() =>
                     {
                         using (rawClone) SaveDebugImage(rawClone, "[Origin]");
@@ -410,7 +409,7 @@ namespace GameTranslator
                 }
 
                 // 3. 모드별 후보 전략으로 OCR을 수행하고 가장 점수가 높은 후보를 선택합니다.
-                TranslationOcrSelectionResult bestCandidate = await SelectBestTranslationOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
+                TranslationOcrSelectionResult bestCandidate = await SelectBestTranslationOcrCandidateAsync(captureFrame.ResizedBitmap, threshold, processingMode, contentMode, performanceStats);
 
                 if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0)
                 {
@@ -550,6 +549,60 @@ namespace GameTranslator
                 totalStopwatch.Stop();
                 AppendOcrPerformanceLog(performanceStats, totalStopwatch.ElapsedMilliseconds);
                 isTranslating = false;
+            }
+        }
+
+        private TranslationCaptureFrame CaptureAndResizeTranslationFrame(Rectangle captureArea, int scaleFactor)
+        {
+            Stopwatch captureStopwatch = Stopwatch.StartNew();
+            Bitmap rawBitmap = new Bitmap(captureArea.Width, captureArea.Height);
+
+            try
+            {
+                using (Graphics g = Graphics.FromImage(rawBitmap))
+                {
+                    IntPtr hdcSrc = GetWindowDC(IntPtr.Zero);
+                    IntPtr hdcDest = g.GetHdc();
+
+                    try
+                    {
+                        BitBlt(hdcDest, 0, 0, captureArea.Width, captureArea.Height, hdcSrc, captureArea.X, captureArea.Y, 0x00CC0020);
+                    }
+                    finally
+                    {
+                        g.ReleaseHdc(hdcDest);
+                        ReleaseDC(IntPtr.Zero, hdcSrc);
+                    }
+                }
+
+                captureStopwatch.Stop();
+
+                Stopwatch resizeStopwatch = Stopwatch.StartNew();
+                int newWidth = rawBitmap.Width * scaleFactor;
+                int newHeight = rawBitmap.Height * scaleFactor;
+                Bitmap resizedBitmap = new Bitmap(newWidth, newHeight);
+
+                try
+                {
+                    using (Graphics g = Graphics.FromImage(resizedBitmap))
+                    {
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(rawBitmap, 0, 0, newWidth, newHeight);
+                    }
+                }
+                catch
+                {
+                    resizedBitmap.Dispose();
+                    throw;
+                }
+
+                resizeStopwatch.Stop();
+                return new TranslationCaptureFrame(rawBitmap, resizedBitmap, captureStopwatch.ElapsedMilliseconds, resizeStopwatch.ElapsedMilliseconds);
+            }
+            catch
+            {
+                rawBitmap.Dispose();
+                throw;
             }
         }
 
@@ -699,7 +752,7 @@ namespace GameTranslator
                 .ToList();
 
             Stopwatch preprocessStopwatch = Stopwatch.StartNew();
-            List<PreprocessedOcrImage> preprocessedImages = ocrImagePreprocessor.CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds.ToArray());
+            List<PreprocessedOcrImage> preprocessedImages = await Task.Run(() => ocrImagePreprocessor.CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds.ToArray()));
             preprocessStopwatch.Stop();
             performanceStats.PreprocessMs += preprocessStopwatch.ElapsedMilliseconds;
             performanceStats.PreprocessCandidateCount += preprocessedImages.Count;
@@ -711,7 +764,7 @@ namespace GameTranslator
                 foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
                 {
                     Stopwatch cropStopwatch = Stopwatch.StartNew();
-                    using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                    using Bitmap croppedBitmap = await Task.Run(() => CropForOcr(preprocessedImage.Bitmap));
                     cropStopwatch.Stop();
                     performanceStats.CropMs += cropStopwatch.ElapsedMilliseconds;
 
@@ -1087,7 +1140,7 @@ namespace GameTranslator
         {
             OcrResultCandidate bestCandidate = null;
             Stopwatch preprocessStopwatch = Stopwatch.StartNew();
-            List<PreprocessedOcrImage> preprocessedImages = ocrImagePreprocessor.CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds);
+            List<PreprocessedOcrImage> preprocessedImages = await Task.Run(() => ocrImagePreprocessor.CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds));
             preprocessStopwatch.Stop();
             performanceStats.PreprocessMs += preprocessStopwatch.ElapsedMilliseconds;
             performanceStats.PreprocessCandidateCount += preprocessedImages.Count;
@@ -1097,7 +1150,7 @@ namespace GameTranslator
                 foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
                 {
                     Stopwatch cropStopwatch = Stopwatch.StartNew();
-                    using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                    using Bitmap croppedBitmap = await Task.Run(() => CropForOcr(preprocessedImage.Bitmap));
                     cropStopwatch.Stop();
                     performanceStats.CropMs += cropStopwatch.ElapsedMilliseconds;
 

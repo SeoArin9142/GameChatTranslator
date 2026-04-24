@@ -237,6 +237,13 @@ py -m pip install "paddleocr[all]"
 | EasyOCR | 실험 기능입니다. Python/패키지 설치가 필요하며, 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다. |
 | PaddleOCR | 실험 기능입니다. Python/패키지 설치가 필요하며, 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다. |
 
+| 엔진 | 메인 번역 사용 | 준비물 | 속도 경향 | 장점 | 주의점 |
+|:---|:---|:---|:---|:---|:---|
+| Windows OCR | 기본 경로 | Windows OCR 언어팩 | 빠름 | 설치만 끝나면 바로 동작, 앱 내부 의존성 적음 | 언어팩 설치/재부팅 필요, 난잡한 배경에서는 인식률 한계가 있음 |
+| Tesseract | 선택 가능 | `tesseract.exe`, 언어 데이터 | 중간 | 외부 의존성이 단순하고 fallback 체인 중간 단계로 안정적 | 언어 데이터 품질 영향이 크고, Windows OCR보다 느릴 수 있음 |
+| EasyOCR | 선택 가능 | Python, `torch`, `torchvision`, `easyocr` | 느림 | 난잡한 채팅 이미지나 일부 폰트에서 강한 경우가 있음 | Python 기동 비용이 크고, 현재는 실험 기능 성격이 강함 |
+| PaddleOCR | 선택 가능 | Python, `paddlepaddle`, `paddleocr` | 느림 | 중국어 계열이나 특정 UI 폰트에서 강한 경우가 있음 | Python 기동 비용이 크고, 설치 의존성이 가장 무거운 편 |
+
 ### 5. 번역 엔진 선택
 
 환경설정창의 **기본 번역 엔진**에서 Google / Gemini / Local LLM을 선택합니다.
@@ -253,6 +260,12 @@ py -m pip install "paddleocr[all]"
 | ETC | 채팅 포맷과 무관하게 OCR로 읽은 전체 내용을 하나의 번역 대상으로 사용합니다. 다른 게임이나 일반 화면 텍스트 테스트에 사용할 수 있습니다. |
 
 ## 번역 엔진
+
+| 엔진 | 네트워크 | 비용/준비 | 장점 | 주의점 | 추천 상황 |
+|:---|:---|:---|:---|:---|:---|
+| Google | 인터넷 필요 | 별도 API 키 없음 | 가장 빨리 시작 가능, fallback 기본값으로 안정적 | OCR 오타 복원 능력은 제한적 | 빠른 테스트, 기본값 유지, 다른 엔진 실패 대비 |
+| Gemini | 인터넷 필요 | Gemini API 키 필요 | 문맥 복원과 번역 품질이 좋아 OCR 노이즈에 강함 | API 할당량, 서버 혼잡, 모델명 설정 영향이 있음 | 품질 우선, 외부 API 사용 가능 환경 |
+| Local LLM | 로컬 서버 | LM Studio 또는 OpenAI 호환 서버 필요 | 외부 API 없이 내부 서버로 번역 가능 | 모델 준비, 서버 메모리/속도, 프롬프트 튜닝이 필요 | 인터넷 제약이 있거나 로컬 실험을 하고 싶은 경우 |
 
 ### Google
 
