@@ -417,13 +417,13 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Text="Ctrl+8  환경설정 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBlock Text="Ctrl+0  환경설정 :" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                                 <TextBox x:Name="TxtKeySettings" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="Ctrl+9  수동 번역 :" Grid.Row="1" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBlock Text="Ctrl+-  수동 번역 :" Grid.Row="1" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                                 <TextBox x:Name="TxtKeyTrans" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
 
-                                <TextBlock Text="Ctrl+0  자동 번역 모드 :" Grid.Row="2" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
+                                <TextBlock Text="Ctrl+=  자동 번역 모드 :" Grid.Row="2" VerticalAlignment="Center" Margin="0,0,10,5" Foreground="#CCC"/>
                                 <TextBox x:Name="TxtKeyAuto" Grid.Row="2" Grid.Column="1" Margin="0,0,0,5" PreviewKeyDown="Hotkey_PreviewKeyDown" IsReadOnly="True" Cursor="Pen" Background="#333" Foreground="White"/>
                             </Grid>
 

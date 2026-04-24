@@ -330,14 +330,14 @@ namespace GameChatTranslator.Tests
 
             Assert.Equal("Ctrl+7", hotkeys.MoveLock);
             Assert.Equal("Ctrl+8", hotkeys.AreaSelect);
-            Assert.Equal("Ctrl+9", hotkeys.Translate);
-            Assert.Equal("Ctrl+0", hotkeys.AutoTranslate);
+            Assert.Equal("Ctrl+-", hotkeys.Translate);
+            Assert.Equal("Ctrl+=", hotkeys.AutoTranslate);
             Assert.Equal("Ctrl+-", hotkeys.ToggleEngine);
             Assert.Equal("Ctrl+6", hotkeys.CopyResult);
             Assert.Equal("Ctrl+=", hotkeys.LogViewer);
             Assert.Equal("Ctrl+5", hotkeys.OcrDiagnostic);
             Assert.Equal("Ctrl+F10", hotkeys.HotkeyGuideToggle);
-            Assert.Equal("Ctrl+8", hotkeys.OpenSettings);
+            Assert.Equal("Ctrl+0", hotkeys.OpenSettings);
         }
 
         [Fact]

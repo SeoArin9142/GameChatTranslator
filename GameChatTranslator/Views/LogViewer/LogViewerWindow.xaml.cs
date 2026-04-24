@@ -59,7 +59,7 @@ namespace GameTranslator
 
         /// <summary>
         /// 창 닫기 버튼을 눌렀을 때 실제로 닫지 않고 숨깁니다.
-        /// 다시 Ctrl+= 또는 환경설정창 버튼으로 열면 기존 위치와 크기를 유지합니다.
+        /// 다시 환경설정창 버튼으로 열면 기존 위치와 크기를 유지합니다.
         /// </summary>
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {

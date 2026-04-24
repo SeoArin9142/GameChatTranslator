@@ -1,4 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -75,6 +78,164 @@ namespace GameTranslator
         {
             // 지정된 섹션의 키 위치에 새로운 값을 덮어씁니다.
             WritePrivateProfileString(Section, Key, Value, Path);
+        }
+
+        /// <summary>
+        /// 지정한 섹션의 키 순서를 재정렬합니다.
+        /// preferredKeyOrder에 포함된 키는 해당 순서대로 먼저 배치하고,
+        /// 나머지 키는 섹션 끝에 알파벳순으로 이어 붙입니다.
+        /// </summary>
+        public void SortSectionKeys(string section = "Settings", IEnumerable<string> preferredKeyOrder = null)
+        {
+            if (!File.Exists(Path))
+            {
+                return;
+            }
+
+            string[] lines = File.ReadAllLines(Path);
+            int sectionStartIndex = -1;
+            int sectionEndIndex = lines.Length;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (!TryParseSectionHeader(lines[i], out string currentSection))
+                {
+                    continue;
+                }
+
+                if (sectionStartIndex < 0)
+                {
+                    if (string.Equals(currentSection, section, StringComparison.OrdinalIgnoreCase))
+                    {
+                        sectionStartIndex = i;
+                    }
+
+                    continue;
+                }
+
+                sectionEndIndex = i;
+                break;
+            }
+
+            if (sectionStartIndex < 0)
+            {
+                return;
+            }
+
+            Dictionary<string, string> keyValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> originalKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = sectionStartIndex + 1; i < sectionEndIndex; i++)
+            {
+                if (!TryParseKeyValue(lines[i], out string key, out string value))
+                {
+                    continue;
+                }
+
+                keyValues[key] = value;
+                originalKeys[key] = key;
+            }
+
+            if (keyValues.Count == 0)
+            {
+                return;
+            }
+
+            List<string> orderedKeys = new List<string>();
+            HashSet<string> seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (preferredKeyOrder != null)
+            {
+                foreach (string preferredKey in preferredKeyOrder)
+                {
+                    if (string.IsNullOrWhiteSpace(preferredKey) ||
+                        !keyValues.ContainsKey(preferredKey) ||
+                        !seenKeys.Add(preferredKey))
+                    {
+                        continue;
+                    }
+
+                    orderedKeys.Add(preferredKey);
+                }
+            }
+
+            orderedKeys.AddRange(
+                keyValues.Keys
+                    .Where(key => seenKeys.Add(key))
+                    .OrderBy(key => key, StringComparer.OrdinalIgnoreCase));
+
+            List<string> rewrittenLines = new List<string>();
+            rewrittenLines.AddRange(lines.Take(sectionStartIndex));
+            rewrittenLines.Add(lines[sectionStartIndex]);
+
+            foreach (string key in orderedKeys)
+            {
+                rewrittenLines.Add($"{originalKeys[key]}={keyValues[key]}");
+            }
+
+            if (sectionEndIndex < lines.Length)
+            {
+                if (rewrittenLines.Count > 0 &&
+                    !string.IsNullOrWhiteSpace(rewrittenLines[^1]) &&
+                    !string.IsNullOrWhiteSpace(lines[sectionEndIndex]))
+                {
+                    rewrittenLines.Add("");
+                }
+
+                rewrittenLines.AddRange(lines.Skip(sectionEndIndex));
+            }
+
+            File.WriteAllLines(Path, rewrittenLines);
+        }
+
+        private static bool TryParseSectionHeader(string line, out string section)
+        {
+            section = null;
+            if (line == null)
+            {
+                return false;
+            }
+
+            string trimmed = line.Trim();
+            if (trimmed.Length < 3 || trimmed[0] != '[' || trimmed[^1] != ']')
+            {
+                return false;
+            }
+
+            section = trimmed.Substring(1, trimmed.Length - 2).Trim();
+            return section.Length > 0;
+        }
+
+        private static bool TryParseKeyValue(string line, out string key, out string value)
+        {
+            key = null;
+            value = null;
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return false;
+            }
+
+            string trimmed = line.Trim();
+            if (trimmed.StartsWith(";") || trimmed.StartsWith("#"))
+            {
+                return false;
+            }
+
+            int separatorIndex = trimmed.IndexOf('=');
+            if (separatorIndex <= 0)
+            {
+                return false;
+            }
+
+            key = trimmed.Substring(0, separatorIndex).Trim();
+            if (key.Length == 0)
+            {
+                return false;
+            }
+
+            value = trimmed.Substring(separatorIndex + 1);
+            return true;
         }
     }
 }

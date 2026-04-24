@@ -57,7 +57,7 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// Ctrl+0으로 순환되는 자동 번역 상태입니다.
+        /// Ctrl+=으로 순환되는 자동 번역 상태입니다.
         /// Off는 타이머 정지, Fast/Auto/Accurate는 각각 속도/균형/정확도 우선 OCR 전략입니다.
         /// </summary>
         private enum AutoTranslateMode
@@ -95,7 +95,7 @@ namespace GameTranslator
 
         /// <summary>
         /// 현재 자동 번역 모드의 다음 모드를 계산합니다.
-        /// <paramref name="currentMode"/>는 현재 상태이며, 반환값은 Ctrl+0을 한 번 더 눌렀을 때 적용될 상태입니다.
+        /// <paramref name="currentMode"/>는 현재 상태이며, 반환값은 Ctrl+=을 한 번 더 눌렀을 때 적용될 상태입니다.
         /// </summary>
         private AutoTranslateMode GetNextAutoTranslateMode(AutoTranslateMode currentMode)
         {
@@ -225,7 +225,7 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// Ctrl+- 단축키로 Google, Gemini, Local LLM 번역 엔진을 순환 전환합니다.
+        /// 환경설정창의 기본 번역 엔진 설정을 현재 런타임에 즉시 반영합니다.
         /// Gemini API 키가 없으면 Gemini 단계를 건너뛰고 Local LLM으로 넘어갑니다.
         /// </summary>
         private void ToggleEngine()

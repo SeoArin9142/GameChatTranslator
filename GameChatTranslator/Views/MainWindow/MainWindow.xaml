@@ -21,7 +21,7 @@
                 <!-- 단축키와 현재 자동 번역 모드를 표시하는 상단 안내 영역입니다. MainWindow.Hotkeys.cs에서 동적으로 갱신합니다. -->
                 <TextBlock x:Name="TxtHotkeyGuide"
                            Grid.Column="0"
-                           Text="[Ctrl+8] 설정  [Ctrl+9] 번역  [Ctrl+0] 자동"
+                           Text="[Ctrl+0] 설정  [Ctrl+-] 번역  [Ctrl+=] 자동"
                            TextWrapping="Wrap"
                            Foreground="#FFCC00"
                            FontSize="11"
