@@ -1,6 +1,6 @@
 # GameChatTranslator
 
-**GameChatTranslator**는 게임 화면의 채팅 영역을 캡처하고, Windows OCR로 텍스트를 인식한 뒤 Google / Gemini / Local LLM 번역 엔진으로 한국어 번역을 표시하는 Windows용 오버레이 도구입니다.
+**GameChatTranslator**는 게임 화면의 채팅 영역을 캡처하고, **Windows OCR 또는 Tesseract**로 텍스트를 인식한 뒤 Google / Gemini / Local LLM 번역 엔진으로 번역 결과를 표시하는 Windows용 오버레이 도구입니다.
 
 현재는 **스트리노바(Strinova) 한국어 클라이언트의 `[캐릭터이름]: 채팅내용` 형식**에 맞춰 개발 중인 alpha 버전입니다.
 
@@ -33,8 +33,8 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
    - 선택 가능: 영어, 일본어, 중국어 간체, 러시아어
 3. 언어팩 설치 후 Windows를 재부팅합니다.
 4. `GameChatTranslator.exe`를 실행하고 UAC 관리자 권한 요청을 승인합니다.
-5. 환경설정창에서 언어, 번역 엔진, OCR 모드, 단축키를 확인한 뒤 저장합니다.
-6. 게임에서 `Ctrl + 8`로 채팅 캡처 영역을 지정합니다.
+5. 환경설정창에서 게임 언어, 번역 엔진, **메인 OCR 엔진**, 단축키를 확인한 뒤 저장합니다.
+6. `Ctrl + 8`로 환경설정창을 열고 **영역 다시 지정** 버튼으로 채팅 캡처 영역을 지정합니다.
 7. `Ctrl + 9`로 1회 번역하거나, `Ctrl + 0`으로 자동 번역 모드를 켭니다.
 
 첫 실행 후 생성되는 `config.ini`, `logs`, `Captures`, OCR 진단 저장 기본 위치는 아래와 같습니다.
@@ -47,13 +47,13 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 
 | 분류 | 기능 |
 |:---|:---|
-| OCR | Windows OCR, 색상 필터, 글자 굵기 보정, 적응형 이진화, 빠름/자동/정확 모드 |
+| OCR | Windows OCR / Tesseract 메인 OCR, 색상 필터, 글자 굵기 보정, 적응형 이진화, 빠름/자동/정확 모드 |
 | 번역 | Google 무료 번역, Gemini API, LM Studio/OpenAI 호환 Local LLM |
 | Local LLM | LM Studio 서버 연동, `/v1/models` 연결 테스트, 실패 시 Google fallback |
-| 오버레이 | 항상 위 표시, 투명도 조절, 이동/잠금, 단축키 안내 숨김 |
-| 진단 | OCR 진단 화면, 후보별 OCR 결과 비교, ZIP 저장, 요약/전체 텍스트 복사 |
+| 오버레이 | 항상 위 표시, 투명도 조절, 이동/잠금, 위치 고정 버튼, 단축키 안내 |
+| 진단 | OCR 진단 화면, 후보별 OCR 결과 비교, 다중 OCR 엔진 비교, ZIP 저장, 요약/전체 텍스트 복사 |
 | 로그 | 실시간 로그창, CPU/메모리 표시, OCR 처리 시간 평균, API 오류 상세 안내 |
-| 설정 | 설정 프리셋, 추천 프리셋, 설정 내보내기/가져오기, 숫자 입력 검증 |
+| 설정 | 설정 프리셋, 추천 프리셋, 설정 내보내기/가져오기, 메인 OCR 선택, 진단용 OCR 선택, 저장 즉시 반영, 번역 결과 자동 복사 |
 | 배포 | GitHub Actions 자동 릴리즈, Velopack Setup.exe, win-x64 self-contained ZIP, SHA256 첨부 |
 
 ## 지원 범위와 제한
@@ -66,7 +66,7 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 | 권장 게임 언어 | 한국어 클라이언트 |
 | 인식 대상 | Strinova 모드: `[캐릭터이름]: 채팅내용`, ETC 모드: OCR 전체 텍스트 |
 | 제외 대상 | 시스템 메시지, 귓속말, 대기실 자체 번역 가능 채팅 |
-| OCR 기준 | Windows OCR 언어팩 |
+| OCR 기준 | 메인 번역: Windows OCR / Tesseract, 진단: EasyOCR / PaddleOCR 추가 비교 가능 |
 | 실행 권한 | 관리자 권한 실행 |
 
 ## 시스템 요구사항
@@ -78,6 +78,10 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 - 관리자 권한 실행 승인
 - Google/Gemini 사용 시 인터넷 연결
 - Local LLM 사용 시 LM Studio Local Server
+
+선택 기능:
+- Tesseract 메인 OCR 사용 시 `tesseract` 실행 파일 설치
+- EasyOCR / PaddleOCR 진단 사용 시 Python 및 해당 패키지 설치
 
 ### 최소사양
 
@@ -111,7 +115,7 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 
 ### 2. 캡처 영역 지정
 
-`Ctrl + 8`을 누른 뒤 채팅창 영역을 드래그합니다.
+`Ctrl + 8`로 환경설정창을 연 뒤 **영역 다시 지정** 버튼을 눌러 채팅창 영역을 드래그합니다.
 
 고DPI/멀티모니터 환경에서는 WPF 표시 좌표와 실제 캡처 픽셀 좌표를 분리해 저장합니다. 영역이 어긋나면 다시 지정하거나 OCR 진단 화면에서 원본 캡처를 확인합니다.
 
@@ -126,17 +130,24 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 | 정확 | 모든 전처리 후보와 OCR 언어 결과를 비교합니다. 느리지만 배경 노이즈에 강합니다. |
 | OFF | 자동 번역을 중지합니다. |
 
-### 4. 번역 엔진 선택
+### 4. 메인 OCR 엔진 선택
 
-`Ctrl + -`로 번역 엔진을 순환합니다.
+환경설정창의 **메인 번역용 OCR 엔진**에서 현재 번역 경로에 사용할 OCR을 선택합니다.
 
-```text
-Google → Gemini → Local LLM
-```
+| 엔진 | 설명 |
+|:---|:---|
+| Windows OCR | 기본값입니다. Windows 언어팩 기반으로 빠르게 동작합니다. |
+| Tesseract | 실험 기능입니다. 설치되어 있지 않거나 실패하면 Windows OCR로 자동 fallback 합니다. |
 
-선택한 번역 엔진은 `config.ini`에 저장되어 다음 실행에도 유지됩니다. Gemini API 키가 없으면 Gemini 단계는 건너뜁니다.
+EasyOCR / PaddleOCR는 현재 **메인 번역 경로에는 연결되지 않았고**, OCR 진단 화면의 비교용 엔진으로만 사용합니다.
 
-### 5. 번역기 방식 선택
+### 5. 번역 엔진 선택
+
+환경설정창의 **기본 번역 엔진**에서 Google / Gemini / Local LLM을 선택합니다.
+
+선택한 번역 엔진은 `config.ini`에 저장되고, 저장 버튼을 누르면 현재 실행 중인 오버레이에도 즉시 반영됩니다. Gemini API 키가 없으면 Gemini 선택은 Google로 보정됩니다.
+
+### 6. 번역기 방식 선택
 
 환경설정창의 **번역기 방식**에서 OCR 결과를 어떤 기준으로 번역할지 선택합니다.
 
@@ -206,30 +217,32 @@ qwen/qwen3.5-9b
 
 | 기능 | 단축키 | 설명 |
 |:---|:---|:---|
-| OCR 진단 화면 | `Ctrl + 5` | 현재 캡처 영역의 OCR 진단 화면 열기 |
-| 번역 복사 | `Ctrl + 6` | 최근 번역 결과를 클립보드에 복사 |
-| 이동/잠금 | `Ctrl + 7` | 테두리가 녹색일 때 오버레이 드래그 가능 |
-| 영역 설정 | `Ctrl + 8` | 번역할 채팅 영역 지정 |
+| 환경설정창 열기 | `Ctrl + 8` | 설정창을 열고 영역 재지정, OCR 진단, 로그창 열기 등을 실행 |
 | 수동 번역 | `Ctrl + 9` | 1회 즉시 번역 |
 | 자동 번역 모드 | `Ctrl + 0` | 빠름 → 자동 → 정확 → OFF |
-| 번역 엔진 변경 | `Ctrl + -` | Google → Gemini → Local LLM |
-| 로그창 ON/OFF | `Ctrl + =` | 실시간 로그창 표시/숨김 |
-| 단축키 안내 ON/OFF | `Ctrl + F10` | 번역창 상단 단축키 안내 표시/숨김 |
 
-단축키는 환경설정창에서 변경할 수 있습니다. 단축키 초기화 버튼은 입력칸만 기본값으로 되돌리며, 저장 버튼을 눌러야 `config.ini`에 반영됩니다.
+그 외 기능은 환경설정창 버튼으로 실행합니다.
+
+- OCR 진단 화면 열기
+- 로그창 열기
+- 영역 다시 지정 / 영역 초기화
+- 이동 잠금 전환
+- 번역 결과 복사
+
+단축키는 환경설정창에서 변경할 수 있고, 저장 버튼을 누르면 현재 실행 중인 오버레이에도 즉시 반영됩니다.
 
 ## 환경설정창
 
-환경설정창은 2열 구조로 구성되어 있습니다.
+환경설정창은 3열 구조로 구성되어 있습니다.
 
 | 영역 | 내용 |
 |:---|:---|
 | 설정 관리 | 사용자 프리셋, 추천 프리셋, 설정 내보내기/가져오기 |
-| 언어·OCR | 게임 언어, 번역 언어, OCR 모드, OCR 언어팩 상태, OCR 진단 |
-| 실행 옵션 | 투명도, 자동 번역 주기, 결과 표시 방식, 단축키 |
+| 언어·OCR | 게임 언어, 번역 언어, 메인 OCR 엔진, 진단용 OCR 선택, OCR 언어팩 상태, OCR 진단 |
+| 실행 옵션 | 투명도, 자동 번역 주기, 결과 표시 방식, 자동 복사, 영역 재지정, 이동 잠금 |
 | 번역 엔진 | Google/Gemini/Local LLM 설정, API/서버 연결 확인 |
 
-추천 프리셋은 저사양 / 빠름 / 정확도 기준으로 OCR 배율, 이진화 기준, 자동 번역 주기, 결과 표시 방식을 입력칸에 채웁니다. 실제 저장은 **저장 및 게임 시작**을 눌러야 적용됩니다.
+추천 프리셋은 저사양 / 빠름 / 정확도 기준으로 OCR 배율, 이진화 기준, 자동 번역 주기, 결과 표시 방식을 입력칸에 채웁니다. 저장 버튼을 누르면 단축키, 번역 엔진, 메인 OCR 선택, 타이머 값이 재시작 없이 즉시 반영됩니다.
 
 ## 진단과 로그
 
@@ -243,11 +256,11 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 - 후보별 OCR 결과
 - 선택 후보, 점수, 처리 시간, OCR 호출 수
 
-진단 결과는 요약 복사, 전체 텍스트 복사, ZIP 저장으로 공유할 수 있습니다. ZIP에는 앱 버전, 설정 요약, OCR 언어팩 상태, 캡처 좌표도 포함됩니다.
+진단 결과는 요약 복사, 전체 텍스트 복사, ZIP 저장으로 공유할 수 있습니다. ZIP에는 앱 버전, 설정 요약, OCR 언어팩 상태, 캡처 좌표, 선택한 진단용 OCR 엔진 목록도 포함됩니다.
 
 ### 로그창
 
-`Ctrl + =`로 로그창을 열 수 있습니다.
+로그창은 환경설정창의 **로그창 열기** 버튼으로 열 수 있습니다.
 
 로그창에는 번역 로그, API 오류, OCR 성능 로그, CPU/메모리 사용량이 표시됩니다. OCR 성능 로그는 다음 형태로 기록됩니다.
 
@@ -267,18 +280,27 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | `TargetLanguage` | `ko` | 번역 대상 언어 |
 | `TranslationContentMode` | `Strinova` | 번역기 방식. `Strinova` 또는 `ETC` |
 | `TranslationEngine` | `Google` | 시작 번역 엔진. `Google`, `Gemini`, `LocalLlm` |
+| `MainOcrEngine` | `WindowsOcr` | 메인 번역 경로 OCR 엔진. `WindowsOcr`, `Tesseract` |
+| `OcrEngineSelection` | `All` | OCR 진단 점수 계산에 포함할 엔진 목록 |
 | `GeminiKey` | 빈 값 | Gemini API 키 |
 | `GeminiModel` | `gemini-2.5-flash` | Gemini 호출 모델 |
 | `LocalLlmEndpoint` | `http://localhost:1234/v1/chat/completions` | LM Studio chat completions 주소 |
 | `LocalLlmModel` | `qwen/qwen3.5-9b` | Local LLM 모델 ID |
 | `LocalLlmTimeoutSeconds` | `10` | Local LLM 응답 대기 시간, 1~60초 |
 | `LocalLlmMaxTokens` | `160` | Local LLM 최대 응답 토큰, 40~512 |
+| `TesseractExePath` | `tesseract` | Tesseract 실행 파일 경로 |
+| `TesseractLanguageCodes` | `eng+kor+jpn+chi_sim` | Tesseract 언어 코드 조합 |
+| `EasyOcrPythonPath` | `python` | EasyOCR 진단용 Python 실행 경로 |
+| `EasyOcrLanguageCodes` | `en+ko+ja+ch_sim` | EasyOCR 진단용 언어 코드 조합 |
+| `PaddleOcrPythonPath` | `python` | PaddleOCR 진단용 Python 실행 경로 |
+| `PaddleOcrLanguageCodes` | `en+korean+japan+ch` | PaddleOCR 진단용 언어 코드 조합 |
 | `AutoTranslateInterval` | `5` | 자동 번역 주기, 1~60초 |
 | `Threshold` | `120` | OCR 이진화 기준 |
 | `ScaleFactor` | `3` | OCR 캡처 확대 배율, 1~4 |
 | `ResultDisplayMode` | `Latest` | `Latest` 또는 `History` |
 | `ResultHistoryLimit` | `5` | 누적 표시 최대 줄 수, 1~10 |
 | `TranslationResultAutoClearSeconds` | `0` | 번역 결과 자동 삭제 시간, 0~60초 (`0`은 사용 안 함) |
+| `AutoCopyTranslationResult` | `false` | 번역 결과 자동 복사 여부 |
 | `SaveDebugImages` | `false` | 디버그 이미지 저장 여부 |
 | `CheckUpdatesOnStartup` | `true` | 실행 시 업데이트 확인 여부. 설치형은 앱 내 설치, ZIP은 릴리즈 페이지 안내 |
 
@@ -287,15 +309,9 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 
 | 키 | 기본값 |
 |:---|:---|
-| `Key_CopyResult` | `Ctrl+6` |
-| `Key_OcrDiagnostic` | `Ctrl+5` |
-| `Key_MoveToggle` | `Ctrl+7` |
-| `Key_SelectArea` | `Ctrl+8` |
+| `Key_OpenSettings` | `Ctrl+8` |
 | `Key_Translate` | `Ctrl+9` |
 | `Key_AutoTranslate` | `Ctrl+0` |
-| `Key_EngineToggle` | `Ctrl+-` |
-| `Key_LogViewer` | `Ctrl+=` |
-| `Key_HotkeyGuideToggle` | `Ctrl+F10` |
 
 </details>
 
@@ -303,13 +319,13 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 
 | 증상 | 확인할 것 |
 |:---|:---|
-| OCR 결과가 비어 있음 | OCR 언어팩 설치, 재부팅, 캡처 영역, 관리자 권한 |
-| 캡처 위치가 어긋남 | `Ctrl + 8`로 영역 재지정, OCR 진단 화면 원본 확인 |
+| OCR 결과가 비어 있음 | OCR 언어팩 설치, 재부팅, 캡처 영역, 관리자 권한, 메인 OCR 엔진 설정 확인 |
+| 캡처 위치가 어긋남 | `Ctrl + 8`로 설정창 열기 → 영역 다시 지정, OCR 진단 화면 원본 확인 |
 | Google 번역이 이상함 | OCR 원문 깨짐 여부 확인, Gemini 또는 Local LLM 사용 |
 | Gemini 실패 | API 키, 모델명, 할당량, 503 서버 혼잡 여부 확인 |
 | Local LLM 실패 | LM Studio 서버 ON, endpoint, model ID, 연결 테스트 결과 확인 |
-| 버튼 클릭이 안 됨 | 오버레이 클릭 관통 상태일 수 있음. `Ctrl + 7`로 이동/잠금 해제 |
-| 단축키 안내가 안 보임 | `Ctrl + F10`으로 단축키 안내 표시 |
+| Tesseract가 안 됨 | `tesseract` 설치 여부, `TesseractExePath`, 언어 데이터 설치 확인 |
+| 버튼 클릭이 안 됨 | 설정창의 이동 잠금 전환 또는 메인 창의 위치 고정 버튼으로 상태를 확인 |
 | 설정이 꼬임 | 설정 가져오기 전 자동 백업 파일 확인, 필요 시 `%LocalAppData%\\GameChatTranslator\\config.ini` 삭제 후 재설정 |
 
 ## 개발 / 검증 환경
