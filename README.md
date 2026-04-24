@@ -1,6 +1,6 @@
 # GameChatTranslator
 
-**GameChatTranslator**는 게임 화면의 채팅 영역을 캡처하고, **Windows OCR 또는 Tesseract**로 텍스트를 인식한 뒤 Google / Gemini / Local LLM 번역 엔진으로 번역 결과를 표시하는 Windows용 오버레이 도구입니다.
+**GameChatTranslator**는 게임 화면의 채팅 영역을 캡처하고, **Windows OCR / Tesseract / EasyOCR / PaddleOCR**로 텍스트를 인식한 뒤 Google / Gemini / Local LLM 번역 엔진으로 번역 결과를 표시하는 Windows용 오버레이 도구입니다.
 
 현재는 **스트리노바(Strinova) 한국어 클라이언트의 `[캐릭터이름]: 채팅내용` 형식**에 맞춰 개발 중인 alpha 버전입니다.
 
@@ -34,8 +34,8 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 3. 언어팩 설치 후 Windows를 재부팅합니다.
 4. `GameChatTranslator.exe`를 실행하고 UAC 관리자 권한 요청을 승인합니다.
 5. 환경설정창에서 게임 언어, 번역 엔진, **메인 OCR 엔진**, 단축키를 확인한 뒤 저장합니다.
-6. `Ctrl + 8`로 환경설정창을 열고 **영역 다시 지정** 버튼으로 채팅 캡처 영역을 지정합니다.
-7. `Ctrl + 9`로 1회 번역하거나, `Ctrl + 0`으로 자동 번역 모드를 켭니다.
+6. `Ctrl + 0`으로 환경설정창을 열고 **영역 다시 지정** 버튼으로 채팅 캡처 영역을 지정합니다.
+7. `Ctrl + -`로 1회 번역하거나, `Ctrl + =`으로 자동 번역 모드를 켭니다.
 
 첫 실행 후 생성되는 `config.ini`, `logs`, `Captures`, OCR 진단 저장 기본 위치는 아래와 같습니다.
 다만 실행 파일과 같은 폴더에 `config.ini`가 이미 있거나 `portable.mode` 파일이 있으면, 같은 폴더를 사용자 데이터 루트로 사용하는 portable 모드로 동작합니다.
@@ -49,7 +49,7 @@ portable 모드: 실행 파일 폴더
 
 | 분류 | 기능 |
 |:---|:---|
-| OCR | Windows OCR / Tesseract 메인 OCR, 색상 필터, 글자 굵기 보정, 적응형 이진화, 빠름/자동/정확 모드 |
+| OCR | Windows OCR / Tesseract / EasyOCR / PaddleOCR 메인 OCR, 색상 필터, 글자 굵기 보정, 적응형 이진화, 빠름/자동/정확 모드 |
 | 번역 | Google 무료 번역, Gemini API, LM Studio/OpenAI 호환 Local LLM |
 | Local LLM | LM Studio 서버 연동, `/v1/models` 연결 테스트, 실패 시 Google fallback |
 | 오버레이 | 항상 위 표시, 투명도 조절, 이동/잠금, 위치 고정 버튼, 단축키 안내 |
@@ -68,7 +68,7 @@ portable 모드: 실행 파일 폴더
 | 권장 게임 언어 | 한국어 클라이언트 |
 | 인식 대상 | Strinova 모드: `[캐릭터이름]: 채팅내용`, ETC 모드: OCR 전체 텍스트 |
 | 제외 대상 | 시스템 메시지, 귓속말, 대기실 자체 번역 가능 채팅 |
-| OCR 기준 | 메인 번역: Windows OCR / Tesseract, 진단: EasyOCR / PaddleOCR 추가 비교 가능 |
+| OCR 기준 | 메인 번역: Windows OCR / Tesseract / EasyOCR / PaddleOCR, 진단: 4개 엔진 비교 가능 |
 | 실행 권한 | 관리자 권한 실행 |
 
 ## 시스템 요구사항
@@ -83,7 +83,7 @@ portable 모드: 실행 파일 폴더
 
 선택 기능:
 - Tesseract 메인 OCR 사용 시 `tesseract` 실행 파일 설치
-- EasyOCR / PaddleOCR 진단 사용 시 Python 및 해당 패키지 설치
+- EasyOCR / PaddleOCR 메인 OCR 또는 진단 사용 시 Python 및 해당 패키지 설치
 
 ### 최소사양
 
@@ -153,13 +153,13 @@ GameChatTranslator는 OCR 엔진별로 필요한 설치 조건이 다릅니다.
 
 주의:
 - 설치되어 있지 않거나 실패하면 Windows OCR로 자동 fallback 됩니다.
-- 현재 메인 번역 경로에 실제 연결된 외부 OCR은 Tesseract만 지원합니다.
+- EasyOCR / PaddleOCR를 메인 OCR로 선택한 경우에도 외부 OCR 실패 시 Tesseract -> Windows OCR 순서로 자동 fallback 합니다.
 
 ### 3. EasyOCR
 
 용도:
+- 메인 번역용 실험 OCR
 - OCR 진단 화면 비교용
-- 메인 번역 경로에는 아직 미연결
 
 필요한 것:
 - Python 실행 환경
@@ -173,15 +173,16 @@ py -m pip install torch torchvision easyocr
 ```
 
 주의:
-- 메인 번역 경로에는 사용되지 않습니다.
-- 현재는 OCR 진단 점수 비교용 엔진입니다.
+- 메인 번역 경로에서 선택할 수 있습니다.
+- 메인 번역에서 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다.
+- OCR 진단 점수 비교용 엔진으로도 계속 사용할 수 있습니다.
 - Python 실행 파일은 `EasyOcrPythonPath`로 바꿀 수 있습니다.
 
 ### 4. PaddleOCR
 
 용도:
+- 메인 번역용 실험 OCR
 - OCR 진단 화면 비교용
-- 메인 번역 경로에는 아직 미연결
 
 필요한 것:
 - Python 실행 환경
@@ -195,8 +196,9 @@ py -m pip install "paddleocr[all]"
 ```
 
 주의:
-- 메인 번역 경로에는 사용되지 않습니다.
-- 현재는 OCR 진단 점수 비교용 엔진입니다.
+- 메인 번역 경로에서 선택할 수 있습니다.
+- 메인 번역에서 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다.
+- OCR 진단 점수 비교용 엔진으로도 계속 사용할 수 있습니다.
 - Python 실행 파일은 `PaddleOcrPythonPath`로 바꿀 수 있습니다.
 
 ## 기본 사용 흐름
@@ -209,13 +211,13 @@ py -m pip install "paddleocr[all]"
 
 ### 2. 캡처 영역 지정
 
-`Ctrl + 8`로 환경설정창을 연 뒤 **영역 다시 지정** 버튼을 눌러 채팅창 영역을 드래그합니다.
+`Ctrl + 0`으로 환경설정창을 연 뒤 **영역 다시 지정** 버튼을 눌러 채팅창 영역을 드래그합니다.
 
 고DPI/멀티모니터 환경에서는 WPF 표시 좌표와 실제 캡처 픽셀 좌표를 분리해 저장합니다. 영역이 어긋나면 다시 지정하거나 OCR 진단 화면에서 원본 캡처를 확인합니다.
 
 ### 3. OCR 모드 선택
 
-`Ctrl + 0`을 누를 때마다 자동 번역 모드가 순환됩니다.
+`Ctrl + =`을 누를 때마다 자동 번역 모드가 순환됩니다.
 
 | 모드 | 설명 |
 |:---|:---|
@@ -232,8 +234,8 @@ py -m pip install "paddleocr[all]"
 |:---|:---|
 | Windows OCR | 기본값입니다. Windows 언어팩 기반으로 빠르게 동작합니다. |
 | Tesseract | 실험 기능입니다. 설치되어 있지 않거나 실패하면 Windows OCR로 자동 fallback 합니다. |
-
-EasyOCR / PaddleOCR는 현재 **메인 번역 경로에는 연결되지 않았고**, OCR 진단 화면의 비교용 엔진으로만 사용합니다.
+| EasyOCR | 실험 기능입니다. Python/패키지 설치가 필요하며, 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다. |
+| PaddleOCR | 실험 기능입니다. Python/패키지 설치가 필요하며, 실패하면 Tesseract -> Windows OCR 순서로 자동 fallback 합니다. |
 
 ### 5. 번역 엔진 선택
 
@@ -313,9 +315,9 @@ qwen/qwen3.5-9b
 
 | 기능 | 단축키 | 설명 |
 |:---|:---|:---|
-| 환경설정창 열기 | `Ctrl + 8` | 설정창을 열고 영역 재지정, OCR 진단, 로그창 열기 등을 실행 |
-| 수동 번역 | `Ctrl + 9` | 1회 즉시 번역 |
-| 자동 번역 모드 | `Ctrl + 0` | 빠름 → 자동 → 정확 → OFF |
+| 환경설정창 열기 | `Ctrl + 0` | 설정창을 열고 영역 재지정, OCR 진단, 로그창 열기 등을 실행 |
+| 수동 번역 | `Ctrl + -` | 1회 즉시 번역 |
+| 자동 번역 모드 | `Ctrl + =` | 빠름 → 자동 → 정확 → OFF |
 
 그 외 기능은 환경설정창 버튼으로 실행합니다.
 
@@ -376,7 +378,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | `TargetLanguage` | `ko` | 번역 대상 언어 |
 | `TranslationContentMode` | `Strinova` | 번역기 방식. `Strinova` 또는 `ETC` |
 | `TranslationEngine` | `Google` | 시작 번역 엔진. `Google`, `Gemini`, `LocalLlm` |
-| `MainOcrEngine` | `WindowsOcr` | 메인 번역 경로 OCR 엔진. `WindowsOcr`, `Tesseract` |
+| `MainOcrEngine` | `WindowsOcr` | 메인 번역 경로 OCR 엔진. `WindowsOcr`, `Tesseract`, `EasyOcr`, `PaddleOcr` |
 | `OcrEngineSelection` | `All` | OCR 진단 점수 계산에 포함할 엔진 목록 |
 | `GeminiKey` | 빈 값 | Gemini API 키 |
 | `GeminiModel` | `gemini-2.5-flash` | Gemini 호출 모델 |
@@ -386,10 +388,10 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | `LocalLlmMaxTokens` | `160` | Local LLM 최대 응답 토큰, 40~512 |
 | `TesseractExePath` | `tesseract` | Tesseract 실행 파일 경로 |
 | `TesseractLanguageCodes` | `eng+kor+jpn+chi_sim` | Tesseract 언어 코드 조합 |
-| `EasyOcrPythonPath` | `python` | EasyOCR 진단용 Python 실행 경로 |
-| `EasyOcrLanguageCodes` | `en+ko+ja+ch_sim` | EasyOCR 진단용 언어 코드 조합 |
-| `PaddleOcrPythonPath` | `python` | PaddleOCR 진단용 Python 실행 경로 |
-| `PaddleOcrLanguageCodes` | `en+korean+japan+ch` | PaddleOCR 진단용 언어 코드 조합 |
+| `EasyOcrPythonPath` | `python` | EasyOCR Python 실행 경로 |
+| `EasyOcrLanguageCodes` | `en+ko+ja+ch_sim` | EasyOCR 언어 코드 조합 |
+| `PaddleOcrPythonPath` | `python` | PaddleOCR Python 실행 경로 |
+| `PaddleOcrLanguageCodes` | `en+korean+japan+ch` | PaddleOCR 언어 코드 조합 |
 | `AutoTranslateInterval` | `5` | 자동 번역 주기, 1~60초 |
 | `Threshold` | `120` | OCR 이진화 기준 |
 | `ScaleFactor` | `3` | OCR 캡처 확대 배율, 1~4 |
@@ -416,7 +418,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 | 증상 | 확인할 것 |
 |:---|:---|
 | OCR 결과가 비어 있음 | OCR 언어팩 설치, 재부팅, 캡처 영역, 관리자 권한, 메인 OCR 엔진 설정 확인 |
-| 캡처 위치가 어긋남 | `Ctrl + 8`로 설정창 열기 → 영역 다시 지정, OCR 진단 화면 원본 확인 |
+| 캡처 위치가 어긋남 | `Ctrl + 0`으로 설정창 열기 → 영역 다시 지정, OCR 진단 화면 원본 확인 |
 | Google 번역이 이상함 | OCR 원문 깨짐 여부 확인, Gemini 또는 Local LLM 사용 |
 | Gemini 실패 | API 키, 모델명, 할당량, 503 서버 혼잡 여부 확인 |
 | Local LLM 실패 | LM Studio 서버 ON, endpoint, model ID, 연결 테스트 결과 확인 |

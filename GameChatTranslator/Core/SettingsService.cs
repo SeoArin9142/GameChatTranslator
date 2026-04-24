@@ -404,7 +404,7 @@ namespace GameTranslator
 
         /// <summary>
         /// 메인 번역 파이프라인에서 사용할 OCR 엔진 단일 선택값을 앱 내부 enum으로 변환합니다.
-        /// 현재 UI는 Windows OCR/Tesseract만 노출하지만, EasyOCR/PaddleOCR 추가를 고려해 enum은 미리 열어둡니다.
+        /// UI는 Windows OCR / Tesseract / EasyOCR / PaddleOCR를 노출하며, config.ini 하위 호환도 함께 처리합니다.
         /// </summary>
         public MainOcrEngine NormalizeMainOcrEngine(string value)
         {
