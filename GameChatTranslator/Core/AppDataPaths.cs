@@ -10,12 +10,16 @@ namespace GameTranslator
     public sealed class AppDataPaths
     {
         public const string AppFolderName = "GameChatTranslator";
+        public const string PortableModeMarkerFileName = "portable.mode";
 
         public AppDataPaths(string installDirectory = null, string localAppDataDirectory = null)
         {
             InstallDirectory = Path.GetFullPath(string.IsNullOrWhiteSpace(installDirectory)
                 ? AppDomain.CurrentDomain.BaseDirectory
                 : installDirectory);
+
+            IsPortableMode = string.IsNullOrWhiteSpace(localAppDataDirectory) &&
+                ShouldUsePortableMode(InstallDirectory);
 
             string appDataRoot = string.IsNullOrWhiteSpace(localAppDataDirectory)
                 ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
@@ -26,7 +30,9 @@ namespace GameTranslator
                 appDataRoot = InstallDirectory;
             }
 
-            RootDirectory = Path.Combine(Path.GetFullPath(appDataRoot), AppFolderName);
+            RootDirectory = IsPortableMode
+                ? InstallDirectory
+                : Path.Combine(Path.GetFullPath(appDataRoot), AppFolderName);
             LogsDirectory = Path.Combine(RootDirectory, "logs");
             CapturesDirectory = Path.Combine(RootDirectory, "Captures");
             OcrDiagnosticsDirectory = Path.Combine(RootDirectory, "OcrDiagnostics");
@@ -36,6 +42,7 @@ namespace GameTranslator
         }
 
         public string InstallDirectory { get; }
+        public bool IsPortableMode { get; }
         public string RootDirectory { get; }
         public string LogsDirectory { get; }
         public string CapturesDirectory { get; }
@@ -73,6 +80,11 @@ namespace GameTranslator
         public AppDataMigrationSummary MigrateLegacyFiles()
         {
             EnsureDirectories();
+
+            if (IsPortableMode)
+            {
+                return new AppDataMigrationSummary();
+            }
 
             var summary = new AppDataMigrationSummary();
             summary.ConfigCopied = CopyFileIfMissing(Path.Combine(InstallDirectory, "config.ini"), ConfigFilePath);
@@ -122,6 +134,18 @@ namespace GameTranslator
             }
 
             return copied;
+        }
+
+        private static bool ShouldUsePortableMode(string installDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(installDirectory))
+            {
+                return false;
+            }
+
+            string configPath = Path.Combine(installDirectory, "config.ini");
+            string markerPath = Path.Combine(installDirectory, PortableModeMarkerFileName);
+            return File.Exists(configPath) || File.Exists(markerPath);
         }
     }
 

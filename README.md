@@ -38,9 +38,11 @@ https://github.com/SeoArin9142/GameChatTranslator/releases
 7. `Ctrl + 9`로 1회 번역하거나, `Ctrl + 0`으로 자동 번역 모드를 켭니다.
 
 첫 실행 후 생성되는 `config.ini`, `logs`, `Captures`, OCR 진단 저장 기본 위치는 아래와 같습니다.
+다만 실행 파일과 같은 폴더에 `config.ini`가 이미 있거나 `portable.mode` 파일이 있으면, 같은 폴더를 사용자 데이터 루트로 사용하는 portable 모드로 동작합니다.
 
 ```text
-%LocalAppData%\GameChatTranslator\
+기본: %LocalAppData%\GameChatTranslator\
+portable 모드: 실행 파일 폴더
 ```
 
 ## 주요 기능
@@ -291,15 +293,17 @@ qwen/qwen3.5-9b
 - 기본 characters.txt
 
 사용자 데이터
-- %LocalAppData%\GameChatTranslator\config.ini
-- %LocalAppData%\GameChatTranslator\logs\
-- %LocalAppData%\GameChatTranslator\Captures\
-- %LocalAppData%\GameChatTranslator\OcrDiagnostics\
-- %LocalAppData%\GameChatTranslator\characters.txt
+- 기본 모드: %LocalAppData%\GameChatTranslator\config.ini
+- 기본 모드: %LocalAppData%\GameChatTranslator\logs\
+- 기본 모드: %LocalAppData%\GameChatTranslator\Captures\
+- 기본 모드: %LocalAppData%\GameChatTranslator\OcrDiagnostics\
+- 기본 모드: %LocalAppData%\GameChatTranslator\characters.txt
+- portable 모드: 실행 파일과 같은 폴더의 `config.ini`, `logs`, `Captures`, `OcrDiagnostics`, `characters.txt`
 ```
 
-- 기존 ZIP 배포 버전에서 실행 폴더에 `config.ini`, `logs`, `Captures`, `characters.txt`가 있었다면 첫 실행 시 새 위치로 자동 복사합니다.
-- 이후 설정 변경, 로그 기록, 디버그 캡처 저장은 모두 `%LocalAppData%\GameChatTranslator` 아래를 사용합니다.
+- 실행 파일 폴더에 `config.ini`가 있거나 `portable.mode` 파일이 있으면 같은 폴더를 사용자 데이터 루트로 그대로 사용합니다.
+- 그 외 기본 모드에서는 기존 ZIP 배포 버전에서 실행 폴더에 `config.ini`, `logs`, `Captures`, `characters.txt`가 있었다면 첫 실행 시 새 위치로 자동 복사합니다.
+- 기본 모드에서는 이후 설정 변경, 로그 기록, 디버그 캡처 저장을 `%LocalAppData%\GameChatTranslator` 아래에 유지합니다.
 - `characters.txt`를 직접 수정해 쓰는 경우에는 사용자 데이터 폴더 쪽 파일을 수정하면 됩니다.
 - 설치형 Velopack 배포는 `%LocalAppData%\GameChatTranslator\current` 폴더를 교체하므로, 설정/로그는 이 사용자 데이터 폴더에 유지됩니다.
 - 환경설정창의 업데이트 영역에서 현재 실행 경로를 확인하고, 경로 복사와 현재 폴더 열기를 바로 사용할 수 있습니다.
@@ -364,7 +368,7 @@ OCR 진단 화면에서는 현재 캡처 영역을 기준으로 아래 정보를
 
 ## config.ini 주요 항목
 
-일반 사용자는 환경설정창에서 대부분의 값을 변경할 수 있습니다. 아래 표는 문제 해결이나 수동 점검이 필요할 때 참고하세요.
+일반 사용자는 환경설정창에서 대부분의 값을 변경할 수 있습니다. 현재 `config.ini`는 `[Language]`, `[Translation]`, `[OCR]`, `[Display]`, `[Capture]`, `[Window]`, `[Hotkeys]`, `[Gemini]`, `[LocalLlm]`, `[Update]`, `[Debug]` 섹션으로 나뉘어 저장됩니다. 아래 표는 문제 해결이나 수동 점검이 필요할 때 참고하세요.
 
 | 키 | 기본값 | 설명 |
 |:---|:---|:---|
