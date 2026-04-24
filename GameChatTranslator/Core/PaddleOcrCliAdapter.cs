@@ -431,7 +431,13 @@ namespace GameTranslator
                         pythonExecutablePath,
                         languageCandidates,
                         EmptyToFallback(workerResult.ErrorMessage, "PaddleOCR 워커 요청에 실패했습니다."),
-                        isPythonMissing: workerResult.IsPythonMissing);
+                        isPythonMissing: workerResult.IsPythonMissing,
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout,
+                        timedOut: workerResult.TimedOut);
                 }
 
                 PaddleOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
@@ -440,7 +446,12 @@ namespace GameTranslator
                     return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCandidates,
-                        "PaddleOCR 워커 응답을 해석하지 못했습니다.");
+                        "PaddleOCR 워커 응답을 해석하지 못했습니다.",
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 if (!response.Ok)
@@ -454,7 +465,12 @@ namespace GameTranslator
                         pythonExecutablePath,
                         languageCandidates,
                         errorMessage,
-                        isModuleMissing: isModuleMissing);
+                        isModuleMissing: isModuleMissing,
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 List<PaddleOcrCliImageResult> imageResults = ConvertWorkerImagesToResults(response.Images);
@@ -463,7 +479,12 @@ namespace GameTranslator
                     return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCandidates,
-                        EmptyToFallback(workerResult.StandardError, "PaddleOCR 결과를 읽지 못했습니다."));
+                        EmptyToFallback(workerResult.StandardError, "PaddleOCR 결과를 읽지 못했습니다."),
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 int successCount = imageResults.Sum(image => image.GroupResults.Count(group => group.Success));
@@ -476,14 +497,24 @@ namespace GameTranslator
                     return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCandidates,
-                        EmptyToFallback(firstErrorMessage, "PaddleOCR 결과가 모두 실패했습니다."));
+                        EmptyToFallback(firstErrorMessage, "PaddleOCR 결과가 모두 실패했습니다."),
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 return PaddleOcrCliBatchResult.CreateSuccess(
                     pythonExecutablePath,
                     languageCandidates,
                     imageResults,
-                    workerResult.StandardError);
+                    workerResult.StandardError,
+                    standardError: workerResult.StandardError,
+                    usedResidentWorker: true,
+                    startedWorker: workerResult.StartedWorker,
+                    restartedWorker: workerResult.RestartedWorker,
+                    usedInitializationTimeout: workerResult.UsedInitializationTimeout);
             }
             catch (System.ComponentModel.Win32Exception)
             {
@@ -695,7 +726,13 @@ namespace GameTranslator
             IReadOnlyList<PaddleOcrCliImageResult> imageResults,
             string errorMessage,
             bool isPythonMissing,
-            bool isModuleMissing)
+            bool isModuleMissing,
+            string standardError,
+            bool usedResidentWorker,
+            bool startedWorker,
+            bool restartedWorker,
+            bool usedInitializationTimeout,
+            bool timedOut)
         {
             Success = success;
             PythonExecutablePath = pythonExecutablePath ?? "";
@@ -704,6 +741,12 @@ namespace GameTranslator
             ErrorMessage = errorMessage ?? "";
             IsPythonMissing = isPythonMissing;
             IsModuleMissing = isModuleMissing;
+            StandardError = standardError ?? "";
+            UsedResidentWorker = usedResidentWorker;
+            StartedWorker = startedWorker;
+            RestartedWorker = restartedWorker;
+            UsedInitializationTimeout = usedInitializationTimeout;
+            TimedOut = timedOut;
         }
 
         public bool Success { get; }
@@ -714,14 +757,38 @@ namespace GameTranslator
         public string ErrorMessage { get; }
         public bool IsPythonMissing { get; }
         public bool IsModuleMissing { get; }
+        public string StandardError { get; }
+        public bool UsedResidentWorker { get; }
+        public bool StartedWorker { get; }
+        public bool RestartedWorker { get; }
+        public bool UsedInitializationTimeout { get; }
+        public bool TimedOut { get; }
 
         public static PaddleOcrCliBatchResult CreateSuccess(
             string pythonExecutablePath,
             IReadOnlyList<string> languageCandidates,
             IReadOnlyList<PaddleOcrCliImageResult> imageResults,
-            string errorMessage = "")
+            string errorMessage = "",
+            string standardError = "",
+            bool usedResidentWorker = false,
+            bool startedWorker = false,
+            bool restartedWorker = false,
+            bool usedInitializationTimeout = false)
         {
-            return new PaddleOcrCliBatchResult(true, pythonExecutablePath, languageCandidates, imageResults, errorMessage, false, false);
+            return new PaddleOcrCliBatchResult(
+                true,
+                pythonExecutablePath,
+                languageCandidates,
+                imageResults,
+                errorMessage,
+                false,
+                false,
+                standardError,
+                usedResidentWorker,
+                startedWorker,
+                restartedWorker,
+                usedInitializationTimeout,
+                false);
         }
 
         public static PaddleOcrCliBatchResult CreateFailure(
@@ -729,9 +796,28 @@ namespace GameTranslator
             IReadOnlyList<string> languageCandidates,
             string errorMessage,
             bool isPythonMissing = false,
-            bool isModuleMissing = false)
+            bool isModuleMissing = false,
+            string standardError = "",
+            bool usedResidentWorker = false,
+            bool startedWorker = false,
+            bool restartedWorker = false,
+            bool usedInitializationTimeout = false,
+            bool timedOut = false)
         {
-            return new PaddleOcrCliBatchResult(false, pythonExecutablePath, languageCandidates, Array.Empty<PaddleOcrCliImageResult>(), errorMessage, isPythonMissing, isModuleMissing);
+            return new PaddleOcrCliBatchResult(
+                false,
+                pythonExecutablePath,
+                languageCandidates,
+                Array.Empty<PaddleOcrCliImageResult>(),
+                errorMessage,
+                isPythonMissing,
+                isModuleMissing,
+                standardError,
+                usedResidentWorker,
+                startedWorker,
+                restartedWorker,
+                usedInitializationTimeout,
+                timedOut);
         }
     }
 

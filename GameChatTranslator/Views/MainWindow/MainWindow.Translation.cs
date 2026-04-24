@@ -869,6 +869,14 @@ namespace GameTranslator
                                 ReadEasyOcrLanguageCodes(),
                                 gameLang,
                                 EasyOcrMainOcrTimeoutMs));
+                        AppendOcrWorkerStatusLog(
+                            "EasyOCR",
+                            batchResult.UsedResidentWorker,
+                            batchResult.StartedWorker,
+                            batchResult.RestartedWorker,
+                            batchResult.UsedInitializationTimeout,
+                            batchResult.TimedOut,
+                            batchResult.StandardError);
 
                         List<OcrLanguageCandidate> languageCandidates = batchResult.GroupResults
                             .Where(group => group.Success)
@@ -905,6 +913,14 @@ namespace GameTranslator
                                 ReadPaddleOcrLanguageCodes(),
                                 gameLang,
                                 PaddleOcrMainOcrTimeoutMs));
+                        AppendOcrWorkerStatusLog(
+                            "PaddleOCR",
+                            batchResult.UsedResidentWorker,
+                            batchResult.StartedWorker,
+                            batchResult.RestartedWorker,
+                            batchResult.UsedInitializationTimeout,
+                            batchResult.TimedOut,
+                            batchResult.StandardError);
 
                         List<OcrLanguageCandidate> languageCandidates = batchResult.GroupResults
                             .Where(group => group.Success)

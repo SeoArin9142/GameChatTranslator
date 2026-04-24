@@ -70,5 +70,69 @@ namespace GameTranslator
             }
             catch { }
         }
+
+        private void AppendOcrWorkerStatusLog(
+            string engineName,
+            bool usedResidentWorker,
+            bool startedWorker,
+            bool restartedWorker,
+            bool usedInitializationTimeout,
+            bool timedOut,
+            string standardError)
+        {
+            if (!usedResidentWorker)
+            {
+                return;
+            }
+
+            var statusParts = new List<string>();
+            if (startedWorker)
+            {
+                statusParts.Add("워커 시작");
+            }
+
+            if (restartedWorker)
+            {
+                statusParts.Add("워커 재시작");
+            }
+
+            if (usedInitializationTimeout)
+            {
+                statusParts.Add($"초기화 타임아웃 사용 ({PersistentPythonOcrWorker.DefaultInitializationTimeoutMs}ms floor)");
+            }
+
+            if (timedOut)
+            {
+                statusParts.Add("요청 timeout 복구");
+            }
+
+            if (statusParts.Count > 0)
+            {
+                AppendLog($"[OCR WORKER] {engineName}: {string.Join(", ", statusParts)}");
+            }
+
+            string summarizedStandardError = SummarizeWorkerStandardError(standardError);
+            if (!string.IsNullOrWhiteSpace(summarizedStandardError))
+            {
+                AppendLog($"[OCR WORKER] {engineName} stderr: {summarizedStandardError}");
+            }
+        }
+
+        private static string SummarizeWorkerStandardError(string standardError)
+        {
+            if (string.IsNullOrWhiteSpace(standardError))
+            {
+                return "";
+            }
+
+            string normalized = Regex.Replace(standardError.Trim(), @"\s*\r?\n\s*", " | ");
+            const int maxLength = 240;
+            if (normalized.Length <= maxLength)
+            {
+                return normalized;
+            }
+
+            return normalized.Substring(0, maxLength) + "...";
+        }
     }
 }

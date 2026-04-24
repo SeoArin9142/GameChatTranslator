@@ -155,5 +155,27 @@ namespace GameChatTranslator.Tests
             Assert.Equal("ko+en", group.LanguageCodes);
             Assert.Equal("테스트", Assert.Single(group.Lines).Text);
         }
+
+        [Fact]
+        public void CreateFailure_PreservesResidentWorkerMetadata()
+        {
+            EasyOcrCliBatchResult result = EasyOcrCliBatchResult.CreateFailure(
+                "python",
+                new[] { "ko+en" },
+                "timeout",
+                standardError: "stderr",
+                usedResidentWorker: true,
+                startedWorker: true,
+                restartedWorker: true,
+                usedInitializationTimeout: true,
+                timedOut: true);
+
+            Assert.True(result.UsedResidentWorker);
+            Assert.True(result.StartedWorker);
+            Assert.True(result.RestartedWorker);
+            Assert.True(result.UsedInitializationTimeout);
+            Assert.True(result.TimedOut);
+            Assert.Equal("stderr", result.StandardError);
+        }
     }
 }

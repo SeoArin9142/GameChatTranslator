@@ -412,7 +412,13 @@ namespace GameTranslator
                         pythonExecutablePath,
                         languageCombinations,
                         EmptyToFallback(workerResult.ErrorMessage, "EasyOCR 워커 요청에 실패했습니다."),
-                        isPythonMissing: workerResult.IsPythonMissing);
+                        isPythonMissing: workerResult.IsPythonMissing,
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout,
+                        timedOut: workerResult.TimedOut);
                 }
 
                 EasyOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
@@ -421,7 +427,12 @@ namespace GameTranslator
                     return EasyOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCombinations,
-                        "EasyOCR 워커 응답을 해석하지 못했습니다.");
+                        "EasyOCR 워커 응답을 해석하지 못했습니다.",
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 if (!response.Ok)
@@ -435,7 +446,12 @@ namespace GameTranslator
                         pythonExecutablePath,
                         languageCombinations,
                         errorMessage,
-                        isModuleMissing: isModuleMissing);
+                        isModuleMissing: isModuleMissing,
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 List<EasyOcrCliGroupResult> groupResults = ConvertWorkerGroupsToResults(response.Groups);
@@ -444,7 +460,12 @@ namespace GameTranslator
                     return EasyOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCombinations,
-                        EmptyToFallback(workerResult.StandardError, "EasyOCR 결과를 읽지 못했습니다."));
+                        EmptyToFallback(workerResult.StandardError, "EasyOCR 결과를 읽지 못했습니다."),
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 int successCount = groupResults.Count(group => group.Success);
@@ -456,14 +477,24 @@ namespace GameTranslator
                     return EasyOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCombinations,
-                        EmptyToFallback(firstErrorMessage, "EasyOCR 결과가 모두 실패했습니다."));
+                        EmptyToFallback(firstErrorMessage, "EasyOCR 결과가 모두 실패했습니다."),
+                        standardError: workerResult.StandardError,
+                        usedResidentWorker: true,
+                        startedWorker: workerResult.StartedWorker,
+                        restartedWorker: workerResult.RestartedWorker,
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
                 }
 
                 return EasyOcrCliBatchResult.CreateSuccess(
                     pythonExecutablePath,
                     languageCombinations,
                     groupResults,
-                    workerResult.StandardError);
+                    workerResult.StandardError,
+                    standardError: workerResult.StandardError,
+                    usedResidentWorker: true,
+                    startedWorker: workerResult.StartedWorker,
+                    restartedWorker: workerResult.RestartedWorker,
+                    usedInitializationTimeout: workerResult.UsedInitializationTimeout);
             }
             catch (System.ComponentModel.Win32Exception)
             {
@@ -625,7 +656,13 @@ namespace GameTranslator
             IReadOnlyList<EasyOcrCliGroupResult> groupResults,
             string errorMessage,
             bool isPythonMissing,
-            bool isModuleMissing)
+            bool isModuleMissing,
+            string standardError,
+            bool usedResidentWorker,
+            bool startedWorker,
+            bool restartedWorker,
+            bool usedInitializationTimeout,
+            bool timedOut)
         {
             Success = success;
             PythonExecutablePath = pythonExecutablePath ?? "";
@@ -634,6 +671,12 @@ namespace GameTranslator
             ErrorMessage = errorMessage ?? "";
             IsPythonMissing = isPythonMissing;
             IsModuleMissing = isModuleMissing;
+            StandardError = standardError ?? "";
+            UsedResidentWorker = usedResidentWorker;
+            StartedWorker = startedWorker;
+            RestartedWorker = restartedWorker;
+            UsedInitializationTimeout = usedInitializationTimeout;
+            TimedOut = timedOut;
         }
 
         public bool Success { get; }
@@ -643,14 +686,38 @@ namespace GameTranslator
         public string ErrorMessage { get; }
         public bool IsPythonMissing { get; }
         public bool IsModuleMissing { get; }
+        public string StandardError { get; }
+        public bool UsedResidentWorker { get; }
+        public bool StartedWorker { get; }
+        public bool RestartedWorker { get; }
+        public bool UsedInitializationTimeout { get; }
+        public bool TimedOut { get; }
 
         public static EasyOcrCliBatchResult CreateSuccess(
             string pythonExecutablePath,
             IReadOnlyList<string> languageCombinations,
             IReadOnlyList<EasyOcrCliGroupResult> groupResults,
-            string errorMessage = "")
+            string errorMessage = "",
+            string standardError = "",
+            bool usedResidentWorker = false,
+            bool startedWorker = false,
+            bool restartedWorker = false,
+            bool usedInitializationTimeout = false)
         {
-            return new EasyOcrCliBatchResult(true, pythonExecutablePath, languageCombinations, groupResults, errorMessage, false, false);
+            return new EasyOcrCliBatchResult(
+                true,
+                pythonExecutablePath,
+                languageCombinations,
+                groupResults,
+                errorMessage,
+                false,
+                false,
+                standardError,
+                usedResidentWorker,
+                startedWorker,
+                restartedWorker,
+                usedInitializationTimeout,
+                false);
         }
 
         public static EasyOcrCliBatchResult CreateFailure(
@@ -658,9 +725,28 @@ namespace GameTranslator
             IReadOnlyList<string> languageCombinations,
             string errorMessage,
             bool isPythonMissing = false,
-            bool isModuleMissing = false)
+            bool isModuleMissing = false,
+            string standardError = "",
+            bool usedResidentWorker = false,
+            bool startedWorker = false,
+            bool restartedWorker = false,
+            bool usedInitializationTimeout = false,
+            bool timedOut = false)
         {
-            return new EasyOcrCliBatchResult(false, pythonExecutablePath, languageCombinations, Array.Empty<EasyOcrCliGroupResult>(), errorMessage, isPythonMissing, isModuleMissing);
+            return new EasyOcrCliBatchResult(
+                false,
+                pythonExecutablePath,
+                languageCombinations,
+                Array.Empty<EasyOcrCliGroupResult>(),
+                errorMessage,
+                isPythonMissing,
+                isModuleMissing,
+                standardError,
+                usedResidentWorker,
+                startedWorker,
+                restartedWorker,
+                usedInitializationTimeout,
+                timedOut);
         }
     }
 
