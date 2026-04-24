@@ -55,13 +55,13 @@
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
 	    <TargetPath>readme.txt</TargetPath>
 	  </None>
-	  <!-- EasyOCR 비교 실험용 Python 러너입니다. 진단 경로에서만 사용합니다. -->
+	  <!-- EasyOCR Python 러너입니다. 메인 번역과 OCR 진단 경로에서 사용합니다. -->
 	  <None Update="Distribution/easyocr_runner.py">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
 	    <TargetPath>easyocr_runner.py</TargetPath>
 	  </None>
-	  <!-- PaddleOCR 비교 실험용 Python 러너입니다. 진단 경로에서만 사용합니다. -->
+	  <!-- PaddleOCR Python 러너입니다. 메인 번역과 OCR 진단 경로에서 사용합니다. -->
 	  <None Update="Distribution/paddleocr_runner.py">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>

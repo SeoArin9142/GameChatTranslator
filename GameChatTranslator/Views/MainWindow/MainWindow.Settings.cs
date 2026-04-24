@@ -271,7 +271,7 @@ namespace GameTranslator
 
         /// <summary>
         /// 메인 번역 파이프라인에서 사용할 OCR 엔진 단일 선택값을 읽습니다.
-        /// 현재는 Windows OCR/Tesseract를 우선 지원하고, EasyOCR/PaddleOCR는 같은 슬롯에 후속 추가할 수 있게 유지합니다.
+        /// Windows OCR / Tesseract / EasyOCR / PaddleOCR 중 하나를 즉시 런타임에 반영합니다.
         /// </summary>
         private MainOcrEngine ReadMainOcrEngine()
         {
