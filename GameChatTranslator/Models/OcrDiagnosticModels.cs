@@ -25,6 +25,7 @@ namespace GameTranslator
         public long ScoringMs { get; set; }
         public long TotalMs { get; set; }
         public int OcrCallCount { get; set; }
+        public string ExternalOcrStatus { get; set; } = "";
         public OcrDiagnosticMetadata Metadata { get; set; } = new OcrDiagnosticMetadata();
         public List<OcrDiagnosticCandidate> Candidates { get; } = new List<OcrDiagnosticCandidate>();
     }
@@ -36,8 +37,11 @@ namespace GameTranslator
     public class OcrDiagnosticMetadata
     {
         public string AppVersion { get; set; } = "";
+        public string BuildInformationalVersion { get; set; } = "";
+        public string BuildCommit { get; set; } = "";
         public string GameLanguage { get; set; } = "";
         public string TargetLanguage { get; set; } = "";
+        public string ConfiguredOcrEngine { get; set; } = "";
         public string AutoTranslateMode { get; set; } = "";
         public string DiagnosticProcessingMode { get; set; } = "";
         public string SaveDebugImages { get; set; } = "";

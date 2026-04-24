@@ -238,6 +238,358 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void MergeBestLinesByIndex_StrinovaMode_PicksBestLinePerIndex()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "[미셸]: hello" },
+                        new OcrLine { Text = "[미셸]: !!!" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "[미셸]: !!!" },
+                        new OcrLine { Text = "[미셸]: world" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Equal(2, merged.Count);
+            Assert.Equal("[미셸]: hello", merged[0].Text);
+            Assert.Equal("[미셸]: world", merged[1].Text);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_TieUsesDeterministicLanguageOrder()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Top = 10, Bottom = 20, Text = "[미셸]: hello" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Top = 30, Bottom = 40, Text = "[미셸]: hello" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Single(merged);
+            Assert.Equal("[미셸]: hello", merged[0].Text);
+            Assert.Equal(30, merged[0].Top);
+            Assert.Equal(40, merged[0].Bottom);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_EtcMode_PicksMostReadableLinePerIndex()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "!!!" },
+                        new OcrLine { Text = "猫 は 可 愛 い" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "猫很可爱!" },
+                        new OcrLine { Text = "..." }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Etc);
+
+            Assert.Equal(2, merged.Count);
+            Assert.Equal("猫很可爱!", merged[0].Text);
+            Assert.Equal("猫 は 可 愛 い", merged[1].Text);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_StrinovaMode_PrefersReadableMessageOverWeakLabeledLine()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [치요]: ROE! |" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [치요]: 猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Single(merged);
+            Assert.Equal("SeoArin [치요]: 猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
+        public void MergeBestLinesByIndex_StrinovaMode_PrefersLabeledLineWhenMessageQualityMatches()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "猫は可愛い" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [치요]: 猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestLinesByIndex(
+                candidates,
+                KnownCharacters,
+                TranslationContentMode.Strinova);
+
+            Assert.Single(merged);
+            Assert.Equal("SeoArin [치요]: 猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
+        public void MergeBestChatLinesByComponents_StrinovaMode_CombinesBestLabelAndBestMessage()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Top = 10, Bottom = 20, Text = "SeoArin [치요]: HRT!" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Top = 30, Bottom = 40, Text = "SeoArin [AQ]: 猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestChatLinesByComponents(candidates, characters);
+
+            Assert.Single(merged);
+            Assert.Equal(30, merged[0].Top);
+            Assert.Equal(40, merged[0].Bottom);
+            Assert.Equal("[치요]: 猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
+        public void MergeBestChatLinesByComponents_StrinovaMode_FallsBackWhenNoRecoverableLabelExists()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [AQ]: hello world" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "SeoArin [BQ]: 猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestChatLinesByComponents(candidates, characters);
+
+            Assert.Single(merged);
+            Assert.Equal("SeoArin [BQ]: 猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
+        public void MergeBestChatLinesByComponents_StrinovaMode_FallsBackWhenParsingFails()
+        {
+            var candidates = new[]
+            {
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ko",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "!!!" }
+                    }
+                },
+                new OcrLanguageCandidate
+                {
+                    LanguageCode = "ja",
+                    Lines = new List<OcrLine>
+                    {
+                        new OcrLine { Text = "猫は可愛い" }
+                    }
+                }
+            };
+
+            List<OcrLine> merged = _service.MergeBestChatLinesByComponents(candidates, KnownCharacters);
+
+            Assert.Single(merged);
+            Assert.Equal("猫は可愛い", merged[0].Text);
+        }
+
+        [Fact]
+        public void ScoreMergedLinesForSelection_StrinovaMode_RewardsReadableMessageEvenWithBrokenLabel()
+        {
+            var lines = new[]
+            {
+                new OcrLine { Text = "SeoArin [AQ]: 猫很可爱!" },
+                new OcrLine { Text = "SeoArin [AQ]: 猫は可愛い" }
+            };
+
+            int legacyScore = _service.ScoreLines(lines, KnownCharacters, TranslationContentMode.Strinova);
+            int mergedScore = _service.ScoreMergedLinesForSelection(lines, KnownCharacters, TranslationContentMode.Strinova);
+
+            Assert.True(mergedScore > 0);
+            Assert.True(mergedScore > legacyScore);
+        }
+
+        [Fact]
+        public void NormalizeMergedLinesForSelection_StrinovaMode_RecoversCloseKnownLabel()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var lines = new[]
+            {
+                new OcrLine { Top = 10, Bottom = 20, Text = "SeoArin [지요]: 猫は可愛い" }
+            };
+
+            List<OcrLine> normalized = _service.NormalizeMergedLinesForSelection(lines, characters, TranslationContentMode.Strinova);
+
+            Assert.Single(normalized);
+            Assert.Equal(10, normalized[0].Top);
+            Assert.Equal(20, normalized[0].Bottom);
+            Assert.Equal("[치요]: 猫は可愛い", normalized[0].Text);
+        }
+
+        [Fact]
+        public void NormalizeMergedLinesForSelection_StrinovaMode_DoesNotGuessAsciiNoiseLabel()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var lines = new[]
+            {
+                new OcrLine { Text = "SeoArin [AQ]: 猫は可愛い" }
+            };
+
+            List<OcrLine> normalized = _service.NormalizeMergedLinesForSelection(lines, characters, TranslationContentMode.Strinova);
+
+            Assert.Single(normalized);
+            Assert.Equal("SeoArin [AQ]: 猫は可愛い", normalized[0].Text);
+        }
+
+        [Fact]
+        public void ScoreMergedLinesForSelection_StrinovaMode_UsesKnownCharacterScaleWhenRecoveredLabelExists()
+        {
+            var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "치요"
+            };
+            var lines = new[]
+            {
+                new OcrLine { Text = "SeoArin [지요]: 猫は可愛い" },
+                new OcrLine { Text = "SeoArin [치요]: KowKu munpie.!!!" }
+            };
+
+            int mergedScore = _service.ScoreMergedLinesForSelection(lines, characters, TranslationContentMode.Strinova);
+
+            Assert.True(mergedScore > 20000);
+        }
+
+        [Fact]
+        public void ScoreMergedLinesForSelection_EtcMode_UsesSameScoreAsScoreLines()
+        {
+            var lines = new[]
+            {
+                new OcrLine { Text = "猫很可爱!" },
+                new OcrLine { Text = "hello world" }
+            };
+
+            int baseScore = _service.ScoreLines(lines, KnownCharacters, TranslationContentMode.Etc);
+            int mergedScore = _service.ScoreMergedLinesForSelection(lines, KnownCharacters, TranslationContentMode.Etc);
+
+            Assert.Equal(baseScore, mergedScore);
+        }
+
+        [Fact]
         public void OcrService_DoesNotReferenceWinRtOrBitmapTypes()
         {
             string assemblyQualifiedNames = string.Join(

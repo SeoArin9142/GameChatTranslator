@@ -45,40 +45,23 @@ namespace GameTranslator
             UnregisterHotKey(_windowHandle, ID_HOTKEY_LOG_VIEWER);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_OCR_DIAGNOSTIC);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_HOTKEY_GUIDE_TOGGLE);
+            UnregisterHotKey(_windowHandle, ID_HOTKEY_OPEN_SETTINGS);
 
             hotkeyWarningMessage = "";
             var failedHotkeys = new List<string>();
 
             DefaultHotkeys defaults = settingsService.GetDefaultHotkeys();
-            string moveHotkey = settingsService.NormalizeHotkey(ini.Read("Key_MoveLock"), defaults.MoveLock);
-            string areaHotkey = settingsService.NormalizeHotkey(ini.Read("Key_AreaSelect"), defaults.AreaSelect);
             string translateHotkey = settingsService.NormalizeHotkey(ini.Read("Key_Translate"), defaults.Translate);
             string autoHotkey = settingsService.NormalizeHotkey(ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
-            string toggleHotkey = settingsService.NormalizeHotkey(ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
-            string copyHotkey = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
-            string logHotkey = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
-            string ocrDiagnosticHotkey = settingsService.NormalizeHotkey(ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
-            string hotkeyGuideHotkey = settingsService.NormalizeHotkey(ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
+            string settingsHotkey = settingsService.NormalizeHotkey(ini.Read("Key_OpenSettings"), defaults.OpenSettings);
 
-            ParseHotkey(moveHotkey, out modMove, out keyMove);
-            ParseHotkey(areaHotkey, out modArea, out keyArea);
             ParseHotkey(translateHotkey, out modTrans, out keyTrans);
             ParseHotkey(autoHotkey, out modAuto, out keyAuto);
-            ParseHotkey(toggleHotkey, out modToggle, out keyToggle);
-            ParseHotkey(copyHotkey, out modCopy, out keyCopy);
-            ParseHotkey(logHotkey, out modLog, out keyLog);
-            ParseHotkey(ocrDiagnosticHotkey, out modOcrDiag, out keyOcrDiag);
-            ParseHotkey(hotkeyGuideHotkey, out modHotkeyGuide, out keyHotkeyGuide);
+            ParseHotkey(settingsHotkey, out modSettings, out keySettings);
 
-            RegisterHotKeyOrWarn(ID_HOTKEY_MOVE_LOCK, modMove, keyMove, "이동/잠금", moveHotkey, failedHotkeys);
-            RegisterHotKeyOrWarn(ID_HOTKEY_AREA_SELECT, modArea, keyArea, "영역 설정", areaHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_TRANSLATE, modTrans, keyTrans, "수동 번역", translateHotkey, failedHotkeys);
             RegisterHotKeyOrWarn(ID_HOTKEY_AUTO, modAuto, keyAuto, "자동 번역", autoHotkey, failedHotkeys);
-            RegisterHotKeyOrWarn(ID_HOTKEY_TOGGLE_ENGINE, modToggle, keyToggle, "엔진 전환", toggleHotkey, failedHotkeys);
-            RegisterHotKeyOrWarn(ID_HOTKEY_COPY_RESULT, modCopy, keyCopy, "번역 복사", copyHotkey, failedHotkeys);
-            RegisterHotKeyOrWarn(ID_HOTKEY_LOG_VIEWER, modLog, keyLog, "로그창", logHotkey, failedHotkeys);
-            RegisterHotKeyOrWarn(ID_HOTKEY_OCR_DIAGNOSTIC, modOcrDiag, keyOcrDiag, "OCR 진단", ocrDiagnosticHotkey, failedHotkeys);
-            RegisterHotKeyOrWarn(ID_HOTKEY_HOTKEY_GUIDE_TOGGLE, modHotkeyGuide, keyHotkeyGuide, "단축키 안내", hotkeyGuideHotkey, failedHotkeys);
+            RegisterHotKeyOrWarn(ID_HOTKEY_OPEN_SETTINGS, modSettings, keySettings, "환경설정", settingsHotkey, failedHotkeys);
 
             if (failedHotkeys.Count > 0)
             {
@@ -133,17 +116,9 @@ namespace GameTranslator
         private void UpdateYellowHotkeyGuideText()
         {
             DefaultHotkeys defaults = settingsService.GetDefaultHotkeys();
-            string m = settingsService.NormalizeHotkey(ini.Read("Key_MoveLock"), defaults.MoveLock);
-            string a = settingsService.NormalizeHotkey(ini.Read("Key_AreaSelect"), defaults.AreaSelect);
+            string settingsHotkey = settingsService.NormalizeHotkey(ini.Read("Key_OpenSettings"), defaults.OpenSettings);
             string t = settingsService.NormalizeHotkey(ini.Read("Key_Translate"), defaults.Translate);
             string au = settingsService.NormalizeHotkey(ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
-            string tg = settingsService.NormalizeHotkey(ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
-            string copy = settingsService.NormalizeHotkey(ini.Read("Key_CopyResult"), defaults.CopyResult);
-            string log = settingsService.NormalizeHotkey(ini.Read("Key_LogViewer"), defaults.LogViewer);
-            string diag = settingsService.NormalizeHotkey(ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
-            string guide = settingsService.NormalizeHotkey(ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
-
-            // 🌟 안내 문구에 엔진 전환 추가
             string engineStr = GetCurrentTranslationEngineShortName();
             if (TxtHotkeyGuide == null)
             {
@@ -151,40 +126,14 @@ namespace GameTranslator
             }
 
             TxtHotkeyGuide.Inlines.Clear();
-
-            if (!isHotkeyGuideExpanded)
-            {
-                TxtHotkeyGuide.Inlines.Add(new Run($"[{guide}] 단축키 안내\t\t"));
-                TxtHotkeyGuide.Inlines.Add(new Run("자동: "));
-                TxtHotkeyGuide.Inlines.Add(new Run(GetAutoTranslateModeLabel())
-                {
-                    Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
-                    FontWeight = FontWeights.Bold
-                });
-                TxtHotkeyGuide.Inlines.Add(new Run($"\t\t번역기: {engineStr}"));
-                return;
-            }
-
-            // 상세 안내 ON 상태에서는 기존 단축키 목록을 보여주고, Ctrl+F10으로 접을 수 있음을 함께 표시합니다.
-            TxtHotkeyGuide.Inlines.Add(new Run($"[{m}] 이동  [{a}] 영역  [{t}] 번역  [{au}] 자동: "));
+            TxtHotkeyGuide.Inlines.Add(new Run($"[{settingsHotkey}] 설정  [{t}] 번역  [{au}] 자동: "));
             TxtHotkeyGuide.Inlines.Add(new Run(GetAutoTranslateModeLabel())
             {
                 Foreground = isAutoTranslating ? Brushes.Lime : Brushes.Gray,
                 FontWeight = FontWeights.Bold
             });
-            TxtHotkeyGuide.Inlines.Add(new Run($"\n[{copy}] 복사  [{diag}] 진단  [{tg}] {engineStr}  [{log}] 로그"));
-            TxtHotkeyGuide.Inlines.Add(new Run($"\n[{guide}] 단축키 안내 숨김"));
-        }
-
-        /// <summary>
-        /// 번역창 상단 단축키 상세 목록 표시 여부를 전환합니다.
-        /// OFF 상태에서는 자동 번역 상태와 현재 번역 엔진만 표시해 게임 화면을 덜 가리게 합니다.
-        /// </summary>
-        private void ToggleHotkeyGuide()
-        {
-            isHotkeyGuideExpanded = !isHotkeyGuideExpanded;
-            UpdateYellowHotkeyGuideText();
-            AppendLog($"단축키 안내 표시: {(isHotkeyGuideExpanded ? "ON" : "OFF")}");
+            TxtHotkeyGuide.Inlines.Add(new Run($"  번역기: {engineStr}"));
+            TxtHotkeyGuide.Inlines.Add(new Run($"  OCR: {GetCurrentMainOcrEngineShortName()}"));
         }
 
         /// <summary>
@@ -256,15 +205,9 @@ namespace GameTranslator
             {
                 switch (wParam.ToInt32())
                 {
-                    case ID_HOTKEY_MOVE_LOCK: ToggleMoveLock(); handled = true; break;
-                    case ID_HOTKEY_AREA_SELECT: startAreaSelection(); handled = true; break;
                     case ID_HOTKEY_TRANSLATE: runTranslation(); handled = true; break;
                     case ID_HOTKEY_AUTO: ToggleAutoTranslate(); handled = true; break;
-                    case ID_HOTKEY_TOGGLE_ENGINE: ToggleEngine(); handled = true; break;
-                    case ID_HOTKEY_COPY_RESULT: CopyLastTranslationToClipboard(); handled = true; break;
-                    case ID_HOTKEY_LOG_VIEWER: ToggleLogViewerWindow(); handled = true; break;
-                    case ID_HOTKEY_OCR_DIAGNOSTIC: ShowOcrDiagnosticWindow(); handled = true; break;
-                    case ID_HOTKEY_HOTKEY_GUIDE_TOGGLE: ToggleHotkeyGuide(); handled = true; break;
+                    case ID_HOTKEY_OPEN_SETTINGS: ShowSettingsWindow(); handled = true; break;
                 }
             }
             return IntPtr.Zero;

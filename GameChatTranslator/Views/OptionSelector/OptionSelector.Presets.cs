@@ -142,6 +142,12 @@ namespace GameTranslator
         /// </summary>
         private void BtnSavePreset_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryGetSelectedConfiguredOcrEngines(out IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines))
+            {
+                MessageBox.Show("프리셋에 저장할 OCR 엔진을 최소 1개 선택해 주세요.", "프리셋 저장", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             string presetName = GetSelectedPresetName();
             if (string.IsNullOrWhiteSpace(presetName))
             {
@@ -149,7 +155,7 @@ namespace GameTranslator
                 return;
             }
 
-            SavePreset(presetName);
+            SavePreset(presetName, configuredOcrEngines);
 
             List<string> names = ReadPresetNames();
             if (!names.Contains(presetName, StringComparer.OrdinalIgnoreCase))
@@ -182,7 +188,7 @@ namespace GameTranslator
             string differenceSummary = BuildRecommendedPresetDifference(preset);
             ApplyRecommendedPreset(preset);
             MessageBox.Show(
-                $"'{preset.DisplayName}' 추천 프리셋 값을 입력칸에 반영했습니다.\n\n변경 예정값:\n{differenceSummary}\n\n저장하려면 [저장 및 게임 시작]을 눌러주세요. 사용자 프리셋으로 저장하려면 프리셋 이름을 직접 입력한 뒤 [프리셋 저장]을 눌러주세요.",
+                $"'{preset.DisplayName}' 추천 프리셋 값을 입력칸에 반영했습니다.\n\n변경 예정값:\n{differenceSummary}\n\n저장하려면 [저장]을 눌러주세요. 사용자 프리셋으로 저장하려면 프리셋 이름을 직접 입력한 뒤 [프리셋 저장]을 눌러주세요.",
                 "추천 프리셋 적용",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -226,7 +232,7 @@ namespace GameTranslator
         /// 선택한 프리셋 값을 환경설정 UI에 불러옵니다.
         /// <paramref name="sender"/>는 불러오기 버튼이고,
         /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
-        /// 저장 및 게임 시작을 눌러야 실제 실행 설정으로 확정됩니다.
+        /// 저장을 눌러야 실제 실행 설정으로 확정됩니다.
         /// </summary>
         private void BtnLoadPreset_Click(object sender, RoutedEventArgs e)
         {
@@ -238,7 +244,7 @@ namespace GameTranslator
             }
 
             LoadPreset(presetName);
-            MessageBox.Show($"프리셋 '{presetName}'을 불러왔습니다.\n저장 및 게임 시작을 누르면 적용됩니다.", "프리셋 불러오기", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"프리셋 '{presetName}'을 불러왔습니다.\n저장을 누르면 적용됩니다.", "프리셋 불러오기", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         /// <summary>
@@ -274,7 +280,7 @@ namespace GameTranslator
         /// <paramref name="presetName"/>은 저장할 프리셋 이름입니다.
         /// Gemini API Key는 보안상 프리셋에 포함하지 않습니다.
         /// </summary>
-        private void SavePreset(string presetName)
+        private void SavePreset(string presetName, IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
         {
             string section = GetPresetSectionName(presetName);
 
@@ -286,23 +292,21 @@ namespace GameTranslator
             _ini.Write("AutoTranslateInterval", SettingsValueNormalizer.NormalizeAutoTranslateInterval(TxtInterval?.Text).ToString(), section);
             _ini.Write("ResultDisplayMode", GetSelectedTag(ComboResultDisplayMode, SettingsService.DefaultResultDisplayMode), section);
             _ini.Write("ResultHistoryLimit", SettingsValueNormalizer.NormalizeResultHistoryLimit(TxtResultHistoryLimit?.Text).ToString(), section);
+            _ini.Write("TranslationResultAutoClearSeconds", SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(TxtTranslationResultAutoClearSeconds?.Text).ToString(), section);
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false", section);
+            _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false", section);
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag(), section);
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine), section);
+            _ini.Write("MainOcrEngine", GetSelectedTag(ComboMainOcrEngine, SettingsService.DefaultMainOcrEngine), section);
+            _ini.Write("OcrEngineSelection", _settingsService.GetConfiguredOcrEngineSelectionTag(configuredOcrEngines), section);
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text), section);
             _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text), section);
             _ini.Write("LocalLlmModel", _settingsService.NormalizeLocalLlmModel(TxtLocalLlmModel?.Text), section);
             _ini.Write("LocalLlmTimeoutSeconds", _settingsService.NormalizeLocalLlmTimeoutSeconds(TxtLocalLlmTimeout?.Text).ToString(), section);
             _ini.Write("LocalLlmMaxTokens", _settingsService.NormalizeLocalLlmMaxTokens(TxtLocalLlmMaxTokens?.Text).ToString(), section);
-            _ini.Write("Key_MoveLock", TxtKeyMove.Text, section);
-            _ini.Write("Key_AreaSelect", TxtKeyArea.Text, section);
+            _ini.Write("Key_OpenSettings", TxtKeySettings.Text, section);
             _ini.Write("Key_Translate", TxtKeyTrans.Text, section);
             _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text, section);
-            _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text, section);
-            _ini.Write("Key_CopyResult", TxtKeyCopy.Text, section);
-            _ini.Write("Key_LogViewer", TxtKeyLog.Text, section);
-            _ini.Write("Key_OcrDiagnostic", TxtKeyOcrDiagnostic.Text, section);
-            _ini.Write("Key_HotkeyGuideToggle", TxtKeyHotkeyGuide.Text, section);
 
             foreach (string key in PresetSettingKeys)
             {
@@ -331,24 +335,24 @@ namespace GameTranslator
             TxtInterval.Text = SettingsValueNormalizer.NormalizeAutoTranslateInterval(ReadPresetValue(section, "AutoTranslateInterval", "5")).ToString();
             SetComboByTag(ComboResultDisplayMode, ReadPresetValue(section, "ResultDisplayMode", SettingsService.DefaultResultDisplayMode));
             TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(ReadPresetValue(section, "ResultHistoryLimit", "5")).ToString();
+            TxtTranslationResultAutoClearSeconds.Text = SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(ReadPresetValue(section, "TranslationResultAutoClearSeconds", "0")).ToString();
             CheckSaveDebugImages.IsChecked = _settingsService.IsEnabled(ReadPresetValue(section, "SaveDebugImages", "false"));
+            CheckAutoCopyTranslationResult.IsChecked = _settingsService.IsEnabledOrDefault(
+                ReadPresetValue(section, "AutoCopyTranslationResult", SettingsService.DefaultAutoCopyTranslationResult),
+                _settingsService.IsEnabled(SettingsService.DefaultAutoCopyTranslationResult));
             ApplyTranslationContentMode(_settingsService.NormalizeTranslationContentMode(ReadPresetValue(section, "TranslationContentMode", SettingsService.DefaultTranslationContentMode)));
             SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(_settingsService.NormalizeTranslationEngineMode(ReadPresetValue(section, "TranslationEngine", SettingsService.DefaultTranslationEngine))));
+            SetComboByTag(ComboMainOcrEngine, _settingsService.GetMainOcrEngineTag(_settingsService.NormalizeMainOcrEngine(ReadPresetValue(section, "MainOcrEngine", SettingsService.DefaultMainOcrEngine))));
+            ApplyConfiguredOcrEngineSelection(_settingsService.NormalizeConfiguredOcrEngineSelection(ReadPresetValue(section, "OcrEngineSelection", SettingsService.DefaultOcrEngineSelection)));
             TxtGeminiModel.Text = _settingsService.NormalizeGeminiModel(ReadPresetValue(section, "GeminiModel", SettingsService.DefaultGeminiModel));
             TxtLocalLlmEndpoint.Text = _settingsService.NormalizeLocalLlmEndpoint(ReadPresetValue(section, "LocalLlmEndpoint", SettingsService.DefaultLocalLlmEndpoint));
             TxtLocalLlmModel.Text = _settingsService.NormalizeLocalLlmModel(ReadPresetValue(section, "LocalLlmModel", SettingsService.DefaultLocalLlmModel));
             TxtLocalLlmTimeout.Text = _settingsService.NormalizeLocalLlmTimeoutSeconds(ReadPresetValue(section, "LocalLlmTimeoutSeconds", SettingsService.DefaultLocalLlmTimeoutSeconds.ToString())).ToString();
             TxtLocalLlmMaxTokens.Text = _settingsService.NormalizeLocalLlmMaxTokens(ReadPresetValue(section, "LocalLlmMaxTokens", SettingsService.DefaultLocalLlmMaxTokens.ToString())).ToString();
             DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
-            TxtKeyMove.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_MoveLock", defaults.MoveLock), defaults.MoveLock);
-            TxtKeyArea.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_AreaSelect", defaults.AreaSelect), defaults.AreaSelect);
+            TxtKeySettings.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_OpenSettings", defaults.OpenSettings), defaults.OpenSettings);
             TxtKeyTrans.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_Translate", defaults.Translate), defaults.Translate);
             TxtKeyAuto.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_AutoTranslate", defaults.AutoTranslate), defaults.AutoTranslate);
-            TxtKeyToggle.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_ToggleEngine", defaults.ToggleEngine), defaults.ToggleEngine);
-            TxtKeyCopy.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_CopyResult", defaults.CopyResult), defaults.CopyResult);
-            TxtKeyLog.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_LogViewer", defaults.LogViewer), defaults.LogViewer);
-            TxtKeyOcrDiagnostic.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_OcrDiagnostic", defaults.OcrDiagnostic), defaults.OcrDiagnostic);
-            TxtKeyHotkeyGuide.Text = _settingsService.NormalizeHotkey(ReadPresetValue(section, "Key_HotkeyGuideToggle", defaults.HotkeyGuideToggle), defaults.HotkeyGuideToggle);
 
             foreach (string key in PresetSettingKeys)
             {

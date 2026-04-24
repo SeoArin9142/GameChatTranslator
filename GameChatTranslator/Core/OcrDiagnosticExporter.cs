@@ -66,6 +66,10 @@ namespace GameTranslator
             builder.AppendLine($"선택 점수: {result.SelectedScore}");
             builder.AppendLine($"후보 수: {result.Candidates.Count}");
             builder.AppendLine($"OCR 호출 수: {result.OcrCallCount}");
+            if (!string.IsNullOrWhiteSpace(result.ExternalOcrStatus))
+            {
+                builder.AppendLine($"외부 OCR 상태: {result.ExternalOcrStatus}");
+            }
             builder.AppendLine();
             builder.AppendLine("[처리 시간]");
             builder.AppendLine($"Capture: {result.CaptureMs}ms");
@@ -114,8 +118,11 @@ namespace GameTranslator
             builder.AppendLine();
             builder.AppendLine("[환경 설정]");
             builder.AppendLine($"앱 버전: {EmptyToDash(metadata.AppVersion)}");
+            builder.AppendLine($"빌드 정보: {EmptyToDash(metadata.BuildInformationalVersion)}");
+            builder.AppendLine($"빌드 커밋: {EmptyToDash(metadata.BuildCommit)}");
             builder.AppendLine($"게임 언어: {EmptyToDash(metadata.GameLanguage)}");
             builder.AppendLine($"번역 언어: {EmptyToDash(metadata.TargetLanguage)}");
+            builder.AppendLine($"OCR 엔진 선택: {EmptyToDash(metadata.ConfiguredOcrEngine)}");
             builder.AppendLine($"현재 자동 OCR 모드: {EmptyToDash(metadata.AutoTranslateMode)}");
             builder.AppendLine($"진단 OCR 모드: {EmptyToDash(metadata.DiagnosticProcessingMode)}");
             builder.AppendLine($"디버그 이미지 저장: {EmptyToDash(metadata.SaveDebugImages)}");

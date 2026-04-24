@@ -22,8 +22,12 @@ namespace GameChatTranslator.Tests
             Assert.Contains("Threshold: 120", summary);
             Assert.Contains("Total: 70ms", summary);
             Assert.Contains("- Color: 123", summary);
+            Assert.Contains("외부 OCR 상태: Tesseract 후보 추가 (jpn+eng+kor+chi_sim)", summary);
             Assert.Contains("앱 버전: v.test", summary);
+            Assert.Contains("빌드 정보: 1.0.31-alpha+abcdef1234567890", summary);
+            Assert.Contains("빌드 커밋: abcdef1234567890", summary);
             Assert.Contains("게임 언어: ko", summary);
+            Assert.Contains("OCR 엔진 선택: 전체 비교", summary);
             Assert.Contains("현재 자동 OCR 모드: 자동", summary);
             Assert.Contains("표시 좌표 CaptureX/Y/W/H: X=1, Y=2, W=30, H=40", summary);
             Assert.Contains("물리 픽셀 CapturePixelX/Y/W/H: X=10, Y=20, W=300, H=120", summary);
@@ -124,11 +128,15 @@ namespace GameChatTranslator.Tests
                 ScoringMs = 15,
                 TotalMs = 70,
                 OcrCallCount = 2,
+                ExternalOcrStatus = "Tesseract 후보 추가 (jpn+eng+kor+chi_sim)",
                 Metadata = new OcrDiagnosticMetadata
                 {
                     AppVersion = "v.test",
+                    BuildInformationalVersion = "1.0.31-alpha+abcdef1234567890",
+                    BuildCommit = "abcdef1234567890",
                     GameLanguage = "ko",
                     TargetLanguage = "en-US",
+                    ConfiguredOcrEngine = "전체 비교",
                     AutoTranslateMode = "자동",
                     DiagnosticProcessingMode = "정확",
                     SaveDebugImages = "false",

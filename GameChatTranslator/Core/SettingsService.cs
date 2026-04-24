@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GameTranslator
 {
@@ -8,6 +10,14 @@ namespace GameTranslator
     /// </summary>
     public sealed class SettingsService
     {
+        private static readonly ConfiguredOcrEngine[] ConfiguredOcrEngineSelectionOrder =
+        {
+            ConfiguredOcrEngine.WindowsOcr,
+            ConfiguredOcrEngine.Tesseract,
+            ConfiguredOcrEngine.EasyOcr,
+            ConfiguredOcrEngine.PaddleOcr
+        };
+
         public const string DefaultGeminiModel = "gemini-2.5-flash";
         public const string DefaultLocalLlmEndpoint = "http://localhost:1234/v1/chat/completions";
         public const string DefaultLocalLlmModel = "qwen/qwen3.5-9b";
@@ -17,7 +27,14 @@ namespace GameTranslator
         public const int DefaultLocalLlmMaxTokens = 160;
         public const int MinLocalLlmMaxTokens = 40;
         public const int MaxLocalLlmMaxTokens = 512;
+        public const string DefaultTesseractExecutablePath = "tesseract";
+        public const string DefaultTesseractLanguageCodes = "eng+kor+jpn+chi_sim";
+        public const string DefaultEasyOcrPythonPath = "python";
+        public const string DefaultEasyOcrLanguageCodes = "en+ko+ja+ch_sim";
+        public const string DefaultPaddleOcrPythonPath = "python";
+        public const string DefaultPaddleOcrLanguageCodes = "en+korean+japan+ch";
         public const string DefaultTranslationEngine = "Google";
+        public const string DefaultMainOcrEngine = "WindowsOcr";
         public const string DefaultTranslationContentMode = "Strinova";
         public const string DefaultResultDisplayMode = "Latest";
 
@@ -30,6 +47,9 @@ namespace GameTranslator
         public const string DefaultKeyLogViewer = "Ctrl+=";
         public const string DefaultKeyOcrDiagnostic = "Ctrl+5";
         public const string DefaultKeyHotkeyGuideToggle = "Ctrl+F10";
+        public const string DefaultKeyOpenSettings = "Ctrl+8";
+        public const string DefaultOcrEngineSelection = "All";
+        public const string DefaultAutoCopyTranslationResult = "false";
 
         /// <summary>
         /// Gemini API 키를 선택합니다.
@@ -91,6 +111,55 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// Tesseract 실행 파일 경로가 비어 있으면 기본 명령 이름을 반환합니다.
+        /// 실제 설치 경로 자동 탐지는 런타임 어댑터에서 수행하고, 설정 파일에는 단순 기본값만 유지합니다.
+        /// </summary>
+        public string NormalizeTesseractExecutablePath(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultTesseractExecutablePath : value.Trim();
+        }
+
+        /// <summary>
+        /// Tesseract 언어 코드 문자열이 비어 있으면 기본 다국어 조합을 반환합니다.
+        /// </summary>
+        public string NormalizeTesseractLanguageCodes(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultTesseractLanguageCodes : value.Trim();
+        }
+
+        /// <summary>
+        /// EasyOCR Python 실행 경로가 비어 있으면 기본 python 명령을 반환합니다.
+        /// </summary>
+        public string NormalizeEasyOcrPythonPath(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultEasyOcrPythonPath : value.Trim();
+        }
+
+        /// <summary>
+        /// EasyOCR 언어 코드 문자열이 비어 있으면 기본 다국어 조합을 반환합니다.
+        /// </summary>
+        public string NormalizeEasyOcrLanguageCodes(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultEasyOcrLanguageCodes : value.Trim();
+        }
+
+        /// <summary>
+        /// PaddleOCR Python 실행 경로가 비어 있으면 기본 python 명령을 반환합니다.
+        /// </summary>
+        public string NormalizePaddleOcrPythonPath(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultPaddleOcrPythonPath : value.Trim();
+        }
+
+        /// <summary>
+        /// PaddleOCR 언어 코드 문자열이 비어 있으면 기본 다국어 조합을 반환합니다.
+        /// </summary>
+        public string NormalizePaddleOcrLanguageCodes(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? DefaultPaddleOcrLanguageCodes : value.Trim();
+        }
+
+        /// <summary>
         /// 저장된 번역 엔진 문자열을 앱 내부 enum으로 변환합니다.
         /// 알 수 없는 값은 Google로 되돌려 잘못된 설정 때문에 실행이 막히지 않게 합니다.
         /// </summary>
@@ -126,6 +195,61 @@ namespace GameTranslator
         }
 
         /// <summary>
+        /// 메인 번역 파이프라인에서 사용할 OCR 엔진 단일 선택값을 앱 내부 enum으로 변환합니다.
+        /// 현재 UI는 Windows OCR/Tesseract만 노출하지만, EasyOCR/PaddleOCR 추가를 고려해 enum은 미리 열어둡니다.
+        /// </summary>
+        public MainOcrEngine NormalizeMainOcrEngine(string value)
+        {
+            string normalized = (value ?? "").Trim();
+            if (normalized.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                return MainOcrEngine.Tesseract;
+            }
+
+            if (normalized.Equals("EasyOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("EasyOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return MainOcrEngine.EasyOcr;
+            }
+
+            if (normalized.Equals("PaddleOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("PaddleOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return MainOcrEngine.PaddleOcr;
+            }
+
+            return MainOcrEngine.WindowsOcr;
+        }
+
+        /// <summary>
+        /// 메인 번역용 OCR 엔진 enum을 config.ini에 저장할 문자열로 변환합니다.
+        /// </summary>
+        public string GetMainOcrEngineTag(MainOcrEngine engine)
+        {
+            return engine switch
+            {
+                MainOcrEngine.Tesseract => "Tesseract",
+                MainOcrEngine.EasyOcr => "EasyOcr",
+                MainOcrEngine.PaddleOcr => "PaddleOcr",
+                _ => DefaultMainOcrEngine
+            };
+        }
+
+        /// <summary>
+        /// 메인 번역용 OCR 엔진 enum을 사용자 표시명으로 변환합니다.
+        /// </summary>
+        public string GetMainOcrEngineDisplayName(MainOcrEngine engine)
+        {
+            return engine switch
+            {
+                MainOcrEngine.Tesseract => "Tesseract",
+                MainOcrEngine.EasyOcr => "EasyOCR",
+                MainOcrEngine.PaddleOcr => "PaddleOCR",
+                _ => "Windows OCR"
+            };
+        }
+
+        /// <summary>
         /// 저장된 번역 대상 방식 문자열을 앱 내부 enum으로 변환합니다.
         /// Strinova는 기존 "[캐릭터명]: 채팅내용" 검증 방식을 사용하고,
         /// Etc는 OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 사용합니다.
@@ -149,6 +273,153 @@ namespace GameTranslator
         public string GetTranslationContentModeTag(TranslationContentMode mode)
         {
             return mode == TranslationContentMode.Etc ? "ETC" : DefaultTranslationContentMode;
+        }
+
+        /// <summary>
+        /// OCR 엔진 선택값을 앱 내부 enum으로 변환합니다.
+        /// 알 수 없는 값은 전체 비교(All)로 되돌려 진단 흐름이 끊기지 않게 합니다.
+        /// </summary>
+        public ConfiguredOcrEngine NormalizeConfiguredOcrEngine(string value)
+        {
+            string normalized = (value ?? "").Trim();
+            if (normalized.Equals("WindowsOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("Windows", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("WinOcr", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.WindowsOcr;
+            }
+
+            if (normalized.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.Tesseract;
+            }
+
+            if (normalized.Equals("EasyOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("EasyOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.EasyOcr;
+            }
+
+            if (normalized.Equals("PaddleOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("PaddleOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngine.PaddleOcr;
+            }
+
+            return ConfiguredOcrEngine.All;
+        }
+
+        /// <summary>
+        /// OCR 엔진 enum을 config.ini와 ComboBox.Tag에 저장할 문자열로 변환합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineTag(ConfiguredOcrEngine engine)
+        {
+            return engine switch
+            {
+                ConfiguredOcrEngine.WindowsOcr => "WindowsOcr",
+                ConfiguredOcrEngine.Tesseract => "Tesseract",
+                ConfiguredOcrEngine.EasyOcr => "EasyOcr",
+                ConfiguredOcrEngine.PaddleOcr => "PaddleOcr",
+                _ => DefaultOcrEngineSelection
+            };
+        }
+
+        /// <summary>
+        /// OCR 진단 기본 선택 목록을 반환합니다.
+        /// 현재 기본값은 모든 OCR 엔진 전체 비교입니다.
+        /// </summary>
+        public IReadOnlyList<ConfiguredOcrEngine> GetDefaultConfiguredOcrEngineSelection()
+        {
+            return ConfiguredOcrEngineSelectionOrder;
+        }
+
+        /// <summary>
+        /// 저장된 OCR 엔진 선택 문자열을 다중 선택 목록으로 변환합니다.
+        /// 구버전 단일 값과 All 값도 함께 읽고, 알 수 없는 값이면 전체 비교로 되돌립니다.
+        /// </summary>
+        public IReadOnlyList<ConfiguredOcrEngine> NormalizeConfiguredOcrEngineSelection(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return ConfiguredOcrEngineSelectionOrder;
+            }
+
+            string normalized = value.Trim();
+            if (normalized.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConfiguredOcrEngineSelectionOrder;
+            }
+
+            var requested = new HashSet<ConfiguredOcrEngine>();
+            string[] tokens = normalized.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string token in tokens)
+            {
+                if (TryParseConfiguredOcrEngine(token, out ConfiguredOcrEngine engine))
+                {
+                    requested.Add(engine);
+                }
+            }
+
+            if (requested.Count == 0)
+            {
+                if (TryParseConfiguredOcrEngine(normalized, out ConfiguredOcrEngine singleEngine))
+                {
+                    requested.Add(singleEngine);
+                }
+                else
+                {
+                    return ConfiguredOcrEngineSelectionOrder;
+                }
+            }
+
+            return ConfiguredOcrEngineSelectionOrder
+                .Where(requested.Contains)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// OCR 진단 다중 선택 목록을 config.ini에 저장할 문자열로 변환합니다.
+        /// 전체 선택이면 All, 일부 선택이면 쉼표 구분 태그 목록을 저장합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineSelectionTag(IEnumerable<ConfiguredOcrEngine> engines)
+        {
+            ConfiguredOcrEngine[] normalizedSelection = NormalizeConfiguredOcrEngineSelectionInternal(engines);
+            if (normalizedSelection.Length == ConfiguredOcrEngineSelectionOrder.Length)
+            {
+                return DefaultOcrEngineSelection;
+            }
+
+            return string.Join(",", normalizedSelection.Select(GetConfiguredOcrEngineTag));
+        }
+
+        /// <summary>
+        /// OCR 진단 다중 선택 목록을 설정창과 진단 요약에 표시할 사용자용 문자열로 변환합니다.
+        /// 전체 선택이면 전체 비교, 일부 선택이면 엔진 이름을 + 로 연결합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineSelectionDisplayName(IEnumerable<ConfiguredOcrEngine> engines)
+        {
+            ConfiguredOcrEngine[] normalizedSelection = NormalizeConfiguredOcrEngineSelectionInternal(engines);
+            if (normalizedSelection.Length == ConfiguredOcrEngineSelectionOrder.Length)
+            {
+                return "전체 비교";
+            }
+
+            return string.Join(" + ", normalizedSelection.Select(GetConfiguredOcrEngineDisplayName));
+        }
+
+        /// <summary>
+        /// OCR 엔진 enum을 설정창과 진단 요약에 표시할 사용자용 이름으로 변환합니다.
+        /// </summary>
+        public string GetConfiguredOcrEngineDisplayName(ConfiguredOcrEngine engine)
+        {
+            return engine switch
+            {
+                ConfiguredOcrEngine.WindowsOcr => "Windows OCR",
+                ConfiguredOcrEngine.Tesseract => "Tesseract",
+                ConfiguredOcrEngine.EasyOcr => "EasyOCR",
+                ConfiguredOcrEngine.PaddleOcr => "PaddleOCR",
+                _ => "전체 비교"
+            };
         }
 
         /// <summary>
@@ -224,7 +495,59 @@ namespace GameTranslator
                 DefaultKeyCopyResult,
                 DefaultKeyLogViewer,
                 DefaultKeyOcrDiagnostic,
-                DefaultKeyHotkeyGuideToggle);
+                DefaultKeyHotkeyGuideToggle,
+                DefaultKeyOpenSettings);
+        }
+
+        private ConfiguredOcrEngine[] NormalizeConfiguredOcrEngineSelectionInternal(IEnumerable<ConfiguredOcrEngine> engines)
+        {
+            var selected = new HashSet<ConfiguredOcrEngine>((engines ?? Enumerable.Empty<ConfiguredOcrEngine>())
+                .Where(engine => engine != ConfiguredOcrEngine.All));
+
+            if (selected.Count == 0)
+            {
+                return ConfiguredOcrEngineSelectionOrder;
+            }
+
+            return ConfiguredOcrEngineSelectionOrder
+                .Where(selected.Contains)
+                .ToArray();
+        }
+
+        private bool TryParseConfiguredOcrEngine(string value, out ConfiguredOcrEngine engine)
+        {
+            engine = ConfiguredOcrEngine.All;
+            string normalized = (value ?? "").Trim();
+
+            if (normalized.Equals("WindowsOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("Windows", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("WinOcr", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.WindowsOcr;
+                return true;
+            }
+
+            if (normalized.Equals("Tesseract", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.Tesseract;
+                return true;
+            }
+
+            if (normalized.Equals("EasyOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("EasyOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.EasyOcr;
+                return true;
+            }
+
+            if (normalized.Equals("PaddleOcr", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Equals("PaddleOCR", StringComparison.OrdinalIgnoreCase))
+            {
+                engine = ConfiguredOcrEngine.PaddleOcr;
+                return true;
+            }
+
+            return false;
         }
     }
 
@@ -258,7 +581,8 @@ namespace GameTranslator
             string copyResult,
             string logViewer,
             string ocrDiagnostic,
-            string hotkeyGuideToggle)
+            string hotkeyGuideToggle,
+            string openSettings)
         {
             MoveLock = moveLock;
             AreaSelect = areaSelect;
@@ -269,6 +593,7 @@ namespace GameTranslator
             LogViewer = logViewer;
             OcrDiagnostic = ocrDiagnostic;
             HotkeyGuideToggle = hotkeyGuideToggle;
+            OpenSettings = openSettings;
         }
 
         public string MoveLock { get; }
@@ -280,6 +605,32 @@ namespace GameTranslator
         public string LogViewer { get; }
         public string OcrDiagnostic { get; }
         public string HotkeyGuideToggle { get; }
+        public string OpenSettings { get; }
+    }
+
+    /// <summary>
+    /// 설정창에서 사용자가 선택한 OCR 엔진 범위입니다.
+    /// All은 비교 모드, 나머지는 선택한 엔진 후보만 점수 계산합니다.
+    /// </summary>
+    public enum ConfiguredOcrEngine
+    {
+        All,
+        WindowsOcr,
+        Tesseract,
+        EasyOcr,
+        PaddleOcr
+    }
+
+    /// <summary>
+    /// 메인 번역 파이프라인에서 실제 OCR에 사용할 엔진 단일 선택값입니다.
+    /// 진단용 다중 선택과 분리해, 런타임에서는 하나의 엔진만 고르게 합니다.
+    /// </summary>
+    public enum MainOcrEngine
+    {
+        WindowsOcr,
+        Tesseract,
+        EasyOcr,
+        PaddleOcr
     }
 
     /// <summary>

@@ -31,6 +31,31 @@ namespace GameTranslator
     /// </summary>
     public partial class MainWindow
     {
+        private sealed class TranslationOcrSelectionResult
+        {
+            public MainOcrEngine Engine { get; set; } = MainOcrEngine.WindowsOcr;
+            public string EngineDisplayName { get; set; } = "";
+            public string PreprocessName { get; set; } = "";
+            public string SelectedLanguageCode { get; set; } = "";
+            public int Score { get; set; }
+            public List<OcrLine> Lines { get; set; } = new List<OcrLine>();
+            public Dictionary<string, OcrResult> WindowsOcrResults { get; set; }
+        }
+
+        private sealed class ExternalOcrSelectionAttempt
+        {
+            public TranslationOcrSelectionResult Result { get; set; }
+            public string FailureDetail { get; set; } = "";
+        }
+
+        private sealed class ExternalOcrRunResult
+        {
+            public bool Success { get; set; }
+            public string LanguageCodes { get; set; } = "";
+            public IReadOnlyList<string> Lines { get; set; } = Array.Empty<string>();
+            public string ErrorMessage { get; set; } = "";
+        }
+
         /// <summary>
         /// Ctrl+0으로 순환되는 자동 번역 상태입니다.
         /// Off는 타이머 정지, Fast/Auto/Accurate는 각각 속도/균형/정확도 우선 OCR 전략입니다.
@@ -155,6 +180,39 @@ namespace GameTranslator
                 TranslationEngineMode.LocalLlm => "Local LLM 번역",
                 _ => "Google 무료 번역"
             };
+        }
+
+        /// <summary>
+        /// 현재 메인 번역 파이프라인에 연결된 OCR 엔진의 짧은 표시명을 반환합니다.
+        /// 상단 안내 문구처럼 공간이 좁은 위치에서 사용합니다.
+        /// </summary>
+        private string GetCurrentMainOcrEngineShortName()
+        {
+            return currentMainOcrEngine switch
+            {
+                MainOcrEngine.Tesseract => "Tesseract",
+                MainOcrEngine.EasyOcr => "EasyOCR",
+                MainOcrEngine.PaddleOcr => "PaddleOCR",
+                _ => "Windows"
+            };
+        }
+
+        private void ClearMainOcrFallbackNotice()
+        {
+            lastMainOcrFallbackNotice = "";
+        }
+
+        private void NotifyMainOcrFallbackOnce(MainOcrEngine requestedEngine, string detail)
+        {
+            string displayMessage = $"{settingsService.GetMainOcrEngineDisplayName(requestedEngine)} OCR 실패, Windows OCR로 전환";
+            if (string.Equals(lastMainOcrFallbackNotice, displayMessage, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            lastMainOcrFallbackNotice = displayMessage;
+            AppendLog($"{displayMessage}. 상세: {detail}");
+            ShowTranslationApiStatus(displayMessage);
         }
 
         /// <summary>
@@ -347,7 +405,7 @@ namespace GameTranslator
                 }
 
                 // 3. 모드별 후보 전략으로 OCR을 수행하고 가장 점수가 높은 후보를 선택합니다.
-                OcrResultCandidate bestCandidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
+                TranslationOcrSelectionResult bestCandidate = await SelectBestTranslationOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
 
                 if (bestCandidate == null || bestCandidate.Lines.Count == 0 || bestCandidate.Score <= 0)
                 {
@@ -355,13 +413,13 @@ namespace GameTranslator
                     return;
                 }
 
-                var ocrResults = bestCandidate.Results;
+                var ocrResults = bestCandidate.WindowsOcrResults;
                 var mergedLines = bestCandidate.Lines;
                 performanceStats.SelectedPreprocessName = bestCandidate.PreprocessName;
                 performanceStats.SelectedOcrLanguages = bestCandidate.SelectedLanguageCode;
                 performanceStats.SelectedScore = bestCandidate.Score;
                 performanceStats.MergedLineCount = mergedLines.Count;
-                AppendLog("DEBUG", $"OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName}, 언어 선택: {bestCandidate.SelectedLanguageCode} (점수 {bestCandidate.Score})", "System");
+                AppendLog("DEBUG", $"OCR 엔진: {bestCandidate.EngineDisplayName}, OCR 모드: {GetOcrProcessingModeLabel(processingMode)}, 전처리 선택: {bestCandidate.PreprocessName}, 언어 선택: {bestCandidate.SelectedLanguageCode} (점수 {bestCandidate.Score})", "System");
 
                 string currentRawTextCombined = string.Join("\n", mergedLines.Select(l => l.Text.Trim()));
                 if (currentRawTextCombined == lastRawTextCombined)
@@ -411,44 +469,46 @@ namespace GameTranslator
 
                         string characterNameGold = parsedChatLine.CharacterLabel;
                         string bestMessage = parsedChatLine.Message;
-                        int bestScore = -1;
-
-                        double mTop = chatLine.Top - 5;
-                        double mBot = chatLine.Bottom + 5;
-
-                        foreach (var kvp in ocrResults)
+                        if (ocrResults != null)
                         {
-                            var linesInBand = kvp.Value.Lines
-                                .Where(l => l.Words.Count > 0 && l.Words.Any(w => w.BoundingRect.Bottom > mTop && w.BoundingRect.Top < mBot))
-                                .OrderBy(l => l.Words.First().BoundingRect.Left);
+                            int bestScore = -1;
+                            double mTop = chatLine.Top - 5;
+                            double mBot = chatLine.Bottom + 5;
 
-                            if (linesInBand.Any())
+                            foreach (var kvp in ocrResults)
                             {
-                                string fullText = string.Join(" ", linesInBand.Select(l => l.Text.Trim()));
-                                string msgOnly = fullText;
+                                var linesInBand = kvp.Value.Lines
+                                    .Where(l => l.Words.Count > 0 && l.Words.Any(w => w.BoundingRect.Bottom > mTop && w.BoundingRect.Top < mBot))
+                                    .OrderBy(l => l.Words.First().BoundingRect.Left);
 
-                                int subCIdx = fullText.LastIndexOfAny(new char[] { ':', ';', '：', '!' });
-                                if (subCIdx != -1)
+                                if (linesInBand.Any())
                                 {
-                                    msgOnly = fullText.Substring(subCIdx + 1).Trim();
-                                }
-                                else
-                                {
-                                    int brIdx = fullText.LastIndexOfAny(new char[] { ']', ')' });
-                                    if (brIdx != -1) msgOnly = fullText.Substring(brIdx + 1).Trim();
-                                    else msgOnly = "";
-                                }
+                                    string fullText = string.Join(" ", linesInBand.Select(l => l.Text.Trim()));
+                                    string msgOnly = fullText;
 
-                                int score = msgOnly.Length;
-                                if (kvp.Key == "zh-Hans-CN" && Regex.IsMatch(msgOnly, @"[\u4e00-\u9fa5]")) score += 40000;
-                                else if (kvp.Key == "en-US" && Regex.IsMatch(msgOnly, @"[a-zA-Z]{2,}")) score += 30000;
-                                else if (kvp.Key == "ja" && Regex.IsMatch(msgOnly, @"[ぁ-んァ-ヶ]")) score += 20000;
-                                else if (kvp.Key == "ru" && Regex.IsMatch(msgOnly, @"[а-яА-ЯёЁ]")) score += 10000;
+                                    int subCIdx = fullText.LastIndexOfAny(new char[] { ':', ';', '：', '!' });
+                                    if (subCIdx != -1)
+                                    {
+                                        msgOnly = fullText.Substring(subCIdx + 1).Trim();
+                                    }
+                                    else
+                                    {
+                                        int brIdx = fullText.LastIndexOfAny(new char[] { ']', ')' });
+                                        if (brIdx != -1) msgOnly = fullText.Substring(brIdx + 1).Trim();
+                                        else msgOnly = "";
+                                    }
 
-                                if (score > bestScore)
-                                {
-                                    bestScore = score;
-                                    bestMessage = msgOnly;
+                                    int score = msgOnly.Length;
+                                    if (kvp.Key == "zh-Hans-CN" && Regex.IsMatch(msgOnly, @"[\u4e00-\u9fa5]")) score += 40000;
+                                    else if (kvp.Key == "en-US" && Regex.IsMatch(msgOnly, @"[a-zA-Z]{2,}")) score += 30000;
+                                    else if (kvp.Key == "ja" && Regex.IsMatch(msgOnly, @"[ぁ-んァ-ヶ]")) score += 20000;
+                                    else if (kvp.Key == "ru" && Regex.IsMatch(msgOnly, @"[а-яА-ЯёЁ]")) score += 10000;
+
+                                    if (score > bestScore)
+                                    {
+                                        bestScore = score;
+                                        bestMessage = msgOnly;
+                                    }
                                 }
                             }
                         }
@@ -470,6 +530,10 @@ namespace GameTranslator
                 }
 
                 performanceStats.Outcome = performanceStats.TranslatedLineCount > 0 ? "Translated" : "NoTranslatableLines";
+                if (performanceStats.TranslatedLineCount > 0)
+                {
+                    TryAutoCopyTranslationResult();
+                }
             }
             catch (Exception ex)
             {
@@ -519,6 +583,226 @@ namespace GameTranslator
                 .Where(translationPromptBuilder.HasMeaningfulEtcContent);
 
             return string.Join(Environment.NewLine, lines);
+        }
+
+        /// <summary>
+        /// 현재 설정된 메인 OCR 엔진에 맞춰 번역 파이프라인에서 사용할 OCR 후보를 선택합니다.
+        /// Windows OCR은 기존 경로를 유지하고, 외부 OCR은 공통 외부 엔진 경로로 분기한 뒤 실패 시 Windows OCR로 fallback합니다.
+        /// </summary>
+        private async Task<TranslationOcrSelectionResult> SelectBestTranslationOcrCandidateAsync(
+            Bitmap resizedBitmap,
+            int threshold,
+            OcrProcessingMode processingMode,
+            TranslationContentMode contentMode,
+            OcrPerformanceStats performanceStats)
+        {
+            if (currentMainOcrEngine == MainOcrEngine.WindowsOcr)
+            {
+                ClearMainOcrFallbackNotice();
+                return await SelectBestWindowsOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
+            }
+
+            ExternalOcrSelectionAttempt externalAttempt = await SelectBestExternalOcrCandidateAsync(
+                currentMainOcrEngine,
+                resizedBitmap,
+                threshold,
+                processingMode,
+                contentMode,
+                performanceStats);
+
+            if (externalAttempt.Result != null)
+            {
+                ClearMainOcrFallbackNotice();
+                return externalAttempt.Result;
+            }
+
+            NotifyMainOcrFallbackOnce(currentMainOcrEngine, externalAttempt.FailureDetail);
+            return await SelectBestWindowsOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
+        }
+
+        /// <summary>
+        /// 기존 Windows OCR 후보 선택 경로를 메인 OCR 엔진 공통 결과 모델로 감싼 래퍼입니다.
+        /// </summary>
+        private async Task<TranslationOcrSelectionResult> SelectBestWindowsOcrCandidateAsync(
+            Bitmap resizedBitmap,
+            int threshold,
+            OcrProcessingMode processingMode,
+            TranslationContentMode contentMode,
+            OcrPerformanceStats performanceStats)
+        {
+            OcrResultCandidate candidate = await SelectBestOcrCandidateAsync(resizedBitmap, threshold, processingMode, contentMode, performanceStats);
+            if (candidate == null)
+            {
+                return null;
+            }
+
+            return new TranslationOcrSelectionResult
+            {
+                Engine = MainOcrEngine.WindowsOcr,
+                EngineDisplayName = settingsService.GetMainOcrEngineDisplayName(MainOcrEngine.WindowsOcr),
+                PreprocessName = candidate.PreprocessName,
+                SelectedLanguageCode = candidate.SelectedLanguageCode,
+                Score = candidate.Score,
+                Lines = candidate.Lines,
+                WindowsOcrResults = candidate.Results
+            };
+        }
+
+        /// <summary>
+        /// 외부 OCR 엔진 메인 번역 경로 공통 선택기입니다.
+        /// 현재는 Tesseract만 구현하고, 이후 EasyOCR/PaddleOCR를 같은 슬롯에 추가할 수 있게 switch를 열어둡니다.
+        /// </summary>
+        private async Task<ExternalOcrSelectionAttempt> SelectBestExternalOcrCandidateAsync(
+            MainOcrEngine engine,
+            Bitmap resizedBitmap,
+            int threshold,
+            OcrProcessingMode processingMode,
+            TranslationContentMode contentMode,
+            OcrPerformanceStats performanceStats)
+        {
+            var attempt = new ExternalOcrSelectionAttempt
+            {
+                FailureDetail = $"{settingsService.GetMainOcrEngineDisplayName(engine)} 메인 OCR 경로가 아직 준비되지 않았습니다."
+            };
+
+            IReadOnlyList<OcrPreprocessKind> preprocessKinds = ocrService.CreateEvaluationPlan(processingMode)
+                .SelectMany(step => step.PreprocessKinds)
+                .Distinct()
+                .ToList();
+
+            Stopwatch preprocessStopwatch = Stopwatch.StartNew();
+            List<PreprocessedOcrImage> preprocessedImages = ocrImagePreprocessor.CreatePreprocessedOcrImages(resizedBitmap, threshold, preprocessKinds.ToArray());
+            preprocessStopwatch.Stop();
+            performanceStats.PreprocessMs += preprocessStopwatch.ElapsedMilliseconds;
+            performanceStats.PreprocessCandidateCount += preprocessedImages.Count;
+
+            TranslationOcrSelectionResult bestSelection = null;
+
+            try
+            {
+                foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                {
+                    Stopwatch cropStopwatch = Stopwatch.StartNew();
+                    using Bitmap croppedBitmap = CropForOcr(preprocessedImage.Bitmap);
+                    cropStopwatch.Stop();
+                    performanceStats.CropMs += cropStopwatch.ElapsedMilliseconds;
+
+                    Stopwatch ocrStopwatch = Stopwatch.StartNew();
+                    ExternalOcrRunResult runResult = await RunSelectedExternalMainOcrAsync(engine, croppedBitmap);
+                    ocrStopwatch.Stop();
+                    performanceStats.OcrMs += ocrStopwatch.ElapsedMilliseconds;
+                    performanceStats.OcrLanguageCallCount++;
+
+                    if (!runResult.Success)
+                    {
+                        attempt.FailureDetail = runResult.ErrorMessage;
+                        continue;
+                    }
+
+                    List<OcrLine> candidateLines = BuildExternalMainOcrLines(runResult.Lines, contentMode);
+                    if (candidateLines.Count == 0)
+                    {
+                        attempt.FailureDetail = $"{settingsService.GetMainOcrEngineDisplayName(engine)}가 유효한 OCR 결과를 반환하지 않았습니다.";
+                        continue;
+                    }
+
+                    Stopwatch scoringStopwatch = Stopwatch.StartNew();
+                    int candidateScore = ScoreOcrCandidate(candidateLines, contentMode);
+                    scoringStopwatch.Stop();
+                    performanceStats.ScoringMs += scoringStopwatch.ElapsedMilliseconds;
+
+                    var selection = new TranslationOcrSelectionResult
+                    {
+                        Engine = engine,
+                        EngineDisplayName = settingsService.GetMainOcrEngineDisplayName(engine),
+                        PreprocessName = preprocessedImage.Name,
+                        SelectedLanguageCode = runResult.LanguageCodes,
+                        Score = candidateScore,
+                        Lines = candidateLines
+                    };
+
+                    if (bestSelection == null || selection.Score > bestSelection.Score)
+                    {
+                        bestSelection = selection;
+                    }
+                }
+            }
+            finally
+            {
+                foreach (PreprocessedOcrImage preprocessedImage in preprocessedImages)
+                {
+                    preprocessedImage.Dispose();
+                }
+            }
+
+            attempt.Result = bestSelection;
+            if (bestSelection != null)
+            {
+                attempt.FailureDetail = "";
+            }
+
+            return attempt;
+        }
+
+        private async Task<ExternalOcrRunResult> RunSelectedExternalMainOcrAsync(MainOcrEngine engine, Bitmap croppedBitmap)
+        {
+            switch (engine)
+            {
+                case MainOcrEngine.Tesseract:
+                {
+                    TesseractCliOcrResult runResult = await Task.Run(() =>
+                        tesseractCliOcrAdapter.Recognize(
+                            croppedBitmap,
+                            ReadTesseractExecutablePath(),
+                            tesseractCliOcrAdapter.BuildLanguageCodes(ReadTesseractLanguageCodes(), gameLang),
+                            timeoutMs: 15000));
+
+                    return new ExternalOcrRunResult
+                    {
+                        Success = runResult.Success,
+                        LanguageCodes = runResult.LanguageCodes,
+                        Lines = runResult.Lines,
+                        ErrorMessage = string.IsNullOrWhiteSpace(runResult.ErrorMessage)
+                            ? "Tesseract OCR 실행 실패"
+                            : runResult.ErrorMessage
+                    };
+                }
+                case MainOcrEngine.EasyOcr:
+                    return new ExternalOcrRunResult
+                    {
+                        Success = false,
+                        ErrorMessage = "EasyOCR 메인 번역 경로는 아직 연결되지 않았습니다."
+                    };
+                case MainOcrEngine.PaddleOcr:
+                    return new ExternalOcrRunResult
+                    {
+                        Success = false,
+                        ErrorMessage = "PaddleOCR 메인 번역 경로는 아직 연결되지 않았습니다."
+                    };
+                default:
+                    return new ExternalOcrRunResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Windows OCR은 외부 OCR 경로로 호출할 수 없습니다."
+                    };
+            }
+        }
+
+        private List<OcrLine> BuildExternalMainOcrLines(IReadOnlyList<string> lines, TranslationContentMode contentMode)
+        {
+            List<OcrLine> rawLines = (lines ?? Array.Empty<string>())
+                .Select((text, index) => new OcrLine
+                {
+                    Top = index * 24,
+                    Bottom = index * 24 + 20,
+                    Text = (text ?? "").Trim()
+                })
+                .Where(line => !string.IsNullOrWhiteSpace(line.Text))
+                .ToList();
+
+            return contentMode == TranslationContentMode.Strinova
+                ? ocrService.NormalizeMergedLinesForSelection(rawLines, characterNames, contentMode)
+                : rawLines;
         }
 
         /// <summary>

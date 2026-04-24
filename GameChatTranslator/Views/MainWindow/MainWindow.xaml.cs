@@ -44,9 +44,11 @@ namespace GameTranslator
         public IniFile ini;
         private string gameLang = "ko";
         private string targetLang = "ko";
+        private MainOcrEngine currentMainOcrEngine = MainOcrEngine.WindowsOcr;
+        private string lastMainOcrFallbackNotice = "";
 
-        private uint modMove, modArea, modTrans, modAuto, modToggle, modCopy, modLog, modOcrDiag, modHotkeyGuide;
-        private uint keyMove, keyArea, keyTrans, keyAuto, keyToggle, keyCopy, keyLog, keyOcrDiag, keyHotkeyGuide;
+        private uint modTrans, modAuto, modSettings;
+        private uint keyTrans, keyAuto, keySettings;
 
         private TranslationEngineMode currentTranslationEngineMode = TranslationEngineMode.Google;
 
@@ -59,7 +61,6 @@ namespace GameTranslator
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
-        private bool isHotkeyGuideExpanded = false;
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
 
@@ -70,11 +71,16 @@ namespace GameTranslator
         private readonly TranslationPromptBuilder translationPromptBuilder = new TranslationPromptBuilder();
         private readonly TranslationResultParser translationResultParser = new TranslationResultParser();
         private readonly TranslationService translationService = new TranslationService();
+        private readonly OcrTranslationHarnessService ocrTranslationHarnessService = new OcrTranslationHarnessService();
+        private readonly TesseractCliOcrAdapter tesseractCliOcrAdapter = new TesseractCliOcrAdapter();
+        private readonly EasyOcrCliAdapter easyOcrCliAdapter = new EasyOcrCliAdapter();
+        private readonly PaddleOcrCliAdapter paddleOcrCliAdapter = new PaddleOcrCliAdapter();
         private readonly TranslationApiErrorDescriber translationApiErrorDescriber = new TranslationApiErrorDescriber();
         private readonly TranslationApiClient translationApiClient;
         private AppDataPaths appDataPaths;
         private Dictionary<string, OcrEngine> ocrEngines = new Dictionary<string, OcrEngine>();
         private IntPtr _windowHandle;
+        private OptionSelector settingsWindow;
         private LogViewerWindow logViewerWindow;
         private OcrDiagnosticWindow ocrDiagnosticWindow;
 

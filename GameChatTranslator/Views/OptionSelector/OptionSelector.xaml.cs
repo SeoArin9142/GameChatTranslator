@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -27,6 +28,8 @@ namespace GameTranslator
         private readonly SettingsService _settingsService = new SettingsService();
         private readonly OcrLanguageStatusFormatter _ocrLanguageStatusFormatter = new OcrLanguageStatusFormatter();
         private readonly DispatcherTimer _updateStatusResetTimer;
+        private readonly bool _isDialogMode;
+        internal OptionSelectorPostAction RequestedActionAfterClose { get; private set; } = OptionSelectorPostAction.None;
 
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
         {
@@ -42,23 +45,30 @@ namespace GameTranslator
         /// <paramref name="mainWindow"/>는 투명도 미리보기와 업데이트 확인을 호출할 메인 창 인스턴스이고,
         /// <paramref name="ini"/>는 config.ini 읽기/쓰기를 담당하는 설정 파일 객체입니다.
         /// </summary>
-        public OptionSelector(MainWindow mainWindow, IniFile ini)
+        public OptionSelector(MainWindow mainWindow, IniFile ini, bool isDialogMode)
         {
             InitializeComponent(); // XAML 디자인 UI 요소들을 메모리에 로드
             _mainWindow = mainWindow;
             _ini = ini;
+            _isDialogMode = isDialogMode;
             _updateStatusResetTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(3)
             };
             _updateStatusResetTimer.Tick += UpdateStatusResetTimer_Tick;
+            Loaded += OptionSelector_Loaded;
 
             RegisterNumericSettingInputGuards();
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
             RefreshInstallLocationStatus();
-            RefreshOcrLanguageStatus();
             RefreshAdvancedSettingValidationStatus();
+        }
+
+        private void OptionSelector_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= OptionSelector_Loaded;
+            RefreshOcrLanguageStatus();
         }
 
         /// <summary>
@@ -96,15 +106,9 @@ namespace GameTranslator
             // [단축키 세팅]
             // 각 텍스트박스에 기존에 저장된 단축키 문자열을 넣어줍니다. (없으면 기본값 적용)
             DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
-            TxtKeyMove.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_MoveLock"), defaults.MoveLock);
-            TxtKeyArea.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_AreaSelect"), defaults.AreaSelect);
+            TxtKeySettings.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_OpenSettings"), defaults.OpenSettings);
             TxtKeyTrans.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_Translate"), defaults.Translate);
             TxtKeyAuto.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_AutoTranslate"), defaults.AutoTranslate);
-            TxtKeyToggle.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_ToggleEngine"), defaults.ToggleEngine);
-            TxtKeyCopy.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_CopyResult"), defaults.CopyResult);
-            TxtKeyLog.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_LogViewer"), defaults.LogViewer);
-            TxtKeyOcrDiagnostic.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_OcrDiagnostic"), defaults.OcrDiagnostic);
-            TxtKeyHotkeyGuide.Text = _settingsService.NormalizeHotkey(_ini.Read("Key_HotkeyGuideToggle"), defaults.HotkeyGuideToggle);
 
             // [캡처 영역 세팅]
             // 메인 폼에서 사용자가 드래그하여 저장했던 X, Y 좌표와 넓이, 높이를 읽어옵니다.
@@ -137,6 +141,12 @@ namespace GameTranslator
                 TranslationEngineMode engineMode = _settingsService.NormalizeTranslationEngineMode(_ini.Read("TranslationEngine"));
                 SetComboByTag(ComboTranslationEngine, _settingsService.GetTranslationEngineTag(engineMode));
             }
+            if (ComboMainOcrEngine != null)
+            {
+                MainOcrEngine mainOcrEngine = _settingsService.NormalizeMainOcrEngine(_ini.Read("MainOcrEngine"));
+                SetComboByTag(ComboMainOcrEngine, _settingsService.GetMainOcrEngineTag(mainOcrEngine));
+            }
+            ApplyConfiguredOcrEngineSelection(_settingsService.NormalizeConfiguredOcrEngineSelection(_ini.Read("OcrEngineSelection")));
             if (TxtResultHistoryLimit != null)
             {
                 TxtResultHistoryLimit.Text = SettingsValueNormalizer.NormalizeResultHistoryLimit(_ini.Read("ResultHistoryLimit")).ToString();
@@ -144,6 +154,12 @@ namespace GameTranslator
             if (TxtTranslationResultAutoClearSeconds != null)
             {
                 TxtTranslationResultAutoClearSeconds.Text = SettingsValueNormalizer.NormalizeTranslationResultAutoClearSeconds(_ini.Read("TranslationResultAutoClearSeconds")).ToString();
+            }
+            if (CheckAutoCopyTranslationResult != null)
+            {
+                CheckAutoCopyTranslationResult.IsChecked = _settingsService.IsEnabledOrDefault(
+                    _ini.Read("AutoCopyTranslationResult"),
+                    _settingsService.IsEnabled(SettingsService.DefaultAutoCopyTranslationResult));
             }
 
             GeminiKeySelection geminiKey = _settingsService.SelectGeminiKey(
@@ -257,11 +273,27 @@ namespace GameTranslator
         /// 설정창에는 OCR 엔진 사용 가능 여부 중심으로 간결하게 표시합니다.
         /// capability는 설치됐는데 엔진이 안 만들어지면 재부팅 필요 가능성만 보조 문구로 안내합니다.
         /// </summary>
-        private void RefreshOcrLanguageStatus()
+        private async void RefreshOcrLanguageStatus()
         {
             if (TxtOcrLanguageStatus == null) return;
 
-            Dictionary<string, string> capabilityStates = GetOcrCapabilityStates();
+            TxtOcrLanguageStatus.Text = "OCR 언어팩 상태 확인 중...";
+
+            Dictionary<string, string> capabilityStates;
+            try
+            {
+                capabilityStates = await Task.Run(GetOcrCapabilityStates);
+            }
+            catch
+            {
+                capabilityStates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (!IsLoaded)
+            {
+                return;
+            }
+
             var entries = new List<OcrLanguageStatusEntry>();
             foreach ((string label, string tag) in OcrLanguageStatusTargets)
             {
@@ -479,20 +511,14 @@ namespace GameTranslator
         /// <summary>
         /// 단축키 입력칸을 최초 기본 단축키 값으로 되돌립니다.
         /// 이 함수는 UI TextBox 값만 바꾸며 config.ini에는 쓰지 않습니다.
-        /// 실제 저장은 사용자가 [저장 및 게임 시작] 버튼을 눌렀을 때 BtnSaveAndStart_Click에서 처리됩니다.
+        /// 실제 저장은 사용자가 [저장] 버튼을 눌렀을 때 BtnSaveAndStart_Click에서 처리됩니다.
         /// </summary>
         private void ApplyDefaultHotkeyValues()
         {
             DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
-            TxtKeyMove.Text = defaults.MoveLock;
-            TxtKeyArea.Text = defaults.AreaSelect;
+            TxtKeySettings.Text = defaults.OpenSettings;
             TxtKeyTrans.Text = defaults.Translate;
             TxtKeyAuto.Text = defaults.AutoTranslate;
-            TxtKeyToggle.Text = defaults.ToggleEngine;
-            TxtKeyCopy.Text = defaults.CopyResult;
-            TxtKeyLog.Text = defaults.LogViewer;
-            TxtKeyOcrDiagnostic.Text = defaults.OcrDiagnostic;
-            TxtKeyHotkeyGuide.Text = defaults.HotkeyGuideToggle;
         }
 
         /// <summary>
@@ -504,7 +530,7 @@ namespace GameTranslator
         {
             ApplyDefaultHotkeyValues();
             System.Windows.MessageBox.Show(
-                "단축키 입력칸을 기본값으로 되돌렸습니다.\n저장하려면 [저장 및 게임 시작] 버튼을 눌러주세요.",
+                "단축키 입력칸을 기본값으로 되돌렸습니다.\n저장하려면 [저장] 버튼을 눌러주세요.",
                 "단축키 초기화",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -527,29 +553,76 @@ namespace GameTranslator
         }
 
         /// <summary>
-        /// 환경설정창의 현재 입력값을 config.ini에 저장하고 메인 번역창 실행을 허용합니다.
-        /// <paramref name="sender"/>는 저장 및 게임 시작 버튼이고,
+        /// 설정을 저장한 뒤 환경설정창을 닫고 캡처 영역 선택 오버레이를 엽니다.
+        /// 모달 설정창이 열린 상태에서는 영역 선택이 어려우므로 닫힌 뒤 MainWindow가 후처리합니다.
+        /// </summary>
+        private void BtnSelectArea_Click(object sender, RoutedEventArgs e)
+        {
+            if (!SaveSettingsToIni()) return;
+            _mainWindow?.ApplyRuntimeSettingsFromIni();
+            RequestedActionAfterClose = OptionSelectorPostAction.StartAreaSelection;
+            CloseWithSuccess();
+        }
+
+        /// <summary>
+        /// 설정창에서 번역 오버레이의 이동 잠금 상태를 즉시 토글합니다.
+        /// </summary>
+        private void BtnToggleMoveLock_Click(object sender, RoutedEventArgs e)
+        {
+            bool overlayUnlocked = _mainWindow?.ToggleMoveLockFromSettings() == true;
+            if (!_isDialogMode && overlayUnlocked)
+            {
+                WindowState = WindowState.Minimized;
+                _mainWindow?.Activate();
+            }
+        }
+
+        /// <summary>
+        /// 환경설정창의 현재 입력값을 config.ini에 저장하고 메인 번역창에 즉시 반영합니다.
+        /// <paramref name="sender"/>는 저장 버튼이고,
         /// <paramref name="e"/>는 버튼 클릭 이벤트 정보입니다.
         /// </summary>
         private void BtnSaveAndStart_Click(object sender, RoutedEventArgs e)
         {
-            // 콤보박스에서 선택된 항목의 Tag 값(언어 코드)을 저장
-            _ini.Write("GameLanguage", ((ComboBoxItem)ComboGameLang.SelectedItem).Tag.ToString());
-            _ini.Write("TargetLanguage", ((ComboBoxItem)ComboTargetLang.SelectedItem).Tag.ToString());
+            if (!SaveSettingsToIni()) return;
+            _mainWindow?.ApplyRuntimeSettingsFromIni();
+            CloseWithSuccess();
+        }
 
-            // 슬라이더의 투명도 값을 정수로 변환하여 저장
+        private void CloseWithSuccess()
+        {
+            if (_isDialogMode)
+            {
+                DialogResult = true;
+            }
+            else
+            {
+                Close();
+            }
+        }
+
+        private bool SaveSettingsToIni()
+        {
+            RequestedActionAfterClose = OptionSelectorPostAction.None;
+
+            if (!TryGetSelectedConfiguredOcrEngines(out IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines))
+            {
+                System.Windows.MessageBox.Show(
+                    "진단 점수에 사용할 OCR 엔진을 최소 1개 선택해 주세요.",
+                    "OCR 선택",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return false;
+            }
+
+            _ini.Write("GameLanguage", GetSelectedTag(ComboGameLang, "ko"));
+            _ini.Write("TargetLanguage", GetSelectedTag(ComboTargetLang, "ko"));
             _ini.Write("Opacity", ((int)SliderOpacity.Value).ToString());
 
-            // 지정된 단축키 문자열 저장
-            _ini.Write("Key_MoveLock", TxtKeyMove.Text);
-            _ini.Write("Key_AreaSelect", TxtKeyArea.Text);
-            _ini.Write("Key_Translate", TxtKeyTrans.Text);
-            _ini.Write("Key_AutoTranslate", TxtKeyAuto.Text);
-            _ini.Write("Key_ToggleEngine", TxtKeyToggle.Text); // 🌟 추가
-            _ini.Write("Key_CopyResult", TxtKeyCopy.Text);
-            _ini.Write("Key_LogViewer", TxtKeyLog.Text);
-            _ini.Write("Key_OcrDiagnostic", TxtKeyOcrDiagnostic.Text);
-            _ini.Write("Key_HotkeyGuideToggle", TxtKeyHotkeyGuide.Text);
+            DefaultHotkeys defaults = _settingsService.GetDefaultHotkeys();
+            _ini.Write("Key_OpenSettings", _settingsService.NormalizeHotkey(TxtKeySettings?.Text, defaults.OpenSettings));
+            _ini.Write("Key_Translate", _settingsService.NormalizeHotkey(TxtKeyTrans?.Text, defaults.Translate));
+            _ini.Write("Key_AutoTranslate", _settingsService.NormalizeHotkey(TxtKeyAuto?.Text, defaults.AutoTranslate));
 
             int scaleFactor = SettingsValueNormalizer.NormalizeScaleFactor(GetSelectedTag(ComboScale, SettingsValueNormalizer.DefaultScaleFactor.ToString()));
             _ini.Write("ScaleFactor", scaleFactor.ToString());
@@ -573,10 +646,12 @@ namespace GameTranslator
 
             _ini.Write("SaveDebugImages", CheckSaveDebugImages?.IsChecked == true ? "true" : "false");
             _ini.Write("CheckUpdatesOnStartup", CheckUpdatesOnStartup?.IsChecked == true ? "true" : "false");
+            _ini.Write("AutoCopyTranslationResult", CheckAutoCopyTranslationResult?.IsChecked == true ? "true" : "false");
             _ini.Write("TranslationContentMode", GetSelectedTranslationContentModeTag());
             _ini.Write("TranslationEngine", GetSelectedTag(ComboTranslationEngine, SettingsService.DefaultTranslationEngine));
+            _ini.Write("MainOcrEngine", GetSelectedTag(ComboMainOcrEngine, SettingsService.DefaultMainOcrEngine));
+            _ini.Write("OcrEngineSelection", _settingsService.GetConfiguredOcrEngineSelectionTag(configuredOcrEngines));
             _ini.Write("GeminiKey", PasswordGeminiKey?.Password?.Trim() ?? "");
-
             _ini.Write("GeminiModel", _settingsService.NormalizeGeminiModel(TxtGeminiModel?.Text));
 
             _ini.Write("LocalLlmEndpoint", _settingsService.NormalizeLocalLlmEndpoint(TxtLocalLlmEndpoint?.Text));
@@ -589,9 +664,28 @@ namespace GameTranslator
             _ini.Write("LocalLlmMaxTokens", localLlmMaxTokens.ToString());
             if (TxtLocalLlmMaxTokens != null) TxtLocalLlmMaxTokens.Text = localLlmMaxTokens.ToString();
 
-            // DialogResult를 true로 설정하여 메인 창(MainWindow)에 정상 종료되었음을 알리고 창을 닫습니다.
-            this.DialogResult = true;
-            this.Close();
+            return true;
+        }
+
+        private void ApplyConfiguredOcrEngineSelection(IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
+        {
+            HashSet<ConfiguredOcrEngine> selected = new HashSet<ConfiguredOcrEngine>(configuredOcrEngines ?? Array.Empty<ConfiguredOcrEngine>());
+            if (CheckDiagnosticWindowsOcr != null) CheckDiagnosticWindowsOcr.IsChecked = selected.Contains(ConfiguredOcrEngine.WindowsOcr);
+            if (CheckDiagnosticTesseract != null) CheckDiagnosticTesseract.IsChecked = selected.Contains(ConfiguredOcrEngine.Tesseract);
+            if (CheckDiagnosticEasyOcr != null) CheckDiagnosticEasyOcr.IsChecked = selected.Contains(ConfiguredOcrEngine.EasyOcr);
+            if (CheckDiagnosticPaddleOcr != null) CheckDiagnosticPaddleOcr.IsChecked = selected.Contains(ConfiguredOcrEngine.PaddleOcr);
+        }
+
+        private bool TryGetSelectedConfiguredOcrEngines(out IReadOnlyList<ConfiguredOcrEngine> configuredOcrEngines)
+        {
+            List<ConfiguredOcrEngine> selected = new List<ConfiguredOcrEngine>();
+            if (CheckDiagnosticWindowsOcr?.IsChecked == true) selected.Add(ConfiguredOcrEngine.WindowsOcr);
+            if (CheckDiagnosticTesseract?.IsChecked == true) selected.Add(ConfiguredOcrEngine.Tesseract);
+            if (CheckDiagnosticEasyOcr?.IsChecked == true) selected.Add(ConfiguredOcrEngine.EasyOcr);
+            if (CheckDiagnosticPaddleOcr?.IsChecked == true) selected.Add(ConfiguredOcrEngine.PaddleOcr);
+
+            configuredOcrEngines = selected;
+            return selected.Count > 0;
         }
 
         /// <summary>
@@ -759,5 +853,11 @@ namespace GameTranslator
         {
             _mainWindow?.ShowOcrDiagnosticWindow();
         }
+    }
+
+    internal enum OptionSelectorPostAction
+    {
+        None,
+        StartAreaSelection
     }
 }

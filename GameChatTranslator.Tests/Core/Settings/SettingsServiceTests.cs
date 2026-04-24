@@ -86,6 +86,51 @@ namespace GameChatTranslator.Tests
         }
 
         [Theory]
+        [InlineData(null, SettingsService.DefaultTesseractExecutablePath)]
+        [InlineData("", SettingsService.DefaultTesseractExecutablePath)]
+        [InlineData("  C:\\Tesseract\\tesseract.exe  ", "C:\\Tesseract\\tesseract.exe")]
+        public void NormalizeTesseractExecutablePath_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeTesseractExecutablePath(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultEasyOcrPythonPath)]
+        [InlineData("", SettingsService.DefaultEasyOcrPythonPath)]
+        [InlineData("  C:\\Python311\\python.exe  ", "C:\\Python311\\python.exe")]
+        public void NormalizeEasyOcrPythonPath_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeEasyOcrPythonPath(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultEasyOcrLanguageCodes)]
+        [InlineData("", SettingsService.DefaultEasyOcrLanguageCodes)]
+        [InlineData("  ko+en|ja+en  ", "ko+en|ja+en")]
+        public void NormalizeEasyOcrLanguageCodes_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizeEasyOcrLanguageCodes(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultPaddleOcrPythonPath)]
+        [InlineData("", SettingsService.DefaultPaddleOcrPythonPath)]
+        [InlineData("  C:\\Python311\\python.exe  ", "C:\\Python311\\python.exe")]
+        public void NormalizePaddleOcrPythonPath_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizePaddleOcrPythonPath(rawValue));
+        }
+
+        [Theory]
+        [InlineData(null, SettingsService.DefaultPaddleOcrLanguageCodes)]
+        [InlineData("", SettingsService.DefaultPaddleOcrLanguageCodes)]
+        [InlineData("  korean|japan|ch  ", "korean|japan|ch")]
+        public void NormalizePaddleOcrLanguageCodes_UsesDefaultForBlankValues(string rawValue, string expected)
+        {
+            Assert.Equal(expected, _service.NormalizePaddleOcrLanguageCodes(rawValue));
+        }
+
+        [Theory]
         [InlineData(null, TranslationEngineMode.Google)]
         [InlineData("", TranslationEngineMode.Google)]
         [InlineData("Google", TranslationEngineMode.Google)]
@@ -108,6 +153,39 @@ namespace GameChatTranslator.Tests
         }
 
         [Theory]
+        [InlineData(null, MainOcrEngine.WindowsOcr)]
+        [InlineData("", MainOcrEngine.WindowsOcr)]
+        [InlineData("WindowsOcr", MainOcrEngine.WindowsOcr)]
+        [InlineData("Tesseract", MainOcrEngine.Tesseract)]
+        [InlineData("EasyOCR", MainOcrEngine.EasyOcr)]
+        [InlineData("PaddleOCR", MainOcrEngine.PaddleOcr)]
+        [InlineData("unknown", MainOcrEngine.WindowsOcr)]
+        public void NormalizeMainOcrEngine_MapsKnownValuesAndDefaultsToWindows(string rawValue, MainOcrEngine expected)
+        {
+            Assert.Equal(expected, _service.NormalizeMainOcrEngine(rawValue));
+        }
+
+        [Theory]
+        [InlineData(MainOcrEngine.WindowsOcr, "WindowsOcr")]
+        [InlineData(MainOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(MainOcrEngine.EasyOcr, "EasyOcr")]
+        [InlineData(MainOcrEngine.PaddleOcr, "PaddleOcr")]
+        public void GetMainOcrEngineTag_ReturnsConfigValue(MainOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetMainOcrEngineTag(engine));
+        }
+
+        [Theory]
+        [InlineData(MainOcrEngine.WindowsOcr, "Windows OCR")]
+        [InlineData(MainOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(MainOcrEngine.EasyOcr, "EasyOCR")]
+        [InlineData(MainOcrEngine.PaddleOcr, "PaddleOCR")]
+        public void GetMainOcrEngineDisplayName_ReturnsUserFacingLabel(MainOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetMainOcrEngineDisplayName(engine));
+        }
+
+        [Theory]
         [InlineData(null, TranslationContentMode.Strinova)]
         [InlineData("", TranslationContentMode.Strinova)]
         [InlineData("Strinova", TranslationContentMode.Strinova)]
@@ -126,6 +204,74 @@ namespace GameChatTranslator.Tests
         public void GetTranslationContentModeTag_ReturnsConfigValue(TranslationContentMode mode, string expected)
         {
             Assert.Equal(expected, _service.GetTranslationContentModeTag(mode));
+        }
+
+        [Theory]
+        [InlineData(null, ConfiguredOcrEngine.All)]
+        [InlineData("", ConfiguredOcrEngine.All)]
+        [InlineData("All", ConfiguredOcrEngine.All)]
+        [InlineData("WindowsOcr", ConfiguredOcrEngine.WindowsOcr)]
+        [InlineData("Tesseract", ConfiguredOcrEngine.Tesseract)]
+        [InlineData("EasyOCR", ConfiguredOcrEngine.EasyOcr)]
+        [InlineData("PaddleOCR", ConfiguredOcrEngine.PaddleOcr)]
+        [InlineData("unknown", ConfiguredOcrEngine.All)]
+        public void NormalizeConfiguredOcrEngine_MapsKnownValuesAndDefaultsToAll(string rawValue, ConfiguredOcrEngine expected)
+        {
+            Assert.Equal(expected, _service.NormalizeConfiguredOcrEngine(rawValue));
+        }
+
+        [Theory]
+        [InlineData(ConfiguredOcrEngine.All, "All")]
+        [InlineData(ConfiguredOcrEngine.WindowsOcr, "WindowsOcr")]
+        [InlineData(ConfiguredOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(ConfiguredOcrEngine.EasyOcr, "EasyOcr")]
+        [InlineData(ConfiguredOcrEngine.PaddleOcr, "PaddleOcr")]
+        public void GetConfiguredOcrEngineTag_ReturnsConfigValue(ConfiguredOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetConfiguredOcrEngineTag(engine));
+        }
+
+        [Theory]
+        [InlineData(ConfiguredOcrEngine.All, "전체 비교")]
+        [InlineData(ConfiguredOcrEngine.WindowsOcr, "Windows OCR")]
+        [InlineData(ConfiguredOcrEngine.Tesseract, "Tesseract")]
+        [InlineData(ConfiguredOcrEngine.EasyOcr, "EasyOCR")]
+        [InlineData(ConfiguredOcrEngine.PaddleOcr, "PaddleOCR")]
+        public void GetConfiguredOcrEngineDisplayName_ReturnsUserFacingLabel(ConfiguredOcrEngine engine, string expected)
+        {
+            Assert.Equal(expected, _service.GetConfiguredOcrEngineDisplayName(engine));
+        }
+
+        [Theory]
+        [InlineData(null, new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr, ConfiguredOcrEngine.PaddleOcr })]
+        [InlineData("", new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr, ConfiguredOcrEngine.PaddleOcr })]
+        [InlineData("All", new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr, ConfiguredOcrEngine.PaddleOcr })]
+        [InlineData("WindowsOcr", new[] { ConfiguredOcrEngine.WindowsOcr })]
+        [InlineData("Tesseract,EasyOcr", new[] { ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr })]
+        [InlineData("PaddleOCR|WindowsOcr", new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.PaddleOcr })]
+        [InlineData("unknown", new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr, ConfiguredOcrEngine.PaddleOcr })]
+        public void NormalizeConfiguredOcrEngineSelection_MapsLegacyAndMultiSelectValues(string rawValue, ConfiguredOcrEngine[] expected)
+        {
+            Assert.Equal(expected, _service.NormalizeConfiguredOcrEngineSelection(rawValue).ToArray());
+        }
+
+        [Theory]
+        [InlineData(new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr, ConfiguredOcrEngine.PaddleOcr }, "All")]
+        [InlineData(new[] { ConfiguredOcrEngine.WindowsOcr }, "WindowsOcr")]
+        [InlineData(new[] { ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.PaddleOcr }, "Tesseract,PaddleOcr")]
+        [InlineData(new ConfiguredOcrEngine[0], "All")]
+        public void GetConfiguredOcrEngineSelectionTag_ReturnsNormalizedConfigValue(ConfiguredOcrEngine[] engines, string expected)
+        {
+            Assert.Equal(expected, _service.GetConfiguredOcrEngineSelectionTag(engines));
+        }
+
+        [Theory]
+        [InlineData(new[] { ConfiguredOcrEngine.WindowsOcr, ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr, ConfiguredOcrEngine.PaddleOcr }, "전체 비교")]
+        [InlineData(new[] { ConfiguredOcrEngine.WindowsOcr }, "Windows OCR")]
+        [InlineData(new[] { ConfiguredOcrEngine.Tesseract, ConfiguredOcrEngine.EasyOcr }, "Tesseract + EasyOCR")]
+        public void GetConfiguredOcrEngineSelectionDisplayName_ReturnsUserFacingLabel(ConfiguredOcrEngine[] engines, string expected)
+        {
+            Assert.Equal(expected, _service.GetConfiguredOcrEngineSelectionDisplayName(engines));
         }
 
 
@@ -191,6 +337,7 @@ namespace GameChatTranslator.Tests
             Assert.Equal("Ctrl+=", hotkeys.LogViewer);
             Assert.Equal("Ctrl+5", hotkeys.OcrDiagnostic);
             Assert.Equal("Ctrl+F10", hotkeys.HotkeyGuideToggle);
+            Assert.Equal("Ctrl+8", hotkeys.OpenSettings);
         }
 
         [Fact]
