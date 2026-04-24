@@ -202,6 +202,8 @@ namespace GameTranslator
             }
             logViewerWindow?.CloseForShutdown();
             ocrDiagnosticWindow?.Close();
+            easyOcrCliAdapter.Dispose();
+            paddleOcrCliAdapter.Dispose();
             UnregisterHotKey(_windowHandle, ID_HOTKEY_MOVE_LOCK);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_AREA_SELECT);
             UnregisterHotKey(_windowHandle, ID_HOTKEY_TRANSLATE);

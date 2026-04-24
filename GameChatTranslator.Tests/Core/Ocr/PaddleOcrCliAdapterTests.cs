@@ -78,6 +78,23 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void BuildWorkerStartArguments_IncludesWorkerFlag()
+        {
+            var values = _adapter.BuildWorkerStartArguments("paddleocr_runner.py");
+
+            Assert.Equal(
+                new[]
+                {
+                    "-X",
+                    "utf8",
+                    "-u",
+                    "paddleocr_runner.py",
+                    "--worker"
+                },
+                values);
+        }
+
+        [Fact]
         public void BuildPythonCandidates_IncludesPyLauncherFallback()
         {
             var values = _adapter.GetPythonCandidatesForTesting("");
@@ -106,6 +123,44 @@ namespace GameChatTranslator.Tests
             Assert.Contains("paddleocr", message, System.StringComparison.OrdinalIgnoreCase);
             Assert.Contains("paddlepaddle", message, System.StringComparison.OrdinalIgnoreCase);
             Assert.Contains("py -m pip", message, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void ParseWorkerResponse_ReadsTopLevelFieldsAndImages()
+        {
+            PaddleOcrCliAdapter.PaddleOcrWorkerResponse response = PaddleOcrCliAdapter.ParseWorkerResponse(
+                """
+                {
+                  "requestId": "req-1",
+                  "ok": true,
+                  "error": "",
+                  "errorCode": "",
+                  "images": [
+                    {
+                      "index": 0,
+                      "groups": [
+                        {
+                          "languageCodes": "korean",
+                          "success": true,
+                          "error": "",
+                          "lines": [
+                            { "top": 2, "bottom": 8, "text": "테스트" }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+
+            Assert.NotNull(response);
+            Assert.Equal("req-1", response.RequestId);
+            Assert.True(response.Ok);
+            PaddleOcrCliAdapter.PaddleOcrWorkerImage image = Assert.Single(response.Images);
+            Assert.Equal(0, image.Index);
+            PaddleOcrCliAdapter.PaddleOcrWorkerGroup group = Assert.Single(image.Groups);
+            Assert.Equal("korean", group.LanguageCodes);
+            Assert.Equal("테스트", Assert.Single(group.Lines).Text);
         }
     }
 }

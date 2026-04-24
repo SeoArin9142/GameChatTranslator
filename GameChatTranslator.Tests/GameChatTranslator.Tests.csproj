@@ -25,6 +25,7 @@
     <Compile Include="../GameChatTranslator/Core/OcrLanguageStatusFormatter.cs" Link="Core/OcrLanguageStatusFormatter.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrService.cs" Link="Core/OcrService.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrDuplicateTextComparer.cs" Link="Core/OcrDuplicateTextComparer.cs" />
+    <Compile Include="../GameChatTranslator/Core/PersistentPythonOcrWorker.cs" Link="Core/PersistentPythonOcrWorker.cs" />
     <Compile Include="../GameChatTranslator/Core/OcrDiagnosticExporter.cs" Link="Core/OcrDiagnosticExporter.cs" />
     <Compile Include="../GameChatTranslator/Core/EasyOcrCliAdapter.cs" Link="Core/EasyOcrCliAdapter.cs" />
     <Compile Include="../GameChatTranslator/Core/PaddleOcrCliAdapter.cs" Link="Core/PaddleOcrCliAdapter.cs" />

@@ -5,23 +5,22 @@ import sys
 import warnings
 
 
+PADDLEOCR_IMPORT_ERROR = None
+OCR_CACHE = {}
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image")
     parser.add_argument("--images")
-    parser.add_argument("--groups", required=True)
+    parser.add_argument("--groups")
     parser.add_argument("--gpu", default="false")
+    parser.add_argument("--worker", action="store_true")
     return parser.parse_args()
 
 
-def parse_image_paths(args):
-    if getattr(args, "images", None):
-        return [value.strip() for value in args.images.split("|") if value.strip()]
-
-    if getattr(args, "image", None):
-        return [args.image.strip()] if str(args.image).strip() else []
-
-    return []
+def parse_image_paths(raw_value):
+    return [value.strip() for value in (raw_value or "").split("|") if value.strip()]
 
 
 def parse_language_groups(raw_value):
@@ -239,9 +238,20 @@ def recognize_with_legacy_ocr(ocr, image_path):
     return build_lines_from_words(build_words_from_legacy_payload(results))
 
 
+def import_paddleocr():
+    global PADDLEOCR_IMPORT_ERROR
+
+    if PADDLEOCR_IMPORT_ERROR is not None:
+        raise PADDLEOCR_IMPORT_ERROR
+
+    try:
+        import paddleocr  # noqa: F401
+    except Exception as exc:
+        PADDLEOCR_IMPORT_ERROR = exc
+        raise
+
+
 def create_ocr(language_code, use_gpu):
-    # PaddlePaddle 3.3.x CPU inference can fail in PIR/oneDNN conversion.
-    # Set this before importing paddleocr so the diagnostic runner stays usable.
     os.environ.setdefault("FLAGS_enable_pir_api", "0")
 
     from paddleocr import PaddleOCR
@@ -265,6 +275,17 @@ def create_ocr(language_code, use_gpu):
     return ocr
 
 
+def get_ocr(language_code, use_gpu):
+    cache_key = (language_code, bool(use_gpu))
+    if cache_key in OCR_CACHE:
+        return OCR_CACHE[cache_key]
+
+    import_paddleocr()
+    ocr = create_ocr(language_code, use_gpu)
+    OCR_CACHE[cache_key] = ocr
+    return ocr
+
+
 def recognize_image(ocr, image_path):
     if hasattr(ocr, "predict"):
         return recognize_with_predict(ocr, image_path)
@@ -272,29 +293,28 @@ def recognize_image(ocr, image_path):
     return recognize_with_legacy_ocr(ocr, image_path)
 
 
-def main():
-    args = parse_args()
-    image_paths = parse_image_paths(args)
-    language_groups = parse_language_groups(args.groups)
+def run_groups(image_paths, raw_groups, use_gpu):
+    language_groups = parse_language_groups(raw_groups)
     if not image_paths:
-        print("PaddleOCR image paths are empty.", file=sys.stderr)
-        return 2
+        return {
+            "ok": False,
+            "error": "PaddleOCR image paths are empty.",
+            "errorCode": "invalid_request",
+            "images": []
+        }
 
     if not language_groups:
-        print("PaddleOCR language groups are empty.", file=sys.stderr)
-        return 2
-
-    use_gpu = str(args.gpu).strip().lower() in ("1", "true", "yes", "y", "on")
-
-    try:
-        import paddleocr  # noqa: F401
-    except Exception:
-        print("PaddleOCR module is not installed.", file=sys.stderr)
-        return 3
-
-    warnings.filterwarnings("ignore")
+        return {
+            "ok": False,
+            "error": "PaddleOCR language groups are empty.",
+            "errorCode": "invalid_request",
+            "images": []
+        }
 
     response = {
+        "ok": True,
+        "error": "",
+        "errorCode": "",
         "images": [
             {
                 "index": index,
@@ -306,7 +326,7 @@ def main():
 
     for language_code in language_groups:
         try:
-            ocr = create_ocr(language_code, use_gpu)
+            ocr = get_ocr(language_code, use_gpu)
             for index, image_path in enumerate(image_paths):
                 lines = recognize_image(ocr, image_path)
                 response["images"][index]["groups"].append(
@@ -329,7 +349,87 @@ def main():
                     }
                 )
 
-    print(json.dumps(response, ensure_ascii=False))
+    return response
+
+
+def write_worker_response(payload):
+    sys.stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+
+
+def run_worker():
+    warnings.filterwarnings("ignore")
+
+    while True:
+        raw_line = sys.stdin.readline()
+        if raw_line == "":
+            return 0
+
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+
+        request_id = ""
+        try:
+            payload = json.loads(raw_line)
+            request_id = str(payload.get("requestId", "")).strip()
+            image_paths = payload.get("imagePaths") or []
+            if not isinstance(image_paths, list):
+                image_paths = []
+            image_paths = [str(path).strip() for path in image_paths if str(path).strip()]
+            raw_groups = str(payload.get("groups", "")).strip()
+            use_gpu = bool(payload.get("gpu", False))
+
+            try:
+                response = run_groups(image_paths, raw_groups, use_gpu)
+            except Exception as exc:
+                write_worker_response(
+                    {
+                        "requestId": request_id,
+                        "ok": False,
+                        "error": str(exc),
+                        "errorCode": "module_missing" if PADDLEOCR_IMPORT_ERROR is not None else "runtime_error",
+                        "images": []
+                    }
+                )
+                continue
+
+            response["requestId"] = request_id
+            write_worker_response(response)
+        except Exception as exc:
+            write_worker_response(
+                {
+                    "requestId": request_id,
+                    "ok": False,
+                    "error": str(exc),
+                    "errorCode": "runtime_error",
+                    "images": []
+                }
+            )
+
+
+def main():
+    args = parse_args()
+    use_gpu = str(args.gpu).strip().lower() in ("1", "true", "yes", "y", "on")
+
+    if args.worker:
+        return run_worker()
+
+    image_paths = parse_image_paths(args.images or args.image)
+    warnings.filterwarnings("ignore")
+
+    try:
+        import_paddleocr()
+    except Exception:
+        print("PaddleOCR module is not installed.", file=sys.stderr)
+        return 3
+
+    response = run_groups(image_paths, args.groups, use_gpu)
+    if not response.get("ok", False):
+        print(response.get("error", "PaddleOCR execution failed."), file=sys.stderr)
+        return 4
+
+    print(json.dumps({"images": response["images"]}, ensure_ascii=False))
     return 0
 
 

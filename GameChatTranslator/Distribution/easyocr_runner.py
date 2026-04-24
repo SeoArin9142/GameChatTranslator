@@ -4,11 +4,17 @@ import sys
 import warnings
 
 
+EASYOCR_MODULE = None
+EASYOCR_IMPORT_ERROR = None
+READER_CACHE = {}
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image", required=True)
-    parser.add_argument("--groups", required=True)
+    parser.add_argument("--image")
+    parser.add_argument("--groups")
     parser.add_argument("--gpu", default="false")
+    parser.add_argument("--worker", action="store_true")
     return parser.parse_args()
 
 
@@ -142,34 +148,58 @@ def build_lines(results):
     return lines
 
 
-def main():
-    args = parse_args()
-    language_groups = parse_language_groups(args.groups)
-    if not language_groups:
-        print("EasyOCR language groups are empty.", file=sys.stderr)
-        return 2
+def import_easyocr():
+    global EASYOCR_MODULE
+    global EASYOCR_IMPORT_ERROR
 
-    use_gpu = str(args.gpu).strip().lower() in ("1", "true", "yes", "y", "on")
+    if EASYOCR_MODULE is not None:
+        return EASYOCR_MODULE
+
+    if EASYOCR_IMPORT_ERROR is not None:
+        raise EASYOCR_IMPORT_ERROR
 
     try:
         import easyocr
-    except Exception:
-        print("EasyOCR module is not installed.", file=sys.stderr)
-        return 3
+        EASYOCR_MODULE = easyocr
+        return EASYOCR_MODULE
+    except Exception as exc:
+        EASYOCR_IMPORT_ERROR = exc
+        raise
 
-    warnings.filterwarnings(
-        "ignore",
-        message=".*pin_memory.*",
-        category=UserWarning,
-    )
 
-    response = {"groups": []}
+def get_reader(languages, use_gpu):
+    cache_key = ("+".join(languages), bool(use_gpu))
+    if cache_key in READER_CACHE:
+        return READER_CACHE[cache_key]
+
+    easyocr = import_easyocr()
+    reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
+    READER_CACHE[cache_key] = reader
+    return reader
+
+
+def run_groups(image_path, raw_groups, use_gpu):
+    language_groups = parse_language_groups(raw_groups)
+    if not language_groups:
+        return {
+            "ok": False,
+            "error": "EasyOCR language groups are empty.",
+            "errorCode": "invalid_request",
+            "groups": []
+        }
+
+    response = {
+        "ok": True,
+        "error": "",
+        "errorCode": "",
+        "groups": []
+    }
 
     for languages in language_groups:
         language_codes = "+".join(languages)
         try:
-            reader = easyocr.Reader(languages, gpu=use_gpu, verbose=False)
-            results = reader.readtext(args.image, detail=1, paragraph=False)
+            reader = get_reader(languages, use_gpu)
+            results = reader.readtext(image_path, detail=1, paragraph=False)
             response["groups"].append(
                 {
                     "language_codes": language_codes,
@@ -188,7 +218,107 @@ def main():
                 }
             )
 
-    print(json.dumps(response, ensure_ascii=False))
+    return response
+
+
+def write_worker_response(payload):
+    sys.stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+
+
+def run_worker():
+    warnings.filterwarnings(
+        "ignore",
+        message=".*pin_memory.*",
+        category=UserWarning,
+    )
+
+    while True:
+        raw_line = sys.stdin.readline()
+        if raw_line == "":
+            return 0
+
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+
+        request_id = ""
+        try:
+            payload = json.loads(raw_line)
+            request_id = str(payload.get("requestId", "")).strip()
+            image_path = str(payload.get("imagePath", "")).strip()
+            raw_groups = str(payload.get("groups", "")).strip()
+            use_gpu = bool(payload.get("gpu", False))
+
+            if not image_path:
+                write_worker_response(
+                    {
+                        "requestId": request_id,
+                        "ok": False,
+                        "error": "EasyOCR image path is empty.",
+                        "errorCode": "invalid_request",
+                        "groups": []
+                    }
+                )
+                continue
+
+            try:
+                response = run_groups(image_path, raw_groups, use_gpu)
+            except Exception as exc:
+                write_worker_response(
+                    {
+                        "requestId": request_id,
+                        "ok": False,
+                        "error": str(exc),
+                        "errorCode": "module_missing" if EASYOCR_IMPORT_ERROR is not None else "runtime_error",
+                        "groups": []
+                    }
+                )
+                continue
+
+            response["requestId"] = request_id
+            write_worker_response(response)
+        except Exception as exc:
+            write_worker_response(
+                {
+                    "requestId": request_id,
+                    "ok": False,
+                    "error": str(exc),
+                    "errorCode": "runtime_error",
+                    "groups": []
+                }
+            )
+
+
+def main():
+    args = parse_args()
+    use_gpu = str(args.gpu).strip().lower() in ("1", "true", "yes", "y", "on")
+
+    if args.worker:
+        return run_worker()
+
+    if not args.image:
+        print("EasyOCR image path is empty.", file=sys.stderr)
+        return 2
+
+    warnings.filterwarnings(
+        "ignore",
+        message=".*pin_memory.*",
+        category=UserWarning,
+    )
+
+    try:
+        import_easyocr()
+    except Exception:
+        print("EasyOCR module is not installed.", file=sys.stderr)
+        return 3
+
+    response = run_groups(args.image, args.groups, use_gpu)
+    if not response.get("ok", False):
+        print(response.get("error", "EasyOCR execution failed."), file=sys.stderr)
+        return 4
+
+    print(json.dumps({"groups": response["groups"]}, ensure_ascii=False))
     return 0
 
 
