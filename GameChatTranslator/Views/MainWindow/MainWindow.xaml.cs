@@ -61,6 +61,7 @@ namespace GameTranslator
 
         private AutoTranslateMode autoTranslateMode = AutoTranslateMode.Off;
         private bool isAutoTranslating = false;
+        private readonly LatestOnlyValueQueue<OcrProcessingMode> pendingAutoTranslateRequests = new LatestOnlyValueQueue<OcrProcessingMode>();
         private string lastRawTextCombined = "";
         private string hotkeyWarningMessage = "";
 
@@ -122,7 +123,7 @@ namespace GameTranslator
 
             autoTranslateTimer = new DispatcherTimer();
             autoTranslateTimer.Interval = TimeSpan.FromSeconds(intervalSeconds);
-            autoTranslateTimer.Tick += (s, e) => { if (!isTranslating) _ = runTranslationAsync(GetCurrentOcrProcessingMode()); };
+            autoTranslateTimer.Tick += (s, e) => RequestAutoTranslation(GetCurrentOcrProcessingMode());
 
             string[] tags = { "ko", "en-US", "zh-Hans-CN", "ja", "ru" };
             foreach (var tag in tags)

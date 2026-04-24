@@ -111,11 +111,12 @@ namespace GameTranslator
 
             if (isAutoTranslating)
             {
-                _ = runTranslationAsync(GetCurrentOcrProcessingMode());
+                RequestAutoTranslation(GetCurrentOcrProcessingMode());
                 autoTranslateTimer.Start();
             }
             else
             {
+                pendingAutoTranslateRequests.Clear();
                 autoTranslateTimer.Stop();
             }
         }
@@ -373,6 +374,22 @@ namespace GameTranslator
             _ = runTranslationAsync(OcrProcessingMode.Accurate);
         }
 
+        private void RequestAutoTranslation(OcrProcessingMode processingMode)
+        {
+            if (gameChatArea == Rectangle.Empty)
+            {
+                return;
+            }
+
+            if (isTranslating)
+            {
+                pendingAutoTranslateRequests.Enqueue(processingMode);
+                return;
+            }
+
+            _ = runTranslationAsync(processingMode);
+        }
+
         /// <summary>
         /// 화면 캡처부터 OCR, 번역 API 호출, 번역창 출력까지 한 번의 번역 사이클을 수행합니다.
         /// <paramref name="processingMode"/>는 이번 실행에서 사용할 OCR 전처리/언어 후보 전략입니다.
@@ -558,6 +575,11 @@ namespace GameTranslator
                 totalStopwatch.Stop();
                 AppendOcrPerformanceLog(performanceStats, totalStopwatch.ElapsedMilliseconds);
                 isTranslating = false;
+
+                if (isAutoTranslating && pendingAutoTranslateRequests.TryDequeue(out OcrProcessingMode nextProcessingMode))
+                {
+                    _ = runTranslationAsync(nextProcessingMode);
+                }
             }
         }
 
