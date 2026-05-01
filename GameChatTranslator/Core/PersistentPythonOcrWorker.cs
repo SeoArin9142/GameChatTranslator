@@ -70,11 +70,20 @@ namespace GameTranslator
                     ? Math.Max(DefaultInitializationTimeoutMs, requestTimeoutMs)
                     : requestTimeoutMs;
 
+                Process currentProcess = null;
                 try
                 {
-                    Process currentProcess = process;
+                    currentProcess = process;
                     if (currentProcess == null || currentProcess.HasExited)
                     {
+                        if (startedNow || !isWarm)
+                        {
+                            return PersistentPythonOcrWorkerResult.CreateFailure(
+                                "Python 워커 프로세스가 시작 직후 종료되었습니다.",
+                                GetCapturedStandardErrorText(),
+                                shouldTryNextExecutable: true);
+                        }
+
                         RestartProcess();
                         currentProcess = process;
                     }
@@ -93,10 +102,12 @@ namespace GameTranslator
 
                     if (string.IsNullOrWhiteSpace(responseLine))
                     {
+                        bool shouldTryNextExecutable = (startedNow || !isWarm) && currentProcess.HasExited;
                         RestartProcess();
                         return PersistentPythonOcrWorkerResult.CreateFailure(
                             "Python 워커가 빈 응답을 반환했습니다.",
-                            standardError: GetCapturedStandardErrorText());
+                            standardError: GetCapturedStandardErrorText(),
+                            shouldTryNextExecutable: shouldTryNextExecutable);
                     }
 
                     isWarm = true;
@@ -129,8 +140,13 @@ namespace GameTranslator
                 catch (Exception ex)
                 {
                     string standardError = GetCapturedStandardErrorText();
+                    bool shouldTryNextExecutable = (startedNow || !isWarm) && (currentProcess == null || currentProcess.HasExited);
                     RestartProcess();
-                    return PersistentPythonOcrWorkerResult.CreateFailure(ex.Message, standardError, restartedWorker: true);
+                    return PersistentPythonOcrWorkerResult.CreateFailure(
+                        ex.Message,
+                        standardError,
+                        restartedWorker: true,
+                        shouldTryNextExecutable: shouldTryNextExecutable);
                 }
             }
             finally
@@ -338,7 +354,8 @@ namespace GameTranslator
             bool timedOut,
             bool usedInitializationTimeout,
             bool startedWorker,
-            bool restartedWorker)
+            bool restartedWorker,
+            bool shouldTryNextExecutable)
         {
             Success = success;
             ResponseJson = responseJson ?? "";
@@ -349,6 +366,7 @@ namespace GameTranslator
             UsedInitializationTimeout = usedInitializationTimeout;
             StartedWorker = startedWorker;
             RestartedWorker = restartedWorker;
+            ShouldTryNextExecutable = shouldTryNextExecutable;
         }
 
         public bool Success { get; }
@@ -360,6 +378,7 @@ namespace GameTranslator
         public bool UsedInitializationTimeout { get; }
         public bool StartedWorker { get; }
         public bool RestartedWorker { get; }
+        public bool ShouldTryNextExecutable { get; }
 
         public static PersistentPythonOcrWorkerResult CreateSuccess(
             string responseJson,
@@ -377,7 +396,8 @@ namespace GameTranslator
                 false,
                 usedInitializationTimeout,
                 startedWorker,
-                restartedWorker);
+                restartedWorker,
+                false);
         }
 
         public static PersistentPythonOcrWorkerResult CreateFailure(
@@ -385,7 +405,8 @@ namespace GameTranslator
             string standardError = "",
             bool isPythonMissing = false,
             bool timedOut = false,
-            bool restartedWorker = false)
+            bool restartedWorker = false,
+            bool shouldTryNextExecutable = false)
         {
             return new PersistentPythonOcrWorkerResult(
                 false,
@@ -396,7 +417,8 @@ namespace GameTranslator
                 timedOut,
                 false,
                 false,
-                restartedWorker);
+                restartedWorker,
+                shouldTryNextExecutable);
         }
     }
 }

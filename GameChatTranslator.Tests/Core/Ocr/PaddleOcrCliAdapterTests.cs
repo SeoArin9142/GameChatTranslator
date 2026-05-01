@@ -1,4 +1,5 @@
 using GameTranslator;
+using System.Text.Json;
 using System.Runtime.Versioning;
 using Xunit;
 
@@ -164,6 +165,20 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void BuildWorkerRequestJson_UsesCamelCaseKeys()
+        {
+            string json = _adapter.BuildWorkerRequestJson(
+                new[] { @"C:\temp\ocr_0.png", @"C:\temp\ocr_1.png" },
+                new[] { "korean", "japan" });
+            using JsonDocument document = JsonDocument.Parse(json);
+
+            Assert.True(document.RootElement.TryGetProperty("requestId", out _));
+            Assert.Equal(2, document.RootElement.GetProperty("imagePaths").GetArrayLength());
+            Assert.Equal("korean|japan", document.RootElement.GetProperty("groups").GetString());
+            Assert.True(document.RootElement.TryGetProperty("gpu", out _));
+        }
+
+        [Fact]
         public void CreateSuccess_PreservesResidentWorkerMetadata()
         {
             PaddleOcrCliBatchResult result = PaddleOcrCliBatchResult.CreateSuccess(
@@ -188,6 +203,39 @@ namespace GameChatTranslator.Tests
             Assert.True(result.UsedInitializationTimeout);
             Assert.False(result.TimedOut);
             Assert.Equal("stderr", result.StandardError);
+        }
+
+        [Fact]
+        public void CreateFailure_PreservesNextPythonCandidateFlag()
+        {
+            PaddleOcrCliBatchResult result = PaddleOcrCliBatchResult.CreateFailure(
+                "python",
+                new[] { "korean" },
+                "worker exited",
+                shouldTryNextPythonCandidate: true);
+
+            Assert.True(result.ShouldTryNextPythonCandidate);
+        }
+
+        [Theory]
+        [InlineData(true, false, false)]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, true)]
+        public void ShouldTryNextPythonCandidateAfterEmptyWorkerPayload_ReturnsTrueForStartupRelatedFailures(
+            bool startedWorker,
+            bool restartedWorker,
+            bool usedInitializationTimeout)
+        {
+            Assert.True(PaddleOcrCliAdapter.ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(
+                startedWorker,
+                restartedWorker,
+                usedInitializationTimeout));
+        }
+
+        [Fact]
+        public void ShouldTryNextPythonCandidateAfterEmptyWorkerPayload_ReturnsFalseForWarmEmptyPayload()
+        {
+            Assert.False(PaddleOcrCliAdapter.ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(false, false, false));
         }
     }
 }
