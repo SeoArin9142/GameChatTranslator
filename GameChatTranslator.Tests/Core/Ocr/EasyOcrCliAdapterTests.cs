@@ -202,5 +202,26 @@ namespace GameChatTranslator.Tests
 
             Assert.True(result.ShouldTryNextPythonCandidate);
         }
+
+        [Theory]
+        [InlineData(true, false, false)]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, true)]
+        public void ShouldTryNextPythonCandidateAfterEmptyWorkerPayload_ReturnsTrueForStartupRelatedFailures(
+            bool startedWorker,
+            bool restartedWorker,
+            bool usedInitializationTimeout)
+        {
+            Assert.True(EasyOcrCliAdapter.ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(
+                startedWorker,
+                restartedWorker,
+                usedInitializationTimeout));
+        }
+
+        [Fact]
+        public void ShouldTryNextPythonCandidateAfterEmptyWorkerPayload_ReturnsFalseForWarmEmptyPayload()
+        {
+            Assert.False(EasyOcrCliAdapter.ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(false, false, false));
+        }
     }
 }

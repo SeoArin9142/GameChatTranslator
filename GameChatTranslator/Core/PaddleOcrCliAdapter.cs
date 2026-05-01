@@ -448,6 +448,10 @@ namespace GameTranslator
                 PaddleOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
                 if (response == null)
                 {
+                    bool shouldTryNextPythonCandidate = ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(
+                        workerResult.StartedWorker,
+                        workerResult.RestartedWorker,
+                        workerResult.UsedInitializationTimeout);
                     return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCandidates,
@@ -456,7 +460,8 @@ namespace GameTranslator
                         usedResidentWorker: true,
                         startedWorker: workerResult.StartedWorker,
                         restartedWorker: workerResult.RestartedWorker,
-                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout,
+                        shouldTryNextPythonCandidate: shouldTryNextPythonCandidate);
                 }
 
                 if (!response.Ok)
@@ -481,6 +486,10 @@ namespace GameTranslator
                 List<PaddleOcrCliImageResult> imageResults = ConvertWorkerImagesToResults(response.Images);
                 if (imageResults.Count == 0)
                 {
+                    bool shouldTryNextPythonCandidate = ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(
+                        workerResult.StartedWorker,
+                        workerResult.RestartedWorker,
+                        workerResult.UsedInitializationTimeout);
                     return PaddleOcrCliBatchResult.CreateFailure(
                         pythonExecutablePath,
                         languageCandidates,
@@ -489,7 +498,8 @@ namespace GameTranslator
                         usedResidentWorker: true,
                         startedWorker: workerResult.StartedWorker,
                         restartedWorker: workerResult.RestartedWorker,
-                        usedInitializationTimeout: workerResult.UsedInitializationTimeout);
+                        usedInitializationTimeout: workerResult.UsedInitializationTimeout,
+                        shouldTryNextPythonCandidate: shouldTryNextPythonCandidate);
                 }
 
                 int successCount = imageResults.Sum(image => image.GroupResults.Count(group => group.Success));
@@ -633,6 +643,14 @@ namespace GameTranslator
         private static string EmptyToFallback(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        }
+
+        internal static bool ShouldTryNextPythonCandidateAfterEmptyWorkerPayload(
+            bool startedWorker,
+            bool restartedWorker,
+            bool usedInitializationTimeout)
+        {
+            return startedWorker || restartedWorker || usedInitializationTimeout;
         }
 
         internal string BuildWorkerRequestJson(IReadOnlyList<string> inputFilePaths, IReadOnlyList<string> languageCandidates)
