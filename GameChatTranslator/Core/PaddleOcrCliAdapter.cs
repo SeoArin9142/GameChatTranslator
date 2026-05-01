@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GameTranslator
 {
@@ -183,10 +184,18 @@ namespace GameTranslator
                         inputFilePaths,
                         languageCandidates,
                         timeoutMs);
-                    if (runResult.Success || !runResult.IsPythonMissing)
+                    if (runResult.Success)
                     {
                         return runResult;
                     }
+
+                    if (runResult.IsPythonMissing || runResult.ShouldTryNextPythonCandidate)
+                    {
+                        ReleaseWorkerLease(pythonPath);
+                        continue;
+                    }
+
+                    return runResult;
                 }
 
                 return PaddleOcrCliBatchResult.CreateFailure(
@@ -417,13 +426,7 @@ namespace GameTranslator
             try
             {
                 PersistentPythonOcrWorker worker = GetOrCreateWorker(pythonExecutablePath, runnerScriptPath);
-                string requestJson = JsonSerializer.Serialize(new PaddleOcrWorkerRequest
-                {
-                    RequestId = Guid.NewGuid().ToString("N"),
-                    ImagePaths = inputFilePaths?.ToList() ?? new List<string>(),
-                    Groups = string.Join("|", languageCandidates ?? Array.Empty<string>()),
-                    Gpu = false
-                });
+                string requestJson = BuildWorkerRequestJson(inputFilePaths, languageCandidates);
 
                 PersistentPythonOcrWorkerResult workerResult = worker.SendRequestAsync(requestJson, timeoutMs).GetAwaiter().GetResult();
                 if (!workerResult.Success)
@@ -438,7 +441,8 @@ namespace GameTranslator
                         startedWorker: workerResult.StartedWorker,
                         restartedWorker: workerResult.RestartedWorker,
                         usedInitializationTimeout: workerResult.UsedInitializationTimeout,
-                        timedOut: workerResult.TimedOut);
+                        timedOut: workerResult.TimedOut,
+                        shouldTryNextPythonCandidate: workerResult.ShouldTryNextExecutable);
                 }
 
                 PaddleOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
@@ -631,6 +635,17 @@ namespace GameTranslator
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         }
 
+        internal string BuildWorkerRequestJson(IReadOnlyList<string> inputFilePaths, IReadOnlyList<string> languageCandidates)
+        {
+            return JsonSerializer.Serialize(new PaddleOcrWorkerRequest
+            {
+                RequestId = Guid.NewGuid().ToString("N"),
+                ImagePaths = inputFilePaths?.ToList() ?? new List<string>(),
+                Groups = string.Join("|", languageCandidates ?? Array.Empty<string>()),
+                Gpu = false
+            });
+        }
+
         private PersistentPythonOcrWorker GetOrCreateWorker(string pythonExecutablePath, string runnerScriptPath)
         {
             lock (workerSync)
@@ -693,9 +708,13 @@ namespace GameTranslator
 
         private sealed class PaddleOcrWorkerRequest
         {
+            [JsonPropertyName("requestId")]
             public string RequestId { get; set; } = "";
+            [JsonPropertyName("imagePaths")]
             public List<string> ImagePaths { get; set; } = new List<string>();
+            [JsonPropertyName("groups")]
             public string Groups { get; set; } = "";
+            [JsonPropertyName("gpu")]
             public bool Gpu { get; set; }
         }
 
@@ -745,7 +764,8 @@ namespace GameTranslator
             bool startedWorker,
             bool restartedWorker,
             bool usedInitializationTimeout,
-            bool timedOut)
+            bool timedOut,
+            bool shouldTryNextPythonCandidate)
         {
             Success = success;
             PythonExecutablePath = pythonExecutablePath ?? "";
@@ -760,6 +780,7 @@ namespace GameTranslator
             RestartedWorker = restartedWorker;
             UsedInitializationTimeout = usedInitializationTimeout;
             TimedOut = timedOut;
+            ShouldTryNextPythonCandidate = shouldTryNextPythonCandidate;
         }
 
         public bool Success { get; }
@@ -776,6 +797,7 @@ namespace GameTranslator
         public bool RestartedWorker { get; }
         public bool UsedInitializationTimeout { get; }
         public bool TimedOut { get; }
+        public bool ShouldTryNextPythonCandidate { get; }
 
         public static PaddleOcrCliBatchResult CreateSuccess(
             string pythonExecutablePath,
@@ -801,6 +823,7 @@ namespace GameTranslator
                 startedWorker,
                 restartedWorker,
                 usedInitializationTimeout,
+                false,
                 false);
         }
 
@@ -815,7 +838,8 @@ namespace GameTranslator
             bool startedWorker = false,
             bool restartedWorker = false,
             bool usedInitializationTimeout = false,
-            bool timedOut = false)
+            bool timedOut = false,
+            bool shouldTryNextPythonCandidate = false)
         {
             return new PaddleOcrCliBatchResult(
                 false,
@@ -830,7 +854,8 @@ namespace GameTranslator
                 startedWorker,
                 restartedWorker,
                 usedInitializationTimeout,
-                timedOut);
+                timedOut,
+                shouldTryNextPythonCandidate);
         }
     }
 

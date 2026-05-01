@@ -1,4 +1,5 @@
 using GameTranslator;
+using System.Text.Json;
 using System.Runtime.Versioning;
 using Xunit;
 
@@ -157,6 +158,18 @@ namespace GameChatTranslator.Tests
         }
 
         [Fact]
+        public void BuildWorkerRequestJson_UsesCamelCaseKeys()
+        {
+            string json = _adapter.BuildWorkerRequestJson(@"C:\temp\ocr.png", new[] { "ko+en", "ja+en" });
+            using JsonDocument document = JsonDocument.Parse(json);
+
+            Assert.Equal(@"C:\temp\ocr.png", document.RootElement.GetProperty("imagePath").GetString());
+            Assert.Equal("ko+en|ja+en", document.RootElement.GetProperty("groups").GetString());
+            Assert.True(document.RootElement.TryGetProperty("requestId", out _));
+            Assert.True(document.RootElement.TryGetProperty("gpu", out _));
+        }
+
+        [Fact]
         public void CreateFailure_PreservesResidentWorkerMetadata()
         {
             EasyOcrCliBatchResult result = EasyOcrCliBatchResult.CreateFailure(
@@ -176,6 +189,18 @@ namespace GameChatTranslator.Tests
             Assert.True(result.UsedInitializationTimeout);
             Assert.True(result.TimedOut);
             Assert.Equal("stderr", result.StandardError);
+        }
+
+        [Fact]
+        public void CreateFailure_PreservesNextPythonCandidateFlag()
+        {
+            EasyOcrCliBatchResult result = EasyOcrCliBatchResult.CreateFailure(
+                "python",
+                new[] { "ko+en" },
+                "worker exited",
+                shouldTryNextPythonCandidate: true);
+
+            Assert.True(result.ShouldTryNextPythonCandidate);
         }
     }
 }

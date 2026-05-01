@@ -169,10 +169,18 @@ namespace GameTranslator
                         inputFilePath,
                         languageCombinations,
                         timeoutMs);
-                    if (runResult.Success || !runResult.IsPythonMissing)
+                    if (runResult.Success)
                     {
                         return runResult;
                     }
+
+                    if (runResult.IsPythonMissing || runResult.ShouldTryNextPythonCandidate)
+                    {
+                        ReleaseWorkerLease(pythonPath);
+                        continue;
+                    }
+
+                    return runResult;
                 }
 
                 return EasyOcrCliBatchResult.CreateFailure(
@@ -398,13 +406,7 @@ namespace GameTranslator
             try
             {
                 PersistentPythonOcrWorker worker = GetOrCreateWorker(pythonExecutablePath, runnerScriptPath);
-                string requestJson = JsonSerializer.Serialize(new EasyOcrWorkerRequest
-                {
-                    RequestId = Guid.NewGuid().ToString("N"),
-                    ImagePath = inputFilePath,
-                    Groups = string.Join("|", languageCombinations ?? Array.Empty<string>()),
-                    Gpu = false
-                });
+                string requestJson = BuildWorkerRequestJson(inputFilePath, languageCombinations);
 
                 PersistentPythonOcrWorkerResult workerResult = worker.SendRequestAsync(requestJson, timeoutMs).GetAwaiter().GetResult();
                 if (!workerResult.Success)
@@ -419,7 +421,8 @@ namespace GameTranslator
                         startedWorker: workerResult.StartedWorker,
                         restartedWorker: workerResult.RestartedWorker,
                         usedInitializationTimeout: workerResult.UsedInitializationTimeout,
-                        timedOut: workerResult.TimedOut);
+                        timedOut: workerResult.TimedOut,
+                        shouldTryNextPythonCandidate: workerResult.ShouldTryNextExecutable);
                 }
 
                 EasyOcrWorkerResponse response = ParseWorkerResponse(workerResult.ResponseJson);
@@ -567,6 +570,17 @@ namespace GameTranslator
                 .ToList();
         }
 
+        internal string BuildWorkerRequestJson(string inputFilePath, IReadOnlyList<string> languageCombinations)
+        {
+            return JsonSerializer.Serialize(new EasyOcrWorkerRequest
+            {
+                RequestId = Guid.NewGuid().ToString("N"),
+                ImagePath = inputFilePath,
+                Groups = string.Join("|", languageCombinations ?? Array.Empty<string>()),
+                Gpu = false
+            });
+        }
+
         private static string EmptyToFallback(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
@@ -628,9 +642,13 @@ namespace GameTranslator
 
         private sealed class EasyOcrWorkerRequest
         {
+            [JsonPropertyName("requestId")]
             public string RequestId { get; set; } = "";
+            [JsonPropertyName("imagePath")]
             public string ImagePath { get; set; } = "";
+            [JsonPropertyName("groups")]
             public string Groups { get; set; } = "";
+            [JsonPropertyName("gpu")]
             public bool Gpu { get; set; }
         }
 
@@ -675,7 +693,8 @@ namespace GameTranslator
             bool startedWorker,
             bool restartedWorker,
             bool usedInitializationTimeout,
-            bool timedOut)
+            bool timedOut,
+            bool shouldTryNextPythonCandidate)
         {
             Success = success;
             PythonExecutablePath = pythonExecutablePath ?? "";
@@ -690,6 +709,7 @@ namespace GameTranslator
             RestartedWorker = restartedWorker;
             UsedInitializationTimeout = usedInitializationTimeout;
             TimedOut = timedOut;
+            ShouldTryNextPythonCandidate = shouldTryNextPythonCandidate;
         }
 
         public bool Success { get; }
@@ -705,6 +725,7 @@ namespace GameTranslator
         public bool RestartedWorker { get; }
         public bool UsedInitializationTimeout { get; }
         public bool TimedOut { get; }
+        public bool ShouldTryNextPythonCandidate { get; }
 
         public static EasyOcrCliBatchResult CreateSuccess(
             string pythonExecutablePath,
@@ -730,6 +751,7 @@ namespace GameTranslator
                 startedWorker,
                 restartedWorker,
                 usedInitializationTimeout,
+                false,
                 false);
         }
 
@@ -744,7 +766,8 @@ namespace GameTranslator
             bool startedWorker = false,
             bool restartedWorker = false,
             bool usedInitializationTimeout = false,
-            bool timedOut = false)
+            bool timedOut = false,
+            bool shouldTryNextPythonCandidate = false)
         {
             return new EasyOcrCliBatchResult(
                 false,
@@ -759,7 +782,8 @@ namespace GameTranslator
                 startedWorker,
                 restartedWorker,
                 usedInitializationTimeout,
-                timedOut);
+                timedOut,
+                shouldTryNextPythonCandidate);
         }
     }
 
