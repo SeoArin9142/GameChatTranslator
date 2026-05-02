@@ -290,6 +290,71 @@
                         </StackPanel>
                     </GroupBox>
 
+                    <GroupBox Header="외부 OCR 설치 / 삭제" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="EasyOCR / PaddleOCR / Tesseract 설치 스크립트를 바로 실행합니다. 설치 상태에 따라 설치/삭제 버튼을 자동으로 켜고 끕니다."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"
+                                       Foreground="#CCC"/>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="70"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Tesseract" VerticalAlignment="Center" Foreground="#CCC"/>
+                                <TextBlock x:Name="TxtTesseractPackageStatus" Grid.Column="1" VerticalAlignment="Center" Foreground="#E6E6E6" Text="상태 확인 중..."/>
+                                <Button x:Name="BtnInstallTesseractPackage" Grid.Column="2" Content="설치" Padding="8,2" Margin="6,0,6,0" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnInstallTesseractPackage_Click"/>
+                                <Button x:Name="BtnUninstallTesseractPackage" Grid.Column="3" Content="삭제" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnUninstallTesseractPackage_Click"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="70"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="EasyOCR" VerticalAlignment="Center" Foreground="#CCC"/>
+                                <TextBlock x:Name="TxtEasyOcrPackageStatus" Grid.Column="1" VerticalAlignment="Center" Foreground="#E6E6E6" Text="상태 확인 중..."/>
+                                <Button x:Name="BtnInstallEasyOcrPackage" Grid.Column="2" Content="설치" Padding="8,2" Margin="6,0,6,0" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnInstallEasyOcrPackage_Click"/>
+                                <Button x:Name="BtnUninstallEasyOcrPackage" Grid.Column="3" Content="삭제" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnUninstallEasyOcrPackage_Click"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="70"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="PaddleOCR" VerticalAlignment="Center" Foreground="#CCC"/>
+                                <TextBlock x:Name="TxtPaddleOcrPackageStatus" Grid.Column="1" VerticalAlignment="Center" Foreground="#E6E6E6" Text="상태 확인 중..."/>
+                                <Button x:Name="BtnInstallPaddleOcrPackage" Grid.Column="2" Content="설치" Padding="8,2" Margin="6,0,6,0" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnInstallPaddleOcrPackage_Click"/>
+                                <Button x:Name="BtnUninstallPaddleOcrPackage" Grid.Column="3" Content="삭제" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnUninstallPaddleOcrPackage_Click"/>
+                            </Grid>
+
+                            <TextBlock Text="Windows OCR 언어팩 제거는 시스템 전체에 영향이 있어 별도 작업으로 분리합니다. 여기의 전체 설치/삭제는 Tesseract / EasyOCR / PaddleOCR만 대상으로 합니다."
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"
+                                       Foreground="#AFAFAF"
+                                       FontSize="11"/>
+
+                            <TextBlock x:Name="TxtExternalOcrPackageStatus"
+                                       Text=""
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"
+                                       Foreground="#CCC"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnInstallAllOcrPackages" Content="전체 설치" Padding="8,2" Margin="0,0,8,0" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnInstallAllOcrPackages_Click"/>
+                                <Button x:Name="BtnUninstallAllOcrPackages" Content="전체 삭제" Padding="8,2" Background="#444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnUninstallAllOcrPackages_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
                     <GroupBox Header="OCR 테스트 / 진단" Foreground="White" Margin="0,0,0,10" BorderBrush="#555">
                         <StackPanel Margin="10">
                             <TextBlock Text="메인 번역용 OCR 엔진:"
