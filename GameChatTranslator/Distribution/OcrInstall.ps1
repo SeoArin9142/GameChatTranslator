@@ -507,7 +507,8 @@ function Assert-EasyOcrEnvironment {
     Write-ProcessOutput $result.StandardOutput
     Write-ProcessOutput $result.StandardError
     if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
-        $stderr = ($result.StandardError ?? "").Trim()
+        $stderr = [string]$result.StandardError
+        $stderr = $stderr.Trim()
         if ([string]::IsNullOrWhiteSpace($stderr)) {
             throw "EasyOCR import verification failed."
         }
@@ -525,7 +526,8 @@ function Assert-PaddleOcrEnvironment {
     Write-ProcessOutput $result.StandardOutput
     Write-ProcessOutput $result.StandardError
     if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
-        $stderr = ($result.StandardError ?? "").Trim()
+        $stderr = [string]$result.StandardError
+        $stderr = $stderr.Trim()
         if ([string]::IsNullOrWhiteSpace($stderr)) {
             throw "PaddleOCR import verification failed."
         }
