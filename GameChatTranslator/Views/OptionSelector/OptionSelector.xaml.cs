@@ -64,6 +64,7 @@ namespace GameTranslator
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
             RefreshInstallLocationStatus();
+            RefreshConfigFileStatus();
             RefreshAdvancedSettingValidationStatus();
         }
 
@@ -322,6 +323,22 @@ namespace GameTranslator
                 : locationText;
         }
 
+        private void RefreshConfigFileStatus()
+        {
+            if (TxtConfigFilePath == null) return;
+
+            string configFilePath = GetCurrentConfigFilePath();
+            if (string.IsNullOrWhiteSpace(configFilePath))
+            {
+                TxtConfigFilePath.Text = "경로 확인 실패";
+                return;
+            }
+
+            TxtConfigFilePath.Text = File.Exists(configFilePath)
+                ? configFilePath
+                : $"{configFilePath}\n(아직 생성되지 않음)";
+        }
+
         private void RefreshExternalOcrPackageStatus()
         {
             OcrPackageInstallationState tesseractState = GetTesseractInstallationState();
@@ -397,6 +414,11 @@ namespace GameTranslator
 
             string scriptPath = Path.Combine(baseDirectory, fileName);
             return File.Exists(scriptPath) ? scriptPath : null;
+        }
+
+        private string GetCurrentConfigFilePath()
+        {
+            return (_ini?.Path ?? "").Trim();
         }
 
         private void SetExternalOcrPackageStatus(string text, System.Windows.Media.Brush brush)
@@ -924,6 +946,41 @@ namespace GameTranslator
             {
                 SetUpdateStatusText("경로 복사 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
                 System.Windows.MessageBox.Show($"실행 경로를 복사하지 못했습니다.\n{ex.Message}", "경로 복사", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnOpenConfigFile_Click(object sender, RoutedEventArgs e)
+        {
+            string configFilePath = GetCurrentConfigFilePath();
+            if (string.IsNullOrWhiteSpace(configFilePath))
+            {
+                SetUpdateStatusText("config.ini 경로 확인 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
+                System.Windows.MessageBox.Show("현재 config.ini 경로를 확인하지 못했습니다.", "ini 파일 열기", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!File.Exists(configFilePath))
+            {
+                SetUpdateStatusText("config.ini가 아직 없습니다.", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
+                System.Windows.MessageBox.Show("현재 config.ini 파일이 아직 생성되지 않았습니다.", "ini 파일 열기", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = configFilePath,
+                    UseShellExecute = true
+                };
+
+                Process.Start(startInfo);
+                SetUpdateStatusText("config.ini를 열었습니다.", System.Windows.Media.Brushes.LightGreen, autoReset: true);
+            }
+            catch (Exception ex)
+            {
+                SetUpdateStatusText("config.ini 열기 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
+                System.Windows.MessageBox.Show($"config.ini를 열지 못했습니다.\n{ex.Message}", "ini 파일 열기", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
