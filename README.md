@@ -161,6 +161,8 @@ GameChatTranslator는 OCR 엔진별로 필요한 설치 조건이 다릅니다.
 ```text
 - Install-Tesseract.bat
 - 설치가 끝나면 TesseractExePath를 config.ini에 자동 기록
+- Uninstall-Tesseract.bat
+- 제거 시 TesseractExePath를 config.ini에서 정리
 ```
 
 주의:
@@ -189,6 +191,8 @@ py -m pip install torch torchvision easyocr
 - Install-EasyOCR.bat
 - 현재 설치된 Python 3.8+를 사용
 - 전용 venv를 만든 뒤 EasyOcrPythonPath를 config.ini에 자동 기록
+- Uninstall-EasyOCR.bat
+- 제거 시 venv와 EasyOcrPythonPath를 함께 정리
 ```
 
 주의:
@@ -222,6 +226,8 @@ py -m pip install "paddleocr[all]"
 - Python 3.10 전용 venv 생성
 - paddlepaddle==3.2.0 / paddleocr==3.3.3 설치
 - PaddleOcrPythonPath를 config.ini에 자동 기록
+- Uninstall-PaddleOCR.bat
+- 제거 시 venv와 PaddleOcrPythonPath를 함께 정리
 ```
 
 주의:
@@ -240,6 +246,7 @@ py -m pip install "paddleocr[all]"
 
 미설치 언어가 있으면 `LangInstall.bat`를 관리자 권한으로 실행하고 재부팅한 뒤 다시 확인합니다.
 EasyOCR / PaddleOCR / Tesseract까지 한 번에 준비하려면 `Install-All-OCR.bat`를 사용할 수 있습니다.
+EasyOCR / PaddleOCR / Tesseract를 한 번에 정리하려면 `Uninstall-All-OCR.bat`를 사용할 수 있습니다. 이 스크립트에는 Windows OCR 언어팩 제거가 포함되지 않습니다.
 
 ### 2. 캡처 영역 지정
 

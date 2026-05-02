@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -29,6 +30,7 @@ namespace GameTranslator
         private readonly OcrLanguageStatusFormatter _ocrLanguageStatusFormatter = new OcrLanguageStatusFormatter();
         private readonly DispatcherTimer _updateStatusResetTimer;
         private readonly bool _isDialogMode;
+        private bool _isOcrPackageOperationRunning;
         internal OptionSelectorPostAction RequestedActionAfterClose { get; private set; } = OptionSelectorPostAction.None;
 
         private static readonly (string Label, string Tag)[] OcrLanguageStatusTargets =
@@ -69,6 +71,7 @@ namespace GameTranslator
         {
             Loaded -= OptionSelector_Loaded;
             RefreshOcrLanguageStatus();
+            RefreshExternalOcrPackageStatus();
         }
 
         /// <summary>
@@ -317,6 +320,162 @@ namespace GameTranslator
             TxtInstallLocation.Text = string.IsNullOrWhiteSpace(locationText)
                 ? "경로 확인 실패"
                 : locationText;
+        }
+
+        private void RefreshExternalOcrPackageStatus()
+        {
+            OcrPackageInstallationState tesseractState = GetTesseractInstallationState();
+            OcrPackageInstallationState easyOcrState = GetPythonOcrInstallationState("EasyOcrPythonPath");
+            OcrPackageInstallationState paddleOcrState = GetPythonOcrInstallationState("PaddleOcrPythonPath");
+
+            ApplyOcrPackageStatus(TxtTesseractPackageStatus, tesseractState);
+            ApplyOcrPackageStatus(TxtEasyOcrPackageStatus, easyOcrState);
+            ApplyOcrPackageStatus(TxtPaddleOcrPackageStatus, paddleOcrState);
+
+            bool anyInstalled = tesseractState.IsInstalled || easyOcrState.IsInstalled || paddleOcrState.IsInstalled;
+            bool anyMissing = !tesseractState.IsInstalled || !easyOcrState.IsInstalled || !paddleOcrState.IsInstalled;
+
+            if (BtnInstallTesseractPackage != null) BtnInstallTesseractPackage.IsEnabled = !_isOcrPackageOperationRunning && !tesseractState.IsInstalled;
+            if (BtnUninstallTesseractPackage != null) BtnUninstallTesseractPackage.IsEnabled = !_isOcrPackageOperationRunning && tesseractState.IsInstalled;
+            if (BtnInstallEasyOcrPackage != null) BtnInstallEasyOcrPackage.IsEnabled = !_isOcrPackageOperationRunning && !easyOcrState.IsInstalled;
+            if (BtnUninstallEasyOcrPackage != null) BtnUninstallEasyOcrPackage.IsEnabled = !_isOcrPackageOperationRunning && easyOcrState.IsInstalled;
+            if (BtnInstallPaddleOcrPackage != null) BtnInstallPaddleOcrPackage.IsEnabled = !_isOcrPackageOperationRunning && !paddleOcrState.IsInstalled;
+            if (BtnUninstallPaddleOcrPackage != null) BtnUninstallPaddleOcrPackage.IsEnabled = !_isOcrPackageOperationRunning && paddleOcrState.IsInstalled;
+            if (BtnInstallAllOcrPackages != null) BtnInstallAllOcrPackages.IsEnabled = !_isOcrPackageOperationRunning && anyMissing;
+            if (BtnUninstallAllOcrPackages != null) BtnUninstallAllOcrPackages.IsEnabled = !_isOcrPackageOperationRunning && anyInstalled;
+        }
+
+        private void ApplyOcrPackageStatus(TextBlock textBlock, OcrPackageInstallationState state)
+        {
+            if (textBlock == null || state == null) return;
+
+            textBlock.Text = state.StatusText;
+            textBlock.Foreground = state.IsInstalled
+                ? System.Windows.Media.Brushes.LightGreen
+                : System.Windows.Media.Brushes.Gold;
+        }
+
+        private OcrPackageInstallationState GetPythonOcrInstallationState(string key)
+        {
+            string configuredPath = (_ini?.Read(key) ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                return OcrPackageInstallationState.NotInstalled("미설치");
+            }
+
+            if (File.Exists(configuredPath))
+            {
+                return OcrPackageInstallationState.Installed($"설치됨 ({configuredPath})");
+            }
+
+            return OcrPackageInstallationState.NotInstalled($"경로 불일치 ({configuredPath})");
+        }
+
+        private OcrPackageInstallationState GetTesseractInstallationState()
+        {
+            string configuredPath = (_ini?.Read("TesseractExePath") ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                return OcrPackageInstallationState.NotInstalled("미설치");
+            }
+
+            if (Path.IsPathRooted(configuredPath) && File.Exists(configuredPath))
+            {
+                return OcrPackageInstallationState.Installed($"설치됨 ({configuredPath})");
+            }
+
+            return OcrPackageInstallationState.NotInstalled($"경로 불일치 ({configuredPath})");
+        }
+
+        private string GetOcrScriptPath(string fileName)
+        {
+            string baseDirectory = _mainWindow?.GetInstallLocationPath();
+            if (string.IsNullOrWhiteSpace(baseDirectory))
+            {
+                baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            }
+
+            string scriptPath = Path.Combine(baseDirectory, fileName);
+            return File.Exists(scriptPath) ? scriptPath : null;
+        }
+
+        private void SetExternalOcrPackageStatus(string text, System.Windows.Media.Brush brush)
+        {
+            if (TxtExternalOcrPackageStatus == null) return;
+
+            TxtExternalOcrPackageStatus.Text = text ?? "";
+            TxtExternalOcrPackageStatus.Foreground = brush;
+        }
+
+        private async Task RunOcrPackageScriptAsync(string scriptFileName, string actionLabel)
+        {
+            string scriptPath = GetOcrScriptPath(scriptFileName);
+            if (string.IsNullOrWhiteSpace(scriptPath))
+            {
+                SetExternalOcrPackageStatus("스크립트를 찾지 못했습니다.", System.Windows.Media.Brushes.OrangeRed);
+                System.Windows.MessageBox.Show($"스크립트를 찾지 못했습니다.\n{scriptFileName}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            _isOcrPackageOperationRunning = true;
+            RefreshExternalOcrPackageStatus();
+            SetExternalOcrPackageStatus($"{actionLabel} 실행 중...", System.Windows.Media.Brushes.LightGray);
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = scriptPath,
+                    Arguments = "--no-pause",
+                    WorkingDirectory = Path.GetDirectoryName(scriptPath) ?? AppDomain.CurrentDomain.BaseDirectory,
+                    UseShellExecute = true
+                };
+
+                using Process process = Process.Start(startInfo);
+                if (process == null)
+                {
+                    SetExternalOcrPackageStatus("프로세스 시작 실패", System.Windows.Media.Brushes.OrangeRed);
+                    System.Windows.MessageBox.Show($"스크립트를 시작하지 못했습니다.\n{scriptFileName}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode == 0)
+                {
+                    SetExternalOcrPackageStatus($"{actionLabel} 완료", System.Windows.Media.Brushes.LightGreen);
+                }
+                else
+                {
+                    SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
+                    System.Windows.MessageBox.Show($"{actionLabel} 스크립트가 실패했습니다.\n종료 코드: {process.ExitCode}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
+                System.Windows.MessageBox.Show($"{actionLabel} 중 오류가 발생했습니다.\n{ex.Message}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _isOcrPackageOperationRunning = false;
+                RefreshExternalOcrPackageStatus();
+            }
+        }
+
+        private async Task RunOcrPackageScriptsAsync(IReadOnlyList<(string ScriptFileName, string ActionLabel)> scripts, string emptyStatusText)
+        {
+            if (scripts == null || scripts.Count == 0)
+            {
+                SetExternalOcrPackageStatus(emptyStatusText, System.Windows.Media.Brushes.LightGray);
+                RefreshExternalOcrPackageStatus();
+                return;
+            }
+
+            foreach ((string scriptFileName, string actionLabel) in scripts)
+            {
+                await RunOcrPackageScriptAsync(scriptFileName, actionLabel);
+            }
         }
 
         /// <summary>
@@ -854,6 +1013,76 @@ namespace GameTranslator
         private void BtnOpenOcrDiagnostic_Click(object sender, RoutedEventArgs e)
         {
             _mainWindow?.ShowOcrDiagnosticWindow();
+        }
+
+        private async void BtnInstallTesseractPackage_Click(object sender, RoutedEventArgs e)
+        {
+            await RunOcrPackageScriptAsync("Install-Tesseract.bat", "Tesseract 설치");
+        }
+
+        private async void BtnUninstallTesseractPackage_Click(object sender, RoutedEventArgs e)
+        {
+            await RunOcrPackageScriptAsync("Uninstall-Tesseract.bat", "Tesseract 삭제");
+        }
+
+        private async void BtnInstallEasyOcrPackage_Click(object sender, RoutedEventArgs e)
+        {
+            await RunOcrPackageScriptAsync("Install-EasyOCR.bat", "EasyOCR 설치");
+        }
+
+        private async void BtnUninstallEasyOcrPackage_Click(object sender, RoutedEventArgs e)
+        {
+            await RunOcrPackageScriptAsync("Uninstall-EasyOCR.bat", "EasyOCR 삭제");
+        }
+
+        private async void BtnInstallPaddleOcrPackage_Click(object sender, RoutedEventArgs e)
+        {
+            await RunOcrPackageScriptAsync("Install-PaddleOCR.bat", "PaddleOCR 설치");
+        }
+
+        private async void BtnUninstallPaddleOcrPackage_Click(object sender, RoutedEventArgs e)
+        {
+            await RunOcrPackageScriptAsync("Uninstall-PaddleOCR.bat", "PaddleOCR 삭제");
+        }
+
+        private async void BtnInstallAllOcrPackages_Click(object sender, RoutedEventArgs e)
+        {
+            var scripts = new List<(string ScriptFileName, string ActionLabel)>();
+            if (!GetTesseractInstallationState().IsInstalled) scripts.Add(("Install-Tesseract.bat", "Tesseract 설치"));
+            if (!GetPythonOcrInstallationState("EasyOcrPythonPath").IsInstalled) scripts.Add(("Install-EasyOCR.bat", "EasyOCR 설치"));
+            if (!GetPythonOcrInstallationState("PaddleOcrPythonPath").IsInstalled) scripts.Add(("Install-PaddleOCR.bat", "PaddleOCR 설치"));
+            await RunOcrPackageScriptsAsync(scripts, "이미 모든 외부 OCR이 설치되어 있습니다.");
+        }
+
+        private async void BtnUninstallAllOcrPackages_Click(object sender, RoutedEventArgs e)
+        {
+            var scripts = new List<(string ScriptFileName, string ActionLabel)>();
+            if (GetTesseractInstallationState().IsInstalled) scripts.Add(("Uninstall-Tesseract.bat", "Tesseract 삭제"));
+            if (GetPythonOcrInstallationState("EasyOcrPythonPath").IsInstalled) scripts.Add(("Uninstall-EasyOCR.bat", "EasyOCR 삭제"));
+            if (GetPythonOcrInstallationState("PaddleOcrPythonPath").IsInstalled) scripts.Add(("Uninstall-PaddleOCR.bat", "PaddleOCR 삭제"));
+            await RunOcrPackageScriptsAsync(scripts, "삭제할 외부 OCR이 없습니다.");
+        }
+    }
+
+    internal sealed class OcrPackageInstallationState
+    {
+        private OcrPackageInstallationState(bool isInstalled, string statusText)
+        {
+            IsInstalled = isInstalled;
+            StatusText = statusText ?? "";
+        }
+
+        public bool IsInstalled { get; }
+        public string StatusText { get; }
+
+        public static OcrPackageInstallationState Installed(string statusText)
+        {
+            return new OcrPackageInstallationState(true, statusText);
+        }
+
+        public static OcrPackageInstallationState NotInstalled(string statusText)
+        {
+            return new OcrPackageInstallationState(false, statusText);
         }
     }
 

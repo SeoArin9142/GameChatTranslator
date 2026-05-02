@@ -79,6 +79,30 @@
 	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
 	    <TargetPath>Install-All-OCR.bat</TargetPath>
 	  </None>
+	  <!-- Tesseract 제거/설정 정리 스크립트입니다. -->
+	  <None Update="Distribution/Uninstall-Tesseract.bat">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>Uninstall-Tesseract.bat</TargetPath>
+	  </None>
+	  <!-- EasyOCR 제거/설정 정리 스크립트입니다. -->
+	  <None Update="Distribution/Uninstall-EasyOCR.bat">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>Uninstall-EasyOCR.bat</TargetPath>
+	  </None>
+	  <!-- PaddleOCR 제거/설정 정리 스크립트입니다. -->
+	  <None Update="Distribution/Uninstall-PaddleOCR.bat">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>Uninstall-PaddleOCR.bat</TargetPath>
+	  </None>
+	  <!-- 전체 OCR 제거를 순차 실행하는 스크립트입니다. -->
+	  <None Update="Distribution/Uninstall-All-OCR.bat">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+	    <TargetPath>Uninstall-All-OCR.bat</TargetPath>
+	  </None>
 	  <!-- 배포 zip에 들어가는 사용자용 간단 설명서입니다. 실제 파일명은 readme.txt입니다. -->
 	  <None Update="Distribution/readme.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -101,7 +125,7 @@
 
 	<ItemGroup>
 	  <!-- Visual Studio 게시 프로필에서도 배포 보조 파일이 누락되지 않도록 Publish 후 루트 출력 폴더에 한 번 더 복사합니다. -->
-	  <DistributionPublishFile Include="Distribution/characters.txt;Distribution/LangInstall.bat;Distribution/OcrInstall.ps1;Distribution/Install-Tesseract.bat;Distribution/Install-EasyOCR.bat;Distribution/Install-PaddleOCR.bat;Distribution/Install-All-OCR.bat;Distribution/readme.txt;Distribution/easyocr_runner.py;Distribution/paddleocr_runner.py" />
+	  <DistributionPublishFile Include="Distribution/characters.txt;Distribution/LangInstall.bat;Distribution/OcrInstall.ps1;Distribution/Install-Tesseract.bat;Distribution/Install-EasyOCR.bat;Distribution/Install-PaddleOCR.bat;Distribution/Install-All-OCR.bat;Distribution/Uninstall-Tesseract.bat;Distribution/Uninstall-EasyOCR.bat;Distribution/Uninstall-PaddleOCR.bat;Distribution/Uninstall-All-OCR.bat;Distribution/readme.txt;Distribution/easyocr_runner.py;Distribution/paddleocr_runner.py" />
 	</ItemGroup>
 
 	<Target Name="CopyDistributionFilesToPublishDirectory" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">
