@@ -35,6 +35,20 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
   일본어, 중국어, 러시아어 OCR 언어팩 설치를 돕는 스크립트입니다.
   반드시 관리자 권한으로 실행해야 하며, 설치 후 재부팅이 필요합니다.
 
+- Install-Tesseract.bat
+  Tesseract 설치를 시도하고, 성공하면 TesseractExePath를 config.ini에 자동 기록합니다.
+
+- Install-EasyOCR.bat
+  현재 설치된 Python 3.8+로 EasyOCR 전용 venv를 만들고,
+  torch / torchvision / easyocr를 설치한 뒤 EasyOcrPythonPath를 config.ini에 자동 기록합니다.
+
+- Install-PaddleOCR.bat
+  Python 3.10 venv를 만들고 paddlepaddle==3.2.0 / paddleocr==3.3.3 조합을 설치한 뒤
+  PaddleOcrPythonPath를 config.ini에 자동 기록합니다.
+
+- Install-All-OCR.bat
+  LangInstall.bat, Install-Tesseract.bat, Install-EasyOCR.bat, Install-PaddleOCR.bat를 순서대로 실행합니다.
+
 - characters.txt
   OCR 결과에서 캐릭터명을 검증할 때 사용하는 캐릭터명 목록입니다.
   이 파일에 없는 이름은 오인식 방지를 위해 번역에서 제외될 수 있습니다.
@@ -83,6 +97,8 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
 3) 선택한 언어팩 설치가 진행됩니다.
 4) 설치 완료 후 반드시 Windows를 재부팅하세요.
 5) 재부팅 후 프로그램을 실행하면 Windows OCR 엔진이 설치된 언어를 자동으로 감지합니다.
+6) Tesseract / EasyOCR / PaddleOCR는 각각 Install-Tesseract.bat, Install-EasyOCR.bat, Install-PaddleOCR.bat로 설치할 수 있습니다.
+7) 스크립트가 성공하면 config.ini의 OCR 경로 키를 자동으로 갱신합니다.
 
 언어팩이 없으면 해당 언어 OCR 엔진을 만들 수 없어 외국어 채팅 인식률이 떨어집니다.
 한국어와 영어만 사용할 경우에도 재부팅은 권장합니다.
