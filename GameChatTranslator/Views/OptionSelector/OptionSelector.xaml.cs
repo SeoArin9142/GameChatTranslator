@@ -475,10 +475,6 @@ namespace GameTranslator
             foreach ((string scriptFileName, string actionLabel) in scripts)
             {
                 await RunOcrPackageScriptAsync(scriptFileName, actionLabel);
-                if (_isOcrPackageOperationRunning)
-                {
-                    break;
-                }
             }
         }
 
