@@ -64,6 +64,7 @@ namespace GameTranslator
             LoadCurrentSettings(); // 창이 켜지자마자 INI 파일에서 기존 설정값을 불러옴
             LoadPresetList();
             RefreshInstallLocationStatus();
+            RefreshConfigFileStatus();
             RefreshAdvancedSettingValidationStatus();
         }
 
@@ -322,6 +323,22 @@ namespace GameTranslator
                 : locationText;
         }
 
+        private void RefreshConfigFileStatus()
+        {
+            if (TxtConfigFilePath == null) return;
+
+            string configFilePath = GetCurrentConfigFilePath();
+            if (string.IsNullOrWhiteSpace(configFilePath))
+            {
+                TxtConfigFilePath.Text = "경로 확인 실패";
+                return;
+            }
+
+            TxtConfigFilePath.Text = File.Exists(configFilePath)
+                ? configFilePath
+                : $"{configFilePath}\n(아직 생성되지 않음)";
+        }
+
         private void RefreshExternalOcrPackageStatus()
         {
             OcrPackageInstallationState tesseractState = GetTesseractInstallationState();
@@ -363,6 +380,11 @@ namespace GameTranslator
                 return OcrPackageInstallationState.NotInstalled("미설치");
             }
 
+            if (IsDefaultPythonCommand(configuredPath))
+            {
+                return OcrPackageInstallationState.NotInstalled("미설치");
+            }
+
             if (File.Exists(configuredPath))
             {
                 return OcrPackageInstallationState.Installed($"설치됨 ({configuredPath})");
@@ -375,6 +397,11 @@ namespace GameTranslator
         {
             string configuredPath = (_ini?.Read("TesseractExePath") ?? "").Trim();
             if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                return OcrPackageInstallationState.NotInstalled("미설치");
+            }
+
+            if (string.Equals(configuredPath, SettingsService.DefaultTesseractExecutablePath, StringComparison.OrdinalIgnoreCase))
             {
                 return OcrPackageInstallationState.NotInstalled("미설치");
             }
@@ -399,6 +426,51 @@ namespace GameTranslator
             return File.Exists(scriptPath) ? scriptPath : null;
         }
 
+        private string GetCurrentConfigFilePath()
+        {
+            return (_ini?.Path ?? "").Trim();
+        }
+
+        private string GetOcrPackageDetailLogPath(string scriptFileName)
+        {
+            string configFilePath = GetCurrentConfigFilePath();
+            string rootDirectory = Path.GetDirectoryName(configFilePath ?? "") ?? "";
+            if (string.IsNullOrWhiteSpace(rootDirectory))
+            {
+                return "";
+            }
+
+            string actionName = scriptFileName.StartsWith("Uninstall-", StringComparison.OrdinalIgnoreCase)
+                ? "uninstall"
+                : "install";
+
+            string engineName;
+            if (scriptFileName.IndexOf("EasyOCR", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                engineName = "easyocr";
+            }
+            else if (scriptFileName.IndexOf("PaddleOCR", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                engineName = "paddleocr";
+            }
+            else if (scriptFileName.IndexOf("Tesseract", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                engineName = "tesseract";
+            }
+            else
+            {
+                return "";
+            }
+
+            return Path.Combine(rootDirectory, "logs", $"ocr-package-{actionName}-{engineName}.log");
+        }
+
+        private static bool IsDefaultPythonCommand(string configuredPath)
+        {
+            return string.Equals(configuredPath, SettingsService.DefaultEasyOcrPythonPath, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(configuredPath, SettingsService.DefaultPaddleOcrPythonPath, StringComparison.OrdinalIgnoreCase);
+        }
+
         private void SetExternalOcrPackageStatus(string text, System.Windows.Media.Brush brush)
         {
             if (TxtExternalOcrPackageStatus == null) return;
@@ -407,11 +479,17 @@ namespace GameTranslator
             TxtExternalOcrPackageStatus.Foreground = brush;
         }
 
+        private void AppendOcrPackageLog(string message)
+        {
+            _mainWindow?.AppendOcrPackageLog(message);
+        }
+
         private async Task RunOcrPackageScriptAsync(string scriptFileName, string actionLabel)
         {
             string scriptPath = GetOcrScriptPath(scriptFileName);
             if (string.IsNullOrWhiteSpace(scriptPath))
             {
+                AppendOcrPackageLog($"{actionLabel}: 스크립트를 찾지 못했습니다. ({scriptFileName})");
                 SetExternalOcrPackageStatus("스크립트를 찾지 못했습니다.", System.Windows.Media.Brushes.OrangeRed);
                 System.Windows.MessageBox.Show($"스크립트를 찾지 못했습니다.\n{scriptFileName}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -420,41 +498,92 @@ namespace GameTranslator
             _isOcrPackageOperationRunning = true;
             RefreshExternalOcrPackageStatus();
             SetExternalOcrPackageStatus($"{actionLabel} 실행 중...", System.Windows.Media.Brushes.LightGray);
+            AppendOcrPackageLog($"{actionLabel} 시작: {scriptFileName}");
+            string detailLogPath = GetOcrPackageDetailLogPath(scriptFileName);
+            if (!string.IsNullOrWhiteSpace(detailLogPath))
+            {
+                AppendOcrPackageLog($"{actionLabel} 상세 로그: {detailLogPath}");
+            }
 
             try
             {
+                if (!string.IsNullOrWhiteSpace(detailLogPath))
+                {
+                    string detailLogDirectory = Path.GetDirectoryName(detailLogPath);
+                    if (!string.IsNullOrWhiteSpace(detailLogDirectory))
+                    {
+                        Directory.CreateDirectory(detailLogDirectory);
+                    }
+                }
+
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = scriptPath,
-                    Arguments = "--no-pause",
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"\"{scriptPath}\" --no-pause\"",
                     WorkingDirectory = Path.GetDirectoryName(scriptPath) ?? AppDomain.CurrentDomain.BaseDirectory,
-                    UseShellExecute = true
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
                 };
 
                 using Process process = Process.Start(startInfo);
                 if (process == null)
                 {
+                    AppendOcrPackageLog($"{actionLabel} 실패: 프로세스 시작 실패");
                     SetExternalOcrPackageStatus("프로세스 시작 실패", System.Windows.Media.Brushes.OrangeRed);
                     System.Windows.MessageBox.Show($"스크립트를 시작하지 못했습니다.\n{scriptFileName}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
+                Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+                Task<string> stderrTask = process.StandardError.ReadToEndAsync();
                 await process.WaitForExitAsync();
+                string stdout = await stdoutTask;
+                string stderr = await stderrTask;
+
+                if (!string.IsNullOrWhiteSpace(detailLogPath))
+                {
+                    StringBuilder logBuilder = new StringBuilder();
+                    logBuilder.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {actionLabel} 실행");
+                    logBuilder.AppendLine($"script={scriptPath}");
+                    logBuilder.AppendLine($"workingDirectory={startInfo.WorkingDirectory}");
+                    logBuilder.AppendLine($"exitCode={process.ExitCode}");
+
+                    if (!string.IsNullOrWhiteSpace(stdout))
+                    {
+                        logBuilder.AppendLine();
+                        logBuilder.AppendLine("[stdout]");
+                        logBuilder.AppendLine(stdout.TrimEnd());
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(stderr))
+                    {
+                        logBuilder.AppendLine();
+                        logBuilder.AppendLine("[stderr]");
+                        logBuilder.AppendLine(stderr.TrimEnd());
+                    }
+
+                    File.WriteAllText(detailLogPath, logBuilder.ToString(), new UTF8Encoding(false));
+                }
 
                 if (process.ExitCode == 0)
                 {
+                    AppendOcrPackageLog($"{actionLabel} 완료 (exitCode=0)");
                     SetExternalOcrPackageStatus($"{actionLabel} 완료", System.Windows.Media.Brushes.LightGreen);
                 }
                 else
                 {
+                    AppendOcrPackageLog($"{actionLabel} 실패 (exitCode={process.ExitCode})");
                     SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
-                    System.Windows.MessageBox.Show($"{actionLabel} 스크립트가 실패했습니다.\n종료 코드: {process.ExitCode}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    System.Windows.MessageBox.Show($"{actionLabel} 스크립트가 실패했습니다.\n종료 코드: {process.ExitCode}\n상세 로그: {detailLogPath}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
             {
+                AppendOcrPackageLog($"{actionLabel} 예외: {ex.Message}");
                 SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
-                System.Windows.MessageBox.Show($"{actionLabel} 중 오류가 발생했습니다.\n{ex.Message}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"{actionLabel} 중 오류가 발생했습니다.\n{ex.Message}\n상세 로그: {detailLogPath}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -924,6 +1053,41 @@ namespace GameTranslator
             {
                 SetUpdateStatusText("경로 복사 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
                 System.Windows.MessageBox.Show($"실행 경로를 복사하지 못했습니다.\n{ex.Message}", "경로 복사", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnOpenConfigFile_Click(object sender, RoutedEventArgs e)
+        {
+            string configFilePath = GetCurrentConfigFilePath();
+            if (string.IsNullOrWhiteSpace(configFilePath))
+            {
+                SetUpdateStatusText("config.ini 경로 확인 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
+                System.Windows.MessageBox.Show("현재 config.ini 경로를 확인하지 못했습니다.", "ini 파일 열기", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!File.Exists(configFilePath))
+            {
+                SetUpdateStatusText("config.ini가 아직 없습니다.", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
+                System.Windows.MessageBox.Show("현재 config.ini 파일이 아직 생성되지 않았습니다.", "ini 파일 열기", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = configFilePath,
+                    UseShellExecute = true
+                };
+
+                Process.Start(startInfo);
+                SetUpdateStatusText("config.ini를 열었습니다.", System.Windows.Media.Brushes.LightGreen, autoReset: true);
+            }
+            catch (Exception ex)
+            {
+                SetUpdateStatusText("config.ini 열기 실패", System.Windows.Media.Brushes.OrangeRed, autoReset: true);
+                System.Windows.MessageBox.Show($"config.ini를 열지 못했습니다.\n{ex.Message}", "ini 파일 열기", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

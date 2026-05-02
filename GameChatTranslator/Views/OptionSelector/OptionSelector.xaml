@@ -173,6 +173,26 @@
                                         Cursor="Hand"
                                         Click="BtnCopyInstallPath_Click"/>
                             </StackPanel>
+                            <TextBlock Text="현재 설정 파일"
+                                       Foreground="#8FE388"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock x:Name="TxtConfigFilePath"
+                                       Text="경로 확인 중..."
+                                       TextWrapping="Wrap"
+                                       Foreground="#E6E6E6"
+                                       FontFamily="Consolas"
+                                       Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button x:Name="BtnOpenConfigFile"
+                                        Content="ini 파일 열기"
+                                        Padding="8,2"
+                                        Background="#444"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="BtnOpenConfigFile_Click"/>
+                            </StackPanel>
                             <TextBlock Text="설치 경로 지정 예시"
                                        Foreground="#8FE388"
                                        FontWeight="Bold"
