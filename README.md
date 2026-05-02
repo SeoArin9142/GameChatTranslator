@@ -157,6 +157,12 @@ GameChatTranslator는 OCR 엔진별로 필요한 설치 조건이 다릅니다.
 - config.ini의 TesseractExePath에 실행 파일 경로 지정
 ```
 
+설치 스크립트:
+```text
+- Install-Tesseract.bat
+- 설치가 끝나면 TesseractExePath를 config.ini에 자동 기록
+```
+
 주의:
 - 설치되어 있지 않거나 실패하면 Windows OCR로 자동 fallback 됩니다.
 - EasyOCR / PaddleOCR를 메인 OCR로 선택한 경우에도 외부 OCR 실패 시 Tesseract -> Windows OCR 순서로 자동 fallback 합니다.
@@ -176,6 +182,13 @@ GameChatTranslator는 OCR 엔진별로 필요한 설치 조건이 다릅니다.
 설치 예시:
 ```bash
 py -m pip install torch torchvision easyocr
+```
+
+설치 스크립트:
+```text
+- Install-EasyOCR.bat
+- 현재 설치된 Python 3.8+를 사용
+- 전용 venv를 만든 뒤 EasyOcrPythonPath를 config.ini에 자동 기록
 ```
 
 주의:
@@ -203,6 +216,14 @@ py -m pip install paddlepaddle
 py -m pip install "paddleocr[all]"
 ```
 
+설치 스크립트:
+```text
+- Install-PaddleOCR.bat
+- Python 3.10 전용 venv 생성
+- paddlepaddle==3.2.0 / paddleocr==3.3.3 설치
+- PaddleOcrPythonPath를 config.ini에 자동 기록
+```
+
 주의:
 - 메인 번역 경로에서 선택할 수 있습니다.
 - 현재는 resident worker를 lazy init으로 사용합니다. 첫 요청은 Python 기동과 모델 로딩 때문에 느릴 수 있지만, 이후 요청은 같은 워커를 재사용합니다.
@@ -218,6 +239,7 @@ py -m pip install "paddleocr[all]"
 환경설정창의 OCR 언어팩 상태 영역에서 한국어, 영어, 중국어, 일본어, 러시아어 OCR 설치 여부를 확인할 수 있습니다.
 
 미설치 언어가 있으면 `LangInstall.bat`를 관리자 권한으로 실행하고 재부팅한 뒤 다시 확인합니다.
+EasyOCR / PaddleOCR / Tesseract까지 한 번에 준비하려면 `Install-All-OCR.bat`를 사용할 수 있습니다.
 
 ### 2. 캡처 영역 지정
 
