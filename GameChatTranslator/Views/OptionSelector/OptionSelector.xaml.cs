@@ -429,11 +429,17 @@ namespace GameTranslator
             TxtExternalOcrPackageStatus.Foreground = brush;
         }
 
+        private void AppendOcrPackageLog(string message)
+        {
+            _mainWindow?.AppendOcrPackageLog(message);
+        }
+
         private async Task RunOcrPackageScriptAsync(string scriptFileName, string actionLabel)
         {
             string scriptPath = GetOcrScriptPath(scriptFileName);
             if (string.IsNullOrWhiteSpace(scriptPath))
             {
+                AppendOcrPackageLog($"{actionLabel}: 스크립트를 찾지 못했습니다. ({scriptFileName})");
                 SetExternalOcrPackageStatus("스크립트를 찾지 못했습니다.", System.Windows.Media.Brushes.OrangeRed);
                 System.Windows.MessageBox.Show($"스크립트를 찾지 못했습니다.\n{scriptFileName}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -442,6 +448,7 @@ namespace GameTranslator
             _isOcrPackageOperationRunning = true;
             RefreshExternalOcrPackageStatus();
             SetExternalOcrPackageStatus($"{actionLabel} 실행 중...", System.Windows.Media.Brushes.LightGray);
+            AppendOcrPackageLog($"{actionLabel} 시작: {scriptFileName}");
 
             try
             {
@@ -456,6 +463,7 @@ namespace GameTranslator
                 using Process process = Process.Start(startInfo);
                 if (process == null)
                 {
+                    AppendOcrPackageLog($"{actionLabel} 실패: 프로세스 시작 실패");
                     SetExternalOcrPackageStatus("프로세스 시작 실패", System.Windows.Media.Brushes.OrangeRed);
                     System.Windows.MessageBox.Show($"스크립트를 시작하지 못했습니다.\n{scriptFileName}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
@@ -465,16 +473,19 @@ namespace GameTranslator
 
                 if (process.ExitCode == 0)
                 {
+                    AppendOcrPackageLog($"{actionLabel} 완료 (exitCode=0)");
                     SetExternalOcrPackageStatus($"{actionLabel} 완료", System.Windows.Media.Brushes.LightGreen);
                 }
                 else
                 {
+                    AppendOcrPackageLog($"{actionLabel} 실패 (exitCode={process.ExitCode})");
                     SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
                     System.Windows.MessageBox.Show($"{actionLabel} 스크립트가 실패했습니다.\n종료 코드: {process.ExitCode}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
             {
+                AppendOcrPackageLog($"{actionLabel} 예외: {ex.Message}");
                 SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
                 System.Windows.MessageBox.Show($"{actionLabel} 중 오류가 발생했습니다.\n{ex.Message}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
             }
