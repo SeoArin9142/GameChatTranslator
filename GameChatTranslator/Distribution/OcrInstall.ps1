@@ -15,6 +15,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appFolderName = "GameChatTranslator"
 $portableMarkerFileName = "portable.mode"
 $ocrSectionName = "OCR"
+$transcriptStarted = $false
 
 function Write-Status {
     param([string]$Message)
@@ -494,89 +495,108 @@ function Uninstall-TesseractExecutable {
 }
 
 $configInfo = Get-AppConfigInfo
-Write-Status ("Config path: " + $configInfo.ConfigPath)
+try {
+    $logDirectory = Join-Path $configInfo.RootDirectory "logs"
+    [System.IO.Directory]::CreateDirectory($logDirectory) | Out-Null
+    $logPath = Join-Path $logDirectory ("ocr-package-{0}-{1}.log" -f $Action.ToLowerInvariant(), $Engine.ToLowerInvariant())
+    Start-Transcript -Path $logPath -Force | Out-Null
+    $transcriptStarted = $true
 
-switch ($Action) {
-    "Install" {
-        switch ($Engine) {
-            "EasyOCR" {
-                $pythonInfo = Find-EasyOcrBasePython
-                if ($null -eq $pythonInfo) {
-                    throw "Python 3.8 or newer was not found. Install Python and rerun Install-EasyOCR.bat."
+    Write-Status ("Config path: " + $configInfo.ConfigPath)
+    Write-Status ("Detailed log: " + $logPath)
+
+    switch ($Action) {
+        "Install" {
+            switch ($Engine) {
+                "EasyOCR" {
+                    $pythonInfo = Find-EasyOcrBasePython
+                    if ($null -eq $pythonInfo) {
+                        throw "Python 3.8 or newer was not found. Install Python and rerun Install-EasyOCR.bat."
+                    }
+
+                    Write-Status ("Using base Python: " + $pythonInfo.Executable)
+                    $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
+                    $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
+                    Install-PythonPackages -PythonExe $venvPython -Packages @("torch", "torchvision", "easyocr")
+                    $verifiedPython = Assert-EasyOcrEnvironment -PythonExe $venvPython
+                    Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath" -Value $verifiedPython
+                    Write-Success ("EasyOCR installation completed.")
+                    Write-Success ("EasyOcrPythonPath=" + $verifiedPython)
                 }
+                "PaddleOCR" {
+                    $pythonInfo = Ensure-Python310
+                    Write-Status ("Using Python 3.10: " + $pythonInfo.Executable)
+                    $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
+                    $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
+                    Install-PythonPackages -PythonExe $venvPython -Packages @("paddlepaddle==3.2.0", "paddleocr==3.3.3")
+                    $verifiedPython = Assert-PaddleOcrEnvironment -PythonExe $venvPython
+                    Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath" -Value $verifiedPython
+                    Write-Success ("PaddleOCR installation completed.")
+                    Write-Success ("PaddleOcrPythonPath=" + $verifiedPython)
+                }
+                "Tesseract" {
+                    $tesseractExe = Ensure-TesseractExecutable
+                    Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath" -Value $tesseractExe
+                    Write-Success ("Tesseract installation completed.")
+                    Write-Success ("TesseractExePath=" + $tesseractExe)
+                }
+            }
+        }
+        "Uninstall" {
+            switch ($Engine) {
+                "EasyOCR" {
+                    $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
+                    $removed = Remove-VenvDirectory -VenvPath $venvPath
+                    Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath"
+                    if ($removed) {
+                        Write-Success "EasyOCR virtual environment removed."
+                    } else {
+                        Write-Status "EasyOCR virtual environment was not present."
+                    }
 
-                Write-Status ("Using base Python: " + $pythonInfo.Executable)
-                $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
-                $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
-                Install-PythonPackages -PythonExe $venvPython -Packages @("torch", "torchvision", "easyocr")
-                $verifiedPython = Assert-EasyOcrEnvironment -PythonExe $venvPython
-                Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath" -Value $verifiedPython
-                Write-Success ("EasyOCR installation completed.")
-                Write-Success ("EasyOcrPythonPath=" + $verifiedPython)
-            }
-            "PaddleOCR" {
-                $pythonInfo = Ensure-Python310
-                Write-Status ("Using Python 3.10: " + $pythonInfo.Executable)
-                $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
-                $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
-                Install-PythonPackages -PythonExe $venvPython -Packages @("paddlepaddle==3.2.0", "paddleocr==3.3.3")
-                $verifiedPython = Assert-PaddleOcrEnvironment -PythonExe $venvPython
-                Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath" -Value $verifiedPython
-                Write-Success ("PaddleOCR installation completed.")
-                Write-Success ("PaddleOcrPythonPath=" + $verifiedPython)
-            }
-            "Tesseract" {
-                $tesseractExe = Ensure-TesseractExecutable
-                Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath" -Value $tesseractExe
-                Write-Success ("Tesseract installation completed.")
-                Write-Success ("TesseractExePath=" + $tesseractExe)
+                    Write-Success "EasyOcrPythonPath removed from config.ini."
+                }
+                "PaddleOCR" {
+                    $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
+                    $removed = Remove-VenvDirectory -VenvPath $venvPath
+                    Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath"
+                    if ($removed) {
+                        Write-Success "PaddleOCR virtual environment removed."
+                    } else {
+                        Write-Status "PaddleOCR virtual environment was not present."
+                    }
+
+                    Write-Success "PaddleOcrPythonPath removed from config.ini."
+                }
+                "Tesseract" {
+                    $result = Uninstall-TesseractExecutable
+                    Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath"
+                    if ($result.RemovedByWinget) {
+                        Write-Success "Tesseract uninstall was requested through WinGet."
+                    } else {
+                        Write-Status "Tesseract was not removed automatically by WinGet."
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($result.RemainingExecutable)) {
+                        Write-Status ("Tesseract executable still exists: " + $result.RemainingExecutable)
+                        Write-Status "If Tesseract was installed manually, remove it from Windows Apps or delete the portable folder yourself."
+                    } else {
+                        Write-Success "Tesseract executable was not detected after uninstall."
+                    }
+
+                    Write-Success "TesseractExePath removed from config.ini."
+                }
             }
         }
     }
-    "Uninstall" {
-        switch ($Engine) {
-            "EasyOCR" {
-                $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
-                $removed = Remove-VenvDirectory -VenvPath $venvPath
-                Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath"
-                if ($removed) {
-                    Write-Success "EasyOCR virtual environment removed."
-                } else {
-                    Write-Status "EasyOCR virtual environment was not present."
-                }
-
-                Write-Success "EasyOcrPythonPath removed from config.ini."
-            }
-            "PaddleOCR" {
-                $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
-                $removed = Remove-VenvDirectory -VenvPath $venvPath
-                Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath"
-                if ($removed) {
-                    Write-Success "PaddleOCR virtual environment removed."
-                } else {
-                    Write-Status "PaddleOCR virtual environment was not present."
-                }
-
-                Write-Success "PaddleOcrPythonPath removed from config.ini."
-            }
-            "Tesseract" {
-                $result = Uninstall-TesseractExecutable
-                Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath"
-                if ($result.RemovedByWinget) {
-                    Write-Success "Tesseract uninstall was requested through WinGet."
-                } else {
-                    Write-Status "Tesseract was not removed automatically by WinGet."
-                }
-
-                if (-not [string]::IsNullOrWhiteSpace($result.RemainingExecutable)) {
-                    Write-Status ("Tesseract executable still exists: " + $result.RemainingExecutable)
-                    Write-Status "If Tesseract was installed manually, remove it from Windows Apps or delete the portable folder yourself."
-                } else {
-                    Write-Success "Tesseract executable was not detected after uninstall."
-                }
-
-                Write-Success "TesseractExePath removed from config.ini."
-            }
+} catch {
+    Write-Host ("[FAIL] " + $_.Exception.Message)
+    exit 1
+} finally {
+    if ($transcriptStarted) {
+        try {
+            Stop-Transcript | Out-Null
+        } catch {
         }
     }
 }

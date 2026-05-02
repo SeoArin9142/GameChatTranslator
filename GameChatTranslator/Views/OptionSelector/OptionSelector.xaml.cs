@@ -431,6 +431,40 @@ namespace GameTranslator
             return (_ini?.Path ?? "").Trim();
         }
 
+        private string GetOcrPackageDetailLogPath(string scriptFileName)
+        {
+            string configFilePath = GetCurrentConfigFilePath();
+            string rootDirectory = Path.GetDirectoryName(configFilePath ?? "") ?? "";
+            if (string.IsNullOrWhiteSpace(rootDirectory))
+            {
+                return "";
+            }
+
+            string actionName = scriptFileName.StartsWith("Uninstall-", StringComparison.OrdinalIgnoreCase)
+                ? "uninstall"
+                : "install";
+
+            string engineName;
+            if (scriptFileName.IndexOf("EasyOCR", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                engineName = "easyocr";
+            }
+            else if (scriptFileName.IndexOf("PaddleOCR", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                engineName = "paddleocr";
+            }
+            else if (scriptFileName.IndexOf("Tesseract", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                engineName = "tesseract";
+            }
+            else
+            {
+                return "";
+            }
+
+            return Path.Combine(rootDirectory, "logs", $"ocr-package-{actionName}-{engineName}.log");
+        }
+
         private static bool IsDefaultPythonCommand(string configuredPath)
         {
             return string.Equals(configuredPath, SettingsService.DefaultEasyOcrPythonPath, StringComparison.OrdinalIgnoreCase) ||
@@ -465,6 +499,11 @@ namespace GameTranslator
             RefreshExternalOcrPackageStatus();
             SetExternalOcrPackageStatus($"{actionLabel} 실행 중...", System.Windows.Media.Brushes.LightGray);
             AppendOcrPackageLog($"{actionLabel} 시작: {scriptFileName}");
+            string detailLogPath = GetOcrPackageDetailLogPath(scriptFileName);
+            if (!string.IsNullOrWhiteSpace(detailLogPath))
+            {
+                AppendOcrPackageLog($"{actionLabel} 상세 로그: {detailLogPath}");
+            }
 
             try
             {
@@ -496,14 +535,14 @@ namespace GameTranslator
                 {
                     AppendOcrPackageLog($"{actionLabel} 실패 (exitCode={process.ExitCode})");
                     SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
-                    System.Windows.MessageBox.Show($"{actionLabel} 스크립트가 실패했습니다.\n종료 코드: {process.ExitCode}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    System.Windows.MessageBox.Show($"{actionLabel} 스크립트가 실패했습니다.\n종료 코드: {process.ExitCode}\n상세 로그: {detailLogPath}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
             {
                 AppendOcrPackageLog($"{actionLabel} 예외: {ex.Message}");
                 SetExternalOcrPackageStatus($"{actionLabel} 실패", System.Windows.Media.Brushes.OrangeRed);
-                System.Windows.MessageBox.Show($"{actionLabel} 중 오류가 발생했습니다.\n{ex.Message}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"{actionLabel} 중 오류가 발생했습니다.\n{ex.Message}\n상세 로그: {detailLogPath}", "OCR 설치/삭제", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
