@@ -307,16 +307,28 @@ function Invoke-ProcessCapture {
         [string[]]$ArgumentList
     )
 
+    $quotedArguments = New-Object System.Collections.Generic.List[string]
+    foreach ($argument in $ArgumentList) {
+        if ($null -eq $argument) {
+            [void]$quotedArguments.Add('""')
+            continue
+        }
+
+        if ($argument.IndexOfAny([char[]]@(' ', "`t", '"')) -ge 0) {
+            $escapedArgument = $argument.Replace('"', '\"')
+            [void]$quotedArguments.Add(('"{0}"' -f $escapedArgument))
+        } else {
+            [void]$quotedArguments.Add($argument)
+        }
+    }
+
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $FileName
+    $startInfo.Arguments = [string]::Join(" ", $quotedArguments)
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $true
-
-    foreach ($argument in $ArgumentList) {
-        [void]$startInfo.ArgumentList.Add($argument)
-    }
 
     $process = [System.Diagnostics.Process]::Start($startInfo)
     if ($null -eq $process) {
@@ -324,14 +336,15 @@ function Invoke-ProcessCapture {
     }
 
     try {
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
         $process.WaitForExit()
+        [System.Threading.Tasks.Task]::WaitAll(@($stdoutTask, $stderrTask))
 
         return [pscustomobject]@{
             ExitCode = $process.ExitCode
-            StandardOutput = $stdout
-            StandardError = $stderr
+            StandardOutput = $stdoutTask.Result
+            StandardError = $stderrTask.Result
         }
     } finally {
         $process.Dispose()
