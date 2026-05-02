@@ -49,6 +49,19 @@ OCR로 읽은 전체 텍스트를 하나의 번역 대상으로 보냅니다. St
 - Install-All-OCR.bat
   LangInstall.bat, Install-Tesseract.bat, Install-EasyOCR.bat, Install-PaddleOCR.bat를 순서대로 실행합니다.
 
+- Uninstall-Tesseract.bat
+  Tesseract 제거를 시도하고, 성공 여부와 관계없이 TesseractExePath를 config.ini에서 정리합니다.
+
+- Uninstall-EasyOCR.bat
+  EasyOCR 전용 venv를 제거하고 EasyOcrPythonPath를 config.ini에서 정리합니다.
+
+- Uninstall-PaddleOCR.bat
+  PaddleOCR 전용 venv를 제거하고 PaddleOcrPythonPath를 config.ini에서 정리합니다.
+
+- Uninstall-All-OCR.bat
+  Uninstall-Tesseract.bat, Uninstall-EasyOCR.bat, Uninstall-PaddleOCR.bat를 순서대로 실행합니다.
+  Windows OCR 언어팩 제거는 포함하지 않습니다.
+
 - characters.txt
   OCR 결과에서 캐릭터명을 검증할 때 사용하는 캐릭터명 목록입니다.
   이 파일에 없는 이름은 오인식 방지를 위해 번역에서 제외될 수 있습니다.
