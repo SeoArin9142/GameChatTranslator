@@ -243,6 +243,31 @@ namespace GameTranslator
             settingsWindow.Activate();
         }
 
+        public void ActivateFromSingleInstanceRequest()
+        {
+            if (settingsWindow != null)
+            {
+                if (settingsWindow.WindowState == WindowState.Minimized)
+                {
+                    settingsWindow.WindowState = WindowState.Normal;
+                }
+
+                settingsWindow.Show();
+                settingsWindow.Activate();
+                return;
+            }
+
+            if (WindowState == WindowState.Minimized)
+            {
+                WindowState = WindowState.Normal;
+            }
+
+            Show();
+            Activate();
+            Topmost = false;
+            Topmost = true;
+        }
+
         /// <summary>
         /// 환경설정창에서 이동 잠금 전환을 요청할 때 사용하는 래퍼입니다.
         /// </summary>
