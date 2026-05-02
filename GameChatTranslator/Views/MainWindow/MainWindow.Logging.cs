@@ -134,5 +134,15 @@ namespace GameTranslator
 
             return normalized.Substring(0, maxLength) + "...";
         }
+
+        internal void AppendOcrPackageLog(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            AppendLog($"[OCR PACKAGE] {message}");
+        }
     }
 }

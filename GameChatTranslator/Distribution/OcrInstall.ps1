@@ -15,15 +15,75 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appFolderName = "GameChatTranslator"
 $portableMarkerFileName = "portable.mode"
 $ocrSectionName = "OCR"
+$script:LogPath = $null
+
+function Initialize-LogFile {
+    param(
+        [string]$RootDirectory,
+        [string]$ActionName,
+        [string]$EngineName
+    )
+
+    try {
+        $logDirectory = Join-Path $RootDirectory "logs"
+        [System.IO.Directory]::CreateDirectory($logDirectory) | Out-Null
+        $script:LogPath = Join-Path $logDirectory ("ocr-package-{0}-{1}.log" -f $ActionName.ToLowerInvariant(), $EngineName.ToLowerInvariant())
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($script:LogPath, "", $utf8NoBom)
+    } catch {
+        $script:LogPath = $null
+        Write-Host ("[WARN] Detailed log file could not be created. " + $_.Exception.Message)
+    }
+
+    return $script:LogPath
+}
+
+function Write-LogLine {
+    param([string]$Line)
+
+    Write-Host $Line
+
+    if ([string]::IsNullOrWhiteSpace($script:LogPath)) {
+        return
+    }
+
+    try {
+        Add-Content -Path $script:LogPath -Value $Line -Encoding UTF8
+    } catch {
+        Write-Host ("[WARN] Detailed log write failed. " + $_.Exception.Message)
+        $script:LogPath = $null
+    }
+}
+
+function Write-ProcessOutput {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return
+    }
+
+    foreach ($line in ($Text -split "`r?`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        Write-LogLine $line
+    }
+}
 
 function Write-Status {
     param([string]$Message)
-    Write-Host "[INFO] $Message"
+    Write-LogLine "[INFO] $Message"
 }
 
 function Write-Success {
     param([string]$Message)
-    Write-Host "[OK] $Message"
+    Write-LogLine "[OK] $Message"
+}
+
+function Write-Failure {
+    param([string]$Message)
+    Write-LogLine "[FAIL] $Message"
 }
 
 function Get-AppConfigInfo {
@@ -241,6 +301,56 @@ function Get-PythonInfoFromPyLauncher {
     }
 }
 
+function Invoke-ProcessCapture {
+    param(
+        [string]$FileName,
+        [string[]]$ArgumentList
+    )
+
+    $quotedArguments = New-Object System.Collections.Generic.List[string]
+    foreach ($argument in $ArgumentList) {
+        if ($null -eq $argument) {
+            [void]$quotedArguments.Add('""')
+            continue
+        }
+
+        if ($argument.IndexOfAny([char[]]@(' ', "`t", '"')) -ge 0) {
+            $escapedArgument = $argument.Replace('"', '\"')
+            [void]$quotedArguments.Add(('"{0}"' -f $escapedArgument))
+        } else {
+            [void]$quotedArguments.Add($argument)
+        }
+    }
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $FileName
+    $startInfo.Arguments = [string]::Join(" ", $quotedArguments)
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    if ($null -eq $process) {
+        throw "Failed to start process: $FileName"
+    }
+
+    try {
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        [System.Threading.Tasks.Task]::WaitAll(@($stdoutTask, $stderrTask))
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            StandardOutput = $stdoutTask.Result
+            StandardError = $stderrTask.Result
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
 function Get-InstalledPythonCandidates {
     $candidates = New-Object System.Collections.Generic.List[string]
 
@@ -319,8 +429,10 @@ function Invoke-WingetInstall {
     }
 
     Write-Status "Attempting WinGet install: $PackageId"
-    & $winget.Source install --id $PackageId -e --accept-package-agreements --accept-source-agreements --disable-interactivity
-    return $LASTEXITCODE -eq 0
+    $result = Invoke-ProcessCapture -FileName $winget.Source -ArgumentList @("install", "--id", $PackageId, "-e", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
+    return $result.ExitCode -eq 0
 }
 
 function Invoke-WingetUninstall {
@@ -332,8 +444,10 @@ function Invoke-WingetUninstall {
     }
 
     Write-Status "Attempting WinGet uninstall: $PackageId"
-    & $winget.Source uninstall --id $PackageId -e --accept-source-agreements --disable-interactivity
-    return $LASTEXITCODE -eq 0
+    $result = Invoke-ProcessCapture -FileName $winget.Source -ArgumentList @("uninstall", "--id", $PackageId, "-e", "--accept-source-agreements", "--disable-interactivity")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
+    return $result.ExitCode -eq 0
 }
 
 function Ensure-Python310 {
@@ -364,8 +478,10 @@ function Ensure-Venv {
     $venvPython = Join-Path $VenvPath "Scripts\python.exe"
     if (-not (Test-Path $venvPython)) {
         Write-Status "Creating virtual environment: $VenvPath"
-        & $BasePythonExe -m venv $VenvPath
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPython)) {
+        $result = Invoke-ProcessCapture -FileName $BasePythonExe -ArgumentList @("-m", "venv", $VenvPath)
+        Write-ProcessOutput $result.StandardOutput
+        Write-ProcessOutput $result.StandardError
+        if ($result.ExitCode -ne 0 -or -not (Test-Path $venvPython)) {
             throw "Virtual environment creation failed: $VenvPath"
         }
     }
@@ -380,14 +496,19 @@ function Install-PythonPackages {
     )
 
     Write-Status "Upgrading pip"
-    & $PythonExe -m pip install -U pip
-    if ($LASTEXITCODE -ne 0) {
+    $pipUpgradeResult = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-m", "pip", "install", "-U", "pip")
+    Write-ProcessOutput $pipUpgradeResult.StandardOutput
+    Write-ProcessOutput $pipUpgradeResult.StandardError
+    if ($pipUpgradeResult.ExitCode -ne 0) {
         throw "pip upgrade failed."
     }
 
     Write-Status "Installing packages: $($Packages -join ', ')"
-    & $PythonExe -m pip install @Packages
-    if ($LASTEXITCODE -ne 0) {
+    $installArguments = @("-m", "pip", "install") + $Packages
+    $packageInstallResult = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList $installArguments
+    Write-ProcessOutput $packageInstallResult.StandardOutput
+    Write-ProcessOutput $packageInstallResult.StandardError
+    if ($packageInstallResult.ExitCode -ne 0) {
         throw "Package installation failed."
     }
 }
@@ -395,23 +516,39 @@ function Install-PythonPackages {
 function Assert-EasyOcrEnvironment {
     param([string]$PythonExe)
 
-    $output = & $PythonExe -c "import easyocr, torch, torchvision, sys; print(sys.executable)" 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output)) {
-        throw "EasyOCR import verification failed."
+    $result = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-c", "import easyocr, torch, torchvision, sys; print(sys.executable)")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
+        $stderr = [string]$result.StandardError
+        $stderr = $stderr.Trim()
+        if ([string]::IsNullOrWhiteSpace($stderr)) {
+            throw "EasyOCR import verification failed."
+        }
+
+        throw "EasyOCR import verification failed. $stderr"
     }
 
-    return ($output | Select-Object -Last 1).Trim()
+    return ((($result.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) | Select-Object -Last 1).Trim()
 }
 
 function Assert-PaddleOcrEnvironment {
     param([string]$PythonExe)
 
-    $output = & $PythonExe -c "import paddle, paddleocr, sys; print(paddle.__version__); print(paddleocr.__version__); print(sys.executable)" 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output)) {
-        throw "PaddleOCR import verification failed."
+    $result = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-c", "import paddle, paddleocr, sys; print(paddle.__version__); print(paddleocr.__version__); print(sys.executable)")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
+        $stderr = [string]$result.StandardError
+        $stderr = $stderr.Trim()
+        if ([string]::IsNullOrWhiteSpace($stderr)) {
+            throw "PaddleOCR import verification failed."
+        }
+
+        throw "PaddleOCR import verification failed. $stderr"
     }
 
-    $lines = @($output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $lines = @((($result.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }))
     if ($lines.Count -lt 3) {
         throw "PaddleOCR version verification output was incomplete."
     }
@@ -494,89 +631,99 @@ function Uninstall-TesseractExecutable {
 }
 
 $configInfo = Get-AppConfigInfo
-Write-Status ("Config path: " + $configInfo.ConfigPath)
+try {
+    $logPath = Initialize-LogFile -RootDirectory $configInfo.RootDirectory -ActionName $Action -EngineName $Engine
 
-switch ($Action) {
-    "Install" {
-        switch ($Engine) {
-            "EasyOCR" {
-                $pythonInfo = Find-EasyOcrBasePython
-                if ($null -eq $pythonInfo) {
-                    throw "Python 3.8 or newer was not found. Install Python and rerun Install-EasyOCR.bat."
+    Write-Status ("Config path: " + $configInfo.ConfigPath)
+    if (-not [string]::IsNullOrWhiteSpace($logPath)) {
+        Write-Status ("Detailed log: " + $logPath)
+    }
+
+    switch ($Action) {
+        "Install" {
+            switch ($Engine) {
+                "EasyOCR" {
+                    $pythonInfo = Find-EasyOcrBasePython
+                    if ($null -eq $pythonInfo) {
+                        throw "Python 3.8 or newer was not found. Install Python and rerun Install-EasyOCR.bat."
+                    }
+
+                    Write-Status ("Using base Python: " + $pythonInfo.Executable)
+                    $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
+                    $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
+                    Install-PythonPackages -PythonExe $venvPython -Packages @("torch", "torchvision", "easyocr")
+                    $verifiedPython = Assert-EasyOcrEnvironment -PythonExe $venvPython
+                    Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath" -Value $verifiedPython
+                    Write-Success ("EasyOCR installation completed.")
+                    Write-Success ("EasyOcrPythonPath=" + $verifiedPython)
                 }
+                "PaddleOCR" {
+                    $pythonInfo = Ensure-Python310
+                    Write-Status ("Using Python 3.10: " + $pythonInfo.Executable)
+                    $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
+                    $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
+                    Install-PythonPackages -PythonExe $venvPython -Packages @("paddlepaddle==3.2.0", "paddleocr==3.3.3")
+                    $verifiedPython = Assert-PaddleOcrEnvironment -PythonExe $venvPython
+                    Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath" -Value $verifiedPython
+                    Write-Success ("PaddleOCR installation completed.")
+                    Write-Success ("PaddleOcrPythonPath=" + $verifiedPython)
+                }
+                "Tesseract" {
+                    $tesseractExe = Ensure-TesseractExecutable
+                    Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath" -Value $tesseractExe
+                    Write-Success ("Tesseract installation completed.")
+                    Write-Success ("TesseractExePath=" + $tesseractExe)
+                }
+            }
+        }
+        "Uninstall" {
+            switch ($Engine) {
+                "EasyOCR" {
+                    $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
+                    $removed = Remove-VenvDirectory -VenvPath $venvPath
+                    Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath"
+                    if ($removed) {
+                        Write-Success "EasyOCR virtual environment removed."
+                    } else {
+                        Write-Status "EasyOCR virtual environment was not present."
+                    }
 
-                Write-Status ("Using base Python: " + $pythonInfo.Executable)
-                $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
-                $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
-                Install-PythonPackages -PythonExe $venvPython -Packages @("torch", "torchvision", "easyocr")
-                $verifiedPython = Assert-EasyOcrEnvironment -PythonExe $venvPython
-                Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath" -Value $verifiedPython
-                Write-Success ("EasyOCR installation completed.")
-                Write-Success ("EasyOcrPythonPath=" + $verifiedPython)
-            }
-            "PaddleOCR" {
-                $pythonInfo = Ensure-Python310
-                Write-Status ("Using Python 3.10: " + $pythonInfo.Executable)
-                $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
-                $venvPython = Ensure-Venv -BasePythonExe $pythonInfo.Executable -VenvPath $venvPath
-                Install-PythonPackages -PythonExe $venvPython -Packages @("paddlepaddle==3.2.0", "paddleocr==3.3.3")
-                $verifiedPython = Assert-PaddleOcrEnvironment -PythonExe $venvPython
-                Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath" -Value $verifiedPython
-                Write-Success ("PaddleOCR installation completed.")
-                Write-Success ("PaddleOcrPythonPath=" + $verifiedPython)
-            }
-            "Tesseract" {
-                $tesseractExe = Ensure-TesseractExecutable
-                Set-IniValue -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath" -Value $tesseractExe
-                Write-Success ("Tesseract installation completed.")
-                Write-Success ("TesseractExePath=" + $tesseractExe)
+                    Write-Success "EasyOcrPythonPath removed from config.ini."
+                }
+                "PaddleOCR" {
+                    $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
+                    $removed = Remove-VenvDirectory -VenvPath $venvPath
+                    Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath"
+                    if ($removed) {
+                        Write-Success "PaddleOCR virtual environment removed."
+                    } else {
+                        Write-Status "PaddleOCR virtual environment was not present."
+                    }
+
+                    Write-Success "PaddleOcrPythonPath removed from config.ini."
+                }
+                "Tesseract" {
+                    $result = Uninstall-TesseractExecutable
+                    Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath"
+                    if ($result.RemovedByWinget) {
+                        Write-Success "Tesseract uninstall was requested through WinGet."
+                    } else {
+                        Write-Status "Tesseract was not removed automatically by WinGet."
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($result.RemainingExecutable)) {
+                        Write-Status ("Tesseract executable still exists: " + $result.RemainingExecutable)
+                        Write-Status "If Tesseract was installed manually, remove it from Windows Apps or delete the portable folder yourself."
+                    } else {
+                        Write-Success "Tesseract executable was not detected after uninstall."
+                    }
+
+                    Write-Success "TesseractExePath removed from config.ini."
+                }
             }
         }
     }
-    "Uninstall" {
-        switch ($Engine) {
-            "EasyOCR" {
-                $venvPath = Join-Path $configInfo.VenvRoot "easyocr"
-                $removed = Remove-VenvDirectory -VenvPath $venvPath
-                Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "EasyOcrPythonPath"
-                if ($removed) {
-                    Write-Success "EasyOCR virtual environment removed."
-                } else {
-                    Write-Status "EasyOCR virtual environment was not present."
-                }
-
-                Write-Success "EasyOcrPythonPath removed from config.ini."
-            }
-            "PaddleOCR" {
-                $venvPath = Join-Path $configInfo.VenvRoot "paddleocr310"
-                $removed = Remove-VenvDirectory -VenvPath $venvPath
-                Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "PaddleOcrPythonPath"
-                if ($removed) {
-                    Write-Success "PaddleOCR virtual environment removed."
-                } else {
-                    Write-Status "PaddleOCR virtual environment was not present."
-                }
-
-                Write-Success "PaddleOcrPythonPath removed from config.ini."
-            }
-            "Tesseract" {
-                $result = Uninstall-TesseractExecutable
-                Remove-IniKey -ConfigPath $configInfo.ConfigPath -Section $ocrSectionName -Key "TesseractExePath"
-                if ($result.RemovedByWinget) {
-                    Write-Success "Tesseract uninstall was requested through WinGet."
-                } else {
-                    Write-Status "Tesseract was not removed automatically by WinGet."
-                }
-
-                if (-not [string]::IsNullOrWhiteSpace($result.RemainingExecutable)) {
-                    Write-Status ("Tesseract executable still exists: " + $result.RemainingExecutable)
-                    Write-Status "If Tesseract was installed manually, remove it from Windows Apps or delete the portable folder yourself."
-                } else {
-                    Write-Success "Tesseract executable was not detected after uninstall."
-                }
-
-                Write-Success "TesseractExePath removed from config.ini."
-            }
-        }
-    }
+} catch {
+    Write-Failure $_.Exception.Message
+    exit 1
 }
