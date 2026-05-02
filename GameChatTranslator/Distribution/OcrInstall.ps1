@@ -242,6 +242,43 @@ function Get-PythonInfoFromPyLauncher {
     }
 }
 
+function Invoke-ProcessCapture {
+    param(
+        [string]$FileName,
+        [string[]]$ArgumentList
+    )
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $FileName
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    foreach ($argument in $ArgumentList) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    if ($null -eq $process) {
+        throw "Failed to start process: $FileName"
+    }
+
+    try {
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            StandardOutput = $stdout
+            StandardError = $stderr
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
 function Get-InstalledPythonCandidates {
     $candidates = New-Object System.Collections.Generic.List[string]
 
@@ -396,23 +433,33 @@ function Install-PythonPackages {
 function Assert-EasyOcrEnvironment {
     param([string]$PythonExe)
 
-    $output = & $PythonExe -c "import easyocr, torch, torchvision, sys; print(sys.executable)" 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output)) {
-        throw "EasyOCR import verification failed."
+    $result = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-c", "import easyocr, torch, torchvision, sys; print(sys.executable)")
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
+        $stderr = ($result.StandardError ?? "").Trim()
+        if ([string]::IsNullOrWhiteSpace($stderr)) {
+            throw "EasyOCR import verification failed."
+        }
+
+        throw "EasyOCR import verification failed. $stderr"
     }
 
-    return ($output | Select-Object -Last 1).Trim()
+    return ((($result.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) | Select-Object -Last 1).Trim()
 }
 
 function Assert-PaddleOcrEnvironment {
     param([string]$PythonExe)
 
-    $output = & $PythonExe -c "import paddle, paddleocr, sys; print(paddle.__version__); print(paddleocr.__version__); print(sys.executable)" 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output)) {
-        throw "PaddleOCR import verification failed."
+    $result = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-c", "import paddle, paddleocr, sys; print(paddle.__version__); print(paddleocr.__version__); print(sys.executable)")
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
+        $stderr = ($result.StandardError ?? "").Trim()
+        if ([string]::IsNullOrWhiteSpace($stderr)) {
+            throw "PaddleOCR import verification failed."
+        }
+
+        throw "PaddleOCR import verification failed. $stderr"
     }
 
-    $lines = @($output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $lines = @((($result.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }))
     if ($lines.Count -lt 3) {
         throw "PaddleOCR version verification output was incomplete."
     }
