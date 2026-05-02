@@ -15,16 +15,75 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appFolderName = "GameChatTranslator"
 $portableMarkerFileName = "portable.mode"
 $ocrSectionName = "OCR"
-$transcriptStarted = $false
+$script:LogPath = $null
+
+function Initialize-LogFile {
+    param(
+        [string]$RootDirectory,
+        [string]$ActionName,
+        [string]$EngineName
+    )
+
+    try {
+        $logDirectory = Join-Path $RootDirectory "logs"
+        [System.IO.Directory]::CreateDirectory($logDirectory) | Out-Null
+        $script:LogPath = Join-Path $logDirectory ("ocr-package-{0}-{1}.log" -f $ActionName.ToLowerInvariant(), $EngineName.ToLowerInvariant())
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($script:LogPath, "", $utf8NoBom)
+    } catch {
+        $script:LogPath = $null
+        Write-Host ("[WARN] Detailed log file could not be created. " + $_.Exception.Message)
+    }
+
+    return $script:LogPath
+}
+
+function Write-LogLine {
+    param([string]$Line)
+
+    Write-Host $Line
+
+    if ([string]::IsNullOrWhiteSpace($script:LogPath)) {
+        return
+    }
+
+    try {
+        Add-Content -Path $script:LogPath -Value $Line -Encoding UTF8
+    } catch {
+        Write-Host ("[WARN] Detailed log write failed. " + $_.Exception.Message)
+        $script:LogPath = $null
+    }
+}
+
+function Write-ProcessOutput {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return
+    }
+
+    foreach ($line in ($Text -split "`r?`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        Write-LogLine $line
+    }
+}
 
 function Write-Status {
     param([string]$Message)
-    Write-Host "[INFO] $Message"
+    Write-LogLine "[INFO] $Message"
 }
 
 function Write-Success {
     param([string]$Message)
-    Write-Host "[OK] $Message"
+    Write-LogLine "[OK] $Message"
+}
+
+function Write-Failure {
+    param([string]$Message)
+    Write-LogLine "[FAIL] $Message"
 }
 
 function Get-AppConfigInfo {
@@ -357,8 +416,10 @@ function Invoke-WingetInstall {
     }
 
     Write-Status "Attempting WinGet install: $PackageId"
-    & $winget.Source install --id $PackageId -e --accept-package-agreements --accept-source-agreements --disable-interactivity
-    return $LASTEXITCODE -eq 0
+    $result = Invoke-ProcessCapture -FileName $winget.Source -ArgumentList @("install", "--id", $PackageId, "-e", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
+    return $result.ExitCode -eq 0
 }
 
 function Invoke-WingetUninstall {
@@ -370,8 +431,10 @@ function Invoke-WingetUninstall {
     }
 
     Write-Status "Attempting WinGet uninstall: $PackageId"
-    & $winget.Source uninstall --id $PackageId -e --accept-source-agreements --disable-interactivity
-    return $LASTEXITCODE -eq 0
+    $result = Invoke-ProcessCapture -FileName $winget.Source -ArgumentList @("uninstall", "--id", $PackageId, "-e", "--accept-source-agreements", "--disable-interactivity")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
+    return $result.ExitCode -eq 0
 }
 
 function Ensure-Python310 {
@@ -402,8 +465,10 @@ function Ensure-Venv {
     $venvPython = Join-Path $VenvPath "Scripts\python.exe"
     if (-not (Test-Path $venvPython)) {
         Write-Status "Creating virtual environment: $VenvPath"
-        & $BasePythonExe -m venv $VenvPath
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPython)) {
+        $result = Invoke-ProcessCapture -FileName $BasePythonExe -ArgumentList @("-m", "venv", $VenvPath)
+        Write-ProcessOutput $result.StandardOutput
+        Write-ProcessOutput $result.StandardError
+        if ($result.ExitCode -ne 0 -or -not (Test-Path $venvPython)) {
             throw "Virtual environment creation failed: $VenvPath"
         }
     }
@@ -418,14 +483,19 @@ function Install-PythonPackages {
     )
 
     Write-Status "Upgrading pip"
-    & $PythonExe -m pip install -U pip
-    if ($LASTEXITCODE -ne 0) {
+    $pipUpgradeResult = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-m", "pip", "install", "-U", "pip")
+    Write-ProcessOutput $pipUpgradeResult.StandardOutput
+    Write-ProcessOutput $pipUpgradeResult.StandardError
+    if ($pipUpgradeResult.ExitCode -ne 0) {
         throw "pip upgrade failed."
     }
 
     Write-Status "Installing packages: $($Packages -join ', ')"
-    & $PythonExe -m pip install @Packages
-    if ($LASTEXITCODE -ne 0) {
+    $installArguments = @("-m", "pip", "install") + $Packages
+    $packageInstallResult = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList $installArguments
+    Write-ProcessOutput $packageInstallResult.StandardOutput
+    Write-ProcessOutput $packageInstallResult.StandardError
+    if ($packageInstallResult.ExitCode -ne 0) {
         throw "Package installation failed."
     }
 }
@@ -434,6 +504,8 @@ function Assert-EasyOcrEnvironment {
     param([string]$PythonExe)
 
     $result = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-c", "import easyocr, torch, torchvision, sys; print(sys.executable)")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
     if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
         $stderr = ($result.StandardError ?? "").Trim()
         if ([string]::IsNullOrWhiteSpace($stderr)) {
@@ -450,6 +522,8 @@ function Assert-PaddleOcrEnvironment {
     param([string]$PythonExe)
 
     $result = Invoke-ProcessCapture -FileName $PythonExe -ArgumentList @("-c", "import paddle, paddleocr, sys; print(paddle.__version__); print(paddleocr.__version__); print(sys.executable)")
+    Write-ProcessOutput $result.StandardOutput
+    Write-ProcessOutput $result.StandardError
     if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StandardOutput)) {
         $stderr = ($result.StandardError ?? "").Trim()
         if ([string]::IsNullOrWhiteSpace($stderr)) {
@@ -543,14 +617,12 @@ function Uninstall-TesseractExecutable {
 
 $configInfo = Get-AppConfigInfo
 try {
-    $logDirectory = Join-Path $configInfo.RootDirectory "logs"
-    [System.IO.Directory]::CreateDirectory($logDirectory) | Out-Null
-    $logPath = Join-Path $logDirectory ("ocr-package-{0}-{1}.log" -f $Action.ToLowerInvariant(), $Engine.ToLowerInvariant())
-    Start-Transcript -Path $logPath -Force | Out-Null
-    $transcriptStarted = $true
+    $logPath = Initialize-LogFile -RootDirectory $configInfo.RootDirectory -ActionName $Action -EngineName $Engine
 
     Write-Status ("Config path: " + $configInfo.ConfigPath)
-    Write-Status ("Detailed log: " + $logPath)
+    if (-not [string]::IsNullOrWhiteSpace($logPath)) {
+        Write-Status ("Detailed log: " + $logPath)
+    }
 
     switch ($Action) {
         "Install" {
@@ -637,13 +709,6 @@ try {
         }
     }
 } catch {
-    Write-Host ("[FAIL] " + $_.Exception.Message)
+    Write-Failure $_.Exception.Message
     exit 1
-} finally {
-    if ($transcriptStarted) {
-        try {
-            Stop-Transcript | Out-Null
-        } catch {
-        }
-    }
 }
