@@ -507,12 +507,24 @@ namespace GameTranslator
 
             try
             {
+                if (!string.IsNullOrWhiteSpace(detailLogPath))
+                {
+                    string detailLogDirectory = Path.GetDirectoryName(detailLogPath);
+                    if (!string.IsNullOrWhiteSpace(detailLogDirectory))
+                    {
+                        Directory.CreateDirectory(detailLogDirectory);
+                    }
+                }
+
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = scriptPath,
-                    Arguments = "--no-pause",
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"\"{scriptPath}\" --no-pause\"",
                     WorkingDirectory = Path.GetDirectoryName(scriptPath) ?? AppDomain.CurrentDomain.BaseDirectory,
-                    UseShellExecute = true
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
                 };
 
                 using Process process = Process.Start(startInfo);
@@ -524,7 +536,36 @@ namespace GameTranslator
                     return;
                 }
 
+                Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+                Task<string> stderrTask = process.StandardError.ReadToEndAsync();
                 await process.WaitForExitAsync();
+                string stdout = await stdoutTask;
+                string stderr = await stderrTask;
+
+                if (!string.IsNullOrWhiteSpace(detailLogPath))
+                {
+                    StringBuilder logBuilder = new StringBuilder();
+                    logBuilder.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {actionLabel} 실행");
+                    logBuilder.AppendLine($"script={scriptPath}");
+                    logBuilder.AppendLine($"workingDirectory={startInfo.WorkingDirectory}");
+                    logBuilder.AppendLine($"exitCode={process.ExitCode}");
+
+                    if (!string.IsNullOrWhiteSpace(stdout))
+                    {
+                        logBuilder.AppendLine();
+                        logBuilder.AppendLine("[stdout]");
+                        logBuilder.AppendLine(stdout.TrimEnd());
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(stderr))
+                    {
+                        logBuilder.AppendLine();
+                        logBuilder.AppendLine("[stderr]");
+                        logBuilder.AppendLine(stderr.TrimEnd());
+                    }
+
+                    File.WriteAllText(detailLogPath, logBuilder.ToString(), new UTF8Encoding(false));
+                }
 
                 if (process.ExitCode == 0)
                 {
