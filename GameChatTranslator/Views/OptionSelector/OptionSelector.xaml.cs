@@ -380,6 +380,11 @@ namespace GameTranslator
                 return OcrPackageInstallationState.NotInstalled("미설치");
             }
 
+            if (IsDefaultPythonCommand(configuredPath))
+            {
+                return OcrPackageInstallationState.NotInstalled("미설치");
+            }
+
             if (File.Exists(configuredPath))
             {
                 return OcrPackageInstallationState.Installed($"설치됨 ({configuredPath})");
@@ -392,6 +397,11 @@ namespace GameTranslator
         {
             string configuredPath = (_ini?.Read("TesseractExePath") ?? "").Trim();
             if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                return OcrPackageInstallationState.NotInstalled("미설치");
+            }
+
+            if (string.Equals(configuredPath, SettingsService.DefaultTesseractExecutablePath, StringComparison.OrdinalIgnoreCase))
             {
                 return OcrPackageInstallationState.NotInstalled("미설치");
             }
@@ -419,6 +429,12 @@ namespace GameTranslator
         private string GetCurrentConfigFilePath()
         {
             return (_ini?.Path ?? "").Trim();
+        }
+
+        private static bool IsDefaultPythonCommand(string configuredPath)
+        {
+            return string.Equals(configuredPath, SettingsService.DefaultEasyOcrPythonPath, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(configuredPath, SettingsService.DefaultPaddleOcrPythonPath, StringComparison.OrdinalIgnoreCase);
         }
 
         private void SetExternalOcrPackageStatus(string text, System.Windows.Media.Brush brush)

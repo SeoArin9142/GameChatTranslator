@@ -30,5 +30,5 @@ if "!FAILED!"=="0" (
 )
 echo ==========================================
 echo.
-pause
+if /i not "%~1"=="--no-pause" pause
 exit /b !FAILED!
