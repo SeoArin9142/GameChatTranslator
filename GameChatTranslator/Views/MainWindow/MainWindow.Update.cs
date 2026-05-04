@@ -20,9 +20,9 @@ namespace GameTranslator
     /// </summary>
     public partial class MainWindow
     {
-        private const string GitHubRepoUrl = "https://github.com/SeoArin9142/GameChatTranslator";
-        private const string ReleaseListApiUrl = "https://api.github.com/repos/SeoArin9142/GameChatTranslator/releases?per_page=10";
-        private const string ReleasePageUrl = "https://github.com/SeoArin9142/GameChatTranslator/releases";
+        private const string GitHubRepoUrl = "https://github.com/TailFox-Forge/GameChatTranslator";
+        private const string ReleaseListApiUrl = "https://api.github.com/repos/TailFox-Forge/GameChatTranslator/releases?per_page=10";
+        private const string ReleasePageUrl = "https://github.com/TailFox-Forge/GameChatTranslator/releases";
 
         /// <summary>
         /// 업데이트 확인이 시작 시 자동으로 실행된 것인지, 사용자가 버튼으로 수동 실행한 것인지 구분합니다.
