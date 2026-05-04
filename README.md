@@ -10,11 +10,11 @@
 
 최신 배포 파일:
 
-[GameChatTranslator v1.0.33-alpha 다운로드](https://github.com/SeoArin9142/GameChatTranslator/releases/download/v1.0.33-alpha/GameChatTranslator_v1.0.33-alpha.zip)
+[GameChatTranslator v1.0.33-alpha 다운로드](https://github.com/TailFox-Forge/GameChatTranslator/releases/download/v1.0.33-alpha/GameChatTranslator_v1.0.33-alpha.zip)
 
 릴리즈 페이지:
 
-https://github.com/SeoArin9142/GameChatTranslator/releases
+https://github.com/TailFox-Forge/GameChatTranslator/releases
 
 권장 배포 방식:
 
